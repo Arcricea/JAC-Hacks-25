@@ -16,8 +16,8 @@ const userSchema = new mongoose.Schema({
   accountType: {
     type: String,
     required: true,
-    enum: ['error','individual', 'business', 'distributor'],
-    default: 'error'
+    enum: ['individual', 'business', 'distributor'],
+    default: 'individual'
   },
   createdAt: {
     type: Date,

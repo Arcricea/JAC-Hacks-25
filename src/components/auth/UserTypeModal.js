@@ -1,13 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../../assets/styles/UserTypeModal.css';
-import { saveUser } from '../../services/userService';
+import { saveUser, getUserByAuth0Id } from '../../services/userService';
 
 const UserTypeModal = ({ isOpen, onComplete }) => {
   const { user } = useAuth0();
   const [selectedType, setSelectedType] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  // Check if user already exists in database with account type when modal opens
+  useEffect(() => {
+    if (isOpen && user?.sub) {
+      setInitialLoading(true);
+      
+      // Try to get existing user data
+      getUserByAuth0Id(user.sub)
+        .then(userData => {
+          if (userData.success && userData.data) {
+            // User exists, check if they've already selected an account type
+            const accountType = userData.data.accountType;
+            
+            // If they have a valid account type that was manually selected
+            if (localStorage.getItem(`user_type_set_${user.sub}`) === 'true') {
+              localStorage.setItem(`user_type_${user.sub}`, accountType);
+              // Close the modal and proceed
+              onComplete(accountType);
+            } else {
+              // User exists but we're not sure if they manually selected an account type
+              // Let them choose again to confirm
+              setSelectedType(accountType || '');
+            }
+          }
+        })
+        .catch(error => {
+          // User doesn't exist in database yet or other error
+          console.log('Account type selection required');
+        })
+        .finally(() => {
+          setInitialLoading(false);
+        });
+    }
+  }, [isOpen, user, onComplete]);
 
   const userTypes = [
     {
@@ -70,6 +105,19 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
   };
 
   if (!isOpen) return null;
+  
+  if (initialLoading) {
+    return (
+      <div className="usertype-modal-overlay">
+        <div className="usertype-modal">
+          <div className="usertype-modal-content">
+            <h2>Loading...</h2>
+            <p>Checking your account information</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="usertype-modal-overlay">

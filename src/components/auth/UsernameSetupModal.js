@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../../assets/styles/UsernameSetupModal.css';
 import { saveUser, getUserByAuth0Id } from '../../services/userService';
@@ -8,6 +8,34 @@ const UsernameSetupModal = ({ isOpen, onComplete }) => {
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  // Check if user already exists in database when modal opens
+  useEffect(() => {
+    if (isOpen && user?.sub) {
+      setInitialLoading(true);
+      
+      // Try to get existing user data
+      getUserByAuth0Id(user.sub)
+        .then(userData => {
+          if (userData.success && userData.data) {
+            // If user exists, use their username and complete setup
+            localStorage.setItem(`user_nickname_${user.sub}`, userData.data.username);
+            localStorage.setItem(`username_set_${user.sub}`, 'true');
+            
+            // Close the modal and proceed
+            onComplete(userData.data.username);
+          }
+        })
+        .catch(error => {
+          // User doesn't exist in database yet, which is expected for new users
+          console.log('New user setup required');
+        })
+        .finally(() => {
+          setInitialLoading(false);
+        });
+    }
+  }, [isOpen, user, onComplete]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -62,6 +90,19 @@ const UsernameSetupModal = ({ isOpen, onComplete }) => {
   };
 
   if (!isOpen) return null;
+  
+  if (initialLoading) {
+    return (
+      <div className="username-modal-overlay">
+        <div className="username-modal">
+          <div className="username-modal-content">
+            <h2>Loading...</h2>
+            <p>Checking your account information</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="username-modal-overlay">
