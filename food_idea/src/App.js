@@ -14,6 +14,7 @@ import Contact from './pages/Contact';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import Dashboard from './pages/Dashboard';
+import Profile from './components/auth/Profile';
 
 function App() {
   return (
@@ -28,11 +29,10 @@ function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-
-{/* Add more routes as needed */}
-          
-</Routes>
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/profile" element={<Profile />} />
+            {/* Add more routes as needed */}
+          </Routes>
         </main>
         <Footer />
       </div>

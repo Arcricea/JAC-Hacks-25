@@ -31,7 +31,7 @@ const SignUp = () => {
   return (
     <div className="auth-container">
       <div className="auth-card signup-card">
-        <h2>Create Your FoodForward Account</h2>
+        <h2>Create Your MealNet Account</h2>
         <div className="user-type-toggle">
           <button 
             className={userType === 'individual' ? 'active' : ''}
