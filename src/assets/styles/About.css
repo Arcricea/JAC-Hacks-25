@@ -6,23 +6,31 @@
 
 /* Hero Section */
 .about-hero {
-  background-color: #f8f9fa;
-  padding: 80px 0;
+  background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('../backdrop_fruit.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  padding: 120px 0;
   text-align: center;
   margin-bottom: 40px;
+  position: relative;
 }
 
 .about-hero h1 {
   font-size: 3rem;
-  color: #2c3e50;
+  color: #ffffff;
   margin-bottom: 15px;
+  position: relative;
+  z-index: 1;
 }
 
 .about-subtitle {
   font-size: 1.2rem;
-  color: #7f8c8d;
+  color: #ffffff;
   max-width: 600px;
   margin: 0 auto;
+  position: relative;
+  z-index: 1;
 }
 
 /* Container */

@@ -22,26 +22,28 @@ const Home = () => {
     <div className="home-page">
       {/* Hero Section */}
       <section className="hero-section">
-        <div className="hero-content">
-          <h1>Reduce Food Waste, Feed Communities</h1>
-          <p>
-            MealNet connects food suppliers with food banks and individuals in need to rescue surplus food 
-            before it's wasted. Join us in creating a more sustainable future.
-          </p>
-          <div className="hero-buttons">
-            <Link to="/signup" className="primary-btn">Get Started</Link>
+        <div className="hero-container">
+          <div className="hero-content">
+            <h1>Reduce Food Waste, Feed Communities</h1>
+            <p>
+              MealNet connects food suppliers with food banks and individuals in need to rescue surplus food 
+              before it's wasted. Join us in creating a more sustainable future.
+            </p>
+            <div className="hero-buttons">
+              <Link to="/signup" className="primary-btn">Get Started</Link>
+            </div>
           </div>
-        </div>
-        <div className="hero-image">
-          <div className="rotating-images">
-            {images.map((image, index) => (
-              <img
-                key={index}
-                src={image}
-                alt={imageNames[index]}
-                className={`hero-img ${index === currentImageIndex ? 'active' : ''}`}
-              />
-            ))}
+          <div className="hero-image">
+            <div className="rotating-images">
+              {images.map((image, index) => (
+                <img
+                  key={index}
+                  src={image}
+                  alt={imageNames[index]}
+                  className={`hero-img ${index === currentImageIndex ? 'active' : ''}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </section>

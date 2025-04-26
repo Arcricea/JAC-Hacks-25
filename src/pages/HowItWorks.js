@@ -1,25 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import '../assets/styles/HowItWorks.css';
+import donationBox from '../assets/donation_box.webp';
+import shoppingVeges from '../assets/shopping_veges.jpg';
+import handingApple from '../assets/handing_apple2.webp';
 
 const HowItWorks = () => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const images = [donationBox, shoppingVeges, handingApple];
+  const imageNames = ['Donation Box', 'Shopping Vegetables', 'Handing Apple'];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 3000); // Change image every 3 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="how-it-works-page">
       {/* Hero Section */}
       <section className="hero-section">
-        <div className="hero-content">
-          <h1>Making Food Rescue Easier and Faster</h1>
-          <p>
-            Join our mission to reduce food waste and feed those who need it most. 
-            MealNet connects food banks with suppliers and individuals who want to help, in a system that benefits everyone! 
-          </p>
-          <div className="hero-buttons">
-            <Link to="/signup" className="primary-btn">Get Started Now</Link>
+        <div className="hero-container">
+          <div className="hero-content">
+            <h1>Making Food Rescue Easier and Faster</h1>
+            <p>
+              Join our mission to reduce food waste and feed those who need it most. 
+              MealNet connects food banks with suppliers and individuals who want to help, in a system that benefits everyone! 
+            </p>
+            <div className="hero-buttons">
+              <Link to="/signup" className="primary-btn">Get Started Now</Link>
+            </div>
           </div>
-        </div>
-        <div className="hero-image">
-          <div className="placeholder-image">
-            <span className="hero-emoji">🥗 ➡️ 💝</span>
+          <div className="hero-image">
+            <div className="rotating-images">
+              {images.map((image, index) => (
+                <img
+                  key={index}
+                  src={image}
+                  alt={imageNames[index]}
+                  className={`hero-img ${index === currentImageIndex ? 'active' : ''}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </section>

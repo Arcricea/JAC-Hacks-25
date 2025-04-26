@@ -1,5 +1,6 @@
 import React from 'react';
 import '../assets/styles/About.css';
+import backdropFruit from '../assets/backdrop_fruit.jpg';
 
 const About = () => {
   return (
