@@ -16,7 +16,9 @@ import HowItWorks from './pages/HowItWorks';
 import Contact from './pages/Contact';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
-import Dashboard from './pages/Dashboard';
+import SupplierDashboard from './pages/SupplierDashboard';
+import FoodBankDashboard from './pages/FoodBankDashboard';
+import IndividualDashboard from './pages/IndividualDashboard';
 import Profile from './components/auth/Profile';
 
 function App() {
@@ -65,7 +67,9 @@ function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/supplier-dashboard" element={<SupplierDashboard />} />
+            <Route path="/foodbank-dashboard" element={<FoodBankDashboard />} />
+            <Route path="/individual-dashboard" element={<IndividualDashboard />} />
             <Route path="/profile" element={<Profile />} />
             {/* Add more routes as needed */}
           </Routes>
