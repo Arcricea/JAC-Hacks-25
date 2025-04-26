@@ -579,4 +579,209 @@
 .available-section,
 .distribution-section {
   margin-top: 20px;
+}
+
+/* Form Rows for side-by-side form elements */
+.form-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 1.5rem;
+}
+
+.form-row .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* File Upload Button */
+.file-upload {
+  position: relative;
+  overflow: hidden;
+  display: inline-block;
+}
+
+.file-upload input[type=file] {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  width: 0.1px;
+  height: 0.1px;
+}
+
+.file-upload label {
+  display: inline-block;
+  padding: 10px 15px;
+  background-color: #f1f1f1;
+  color: #333;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.file-upload label:hover {
+  background-color: #e0e0e0;
+}
+
+/* Form Buttons Container */
+.form-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 30px;
+}
+
+/* Impact Cards */
+.impact-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.impact-card {
+  background-color: white;
+  border-radius: 10px;
+  padding: 25px 20px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease;
+}
+
+.impact-card:hover {
+  transform: translateY(-5px);
+}
+
+.impact-icon {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+}
+
+.impact-value {
+  font-size: 2.2rem;
+  font-weight: bold;
+  color: #2e7d32;
+  margin: 10px 0;
+}
+
+.impact-card p {
+  color: #666;
+  margin: 0;
+}
+
+/* Impact Charts */
+.impact-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 25px;
+  margin-bottom: 40px;
+}
+
+.chart-container {
+  background-color: white;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.chart-placeholder {
+  background-color: #f9f9f9;
+  height: 200px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chart-message {
+  text-align: center;
+  padding: 20px;
+}
+
+.chart-icon {
+  font-size: 2rem;
+  margin-bottom: 10px;
+}
+
+/* Badges */
+.impact-badges {
+  margin-top: 30px;
+}
+
+.badges-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.badge {
+  width: 100px;
+  text-align: center;
+  padding: 15px;
+  border-radius: 8px;
+  background-color: #f0f7e6;
+  transition: transform 0.3s ease;
+}
+
+.badge:hover {
+  transform: scale(1.05);
+}
+
+.badge.inactive {
+  opacity: 0.5;
+  background-color: #f1f1f1;
+}
+
+.badge-icon {
+  font-size: 2rem;
+  margin-bottom: 8px;
+}
+
+.badge-name {
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+/* Share Buttons */
+.impact-share {
+  margin-top: 40px;
+  padding: 25px;
+  border-radius: 10px;
+  background-color: #f9f9f9;
+  text-align: center;
+}
+
+.share-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.share-btn {
+  padding: 10px 20px;
+  border-radius: 5px;
+  color: white;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.share-btn.facebook {
+  background-color: #1877f2;
+}
+
+.share-btn.twitter {
+  background-color: #1da1f2;
+}
+
+.share-btn.linkedin {
+  background-color: #0a66c2;
+}
+
+.share-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
 } 
