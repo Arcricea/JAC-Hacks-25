@@ -1,13 +1,21 @@
+<<<<<<< HEAD
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
+=======
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+>>>>>>> 639b2e151a493d6e1b2c70216b734204e47e5c23
 import './App.css';
 
 // Components
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+<<<<<<< HEAD
 import UsernameSetupModal from './components/auth/UsernameSetupModal';
 import UserTypeModal from './components/auth/UserTypeModal';
+=======
+>>>>>>> 639b2e151a493d6e1b2c70216b734204e47e5c23
 
 // Pages
 import Home from './pages/Home';
@@ -20,6 +28,7 @@ import Dashboard from './pages/Dashboard';
 import Profile from './components/auth/Profile';
 
 function App() {
+<<<<<<< HEAD
   const { isAuthenticated, user } = useAuth0();
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [showUserTypeModal, setShowUserTypeModal] = useState(false);
@@ -53,6 +62,8 @@ function App() {
     console.log('User type selected:', userType);
   };
 
+=======
+>>>>>>> 639b2e151a493d6e1b2c70216b734204e47e5c23
   return (
     <Router>
       <div className="App">
@@ -71,6 +82,7 @@ function App() {
           </Routes>
         </main>
         <Footer />
+<<<<<<< HEAD
         
         {/* Modals */}
         <UsernameSetupModal 
@@ -81,6 +93,8 @@ function App() {
           isOpen={showUserTypeModal} 
           onComplete={handleUserTypeComplete} 
         />
+=======
+>>>>>>> 639b2e151a493d6e1b2c70216b734204e47e5c23
       </div>
     </Router>
   );

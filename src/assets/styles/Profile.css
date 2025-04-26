@@ -8,8 +8,13 @@
 
 .profile-card {
   background-color: white;
+<<<<<<< HEAD
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+=======
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+>>>>>>> 639b2e151a493d6e1b2c70216b734204e47e5c23
   width: 100%;
   max-width: 500px;
   padding: 2rem;
@@ -24,13 +29,21 @@
 }
 
 .profile-picture {
+<<<<<<< HEAD
   width: 120px;
   height: 120px;
+=======
+  width: 100px;
+  height: 100px;
+>>>>>>> 639b2e151a493d6e1b2c70216b734204e47e5c23
   border-radius: 50%;
   object-fit: cover;
   margin-bottom: 1rem;
   border: 3px solid #2e7d32;
+<<<<<<< HEAD
   box-shadow: 0 4px 12px rgba(46, 125, 50, 0.15);
+=======
+>>>>>>> 639b2e151a493d6e1b2c70216b734204e47e5c23
 }
 
 .profile-email {
@@ -38,6 +51,7 @@
   margin-top: 0.5rem;
 }
 
+<<<<<<< HEAD
 .profile-username-section {
   margin-bottom: 2rem;
   padding: 1.5rem;
@@ -148,6 +162,8 @@
   font-size: 0.9rem;
 }
 
+=======
+>>>>>>> 639b2e151a493d6e1b2c70216b734204e47e5c23
 .profile-details {
   border-top: 1px solid #eee;
   padding-top: 1.5rem;

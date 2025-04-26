@@ -5,7 +5,7 @@
 /.pnp
 .pnp.js
 package-lock.json
-food_idea/package-lock.json
+.vscode
 
 # testing
 /coverage
