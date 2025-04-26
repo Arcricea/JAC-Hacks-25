@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../../assets/styles/UserTypeModal.css';
 import { saveUser, getUserByAuth0Id } from '../../services/userService';
+import { UserContext } from '../../App';
 
 const UserTypeModal = ({ isOpen, onComplete }) => {
   const { user } = useAuth0();
+  const { setUserData } = useContext(UserContext);
   const [selectedType, setSelectedType] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -18,20 +20,19 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
       // Try to get existing user data
       getUserByAuth0Id(user.sub)
         .then(userData => {
-          if (userData.success && userData.data) {
-            // User exists, check if they've already selected an account type
-            const accountType = userData.data.accountType;
+          if (userData.success && userData.data && userData.data.accountType !== 'error') {
+            // If user exists with valid account type, use it and complete setup
+            localStorage.setItem(`user_type_${user.sub}`, userData.data.accountType);
+            localStorage.setItem(`user_type_set_${user.sub}`, 'true');
             
-            // If they have a valid account type that was manually selected
-            if (localStorage.getItem(`user_type_set_${user.sub}`) === 'true') {
-              localStorage.setItem(`user_type_${user.sub}`, accountType);
-              // Close the modal and proceed
-              onComplete(accountType);
-            } else {
-              // User exists but we're not sure if they manually selected an account type
-              // Let them choose again to confirm
-              setSelectedType(accountType || '');
-            }
+            // Update global userData state
+            setUserData(userData.data);
+            
+            // Close the modal and proceed
+            onComplete(userData.data.accountType);
+          } else if (userData.success && userData.data) {
+            // User exists but needs to select account type
+            setSelectedType(userData.data.accountType === 'error' ? '' : userData.data.accountType);
           }
         })
         .catch(error => {
@@ -42,7 +43,7 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
           setInitialLoading(false);
         });
     }
-  }, [isOpen, user, onComplete]);
+  }, [isOpen, user, onComplete, setUserData]);
 
   const userTypes = [
     {
@@ -85,11 +86,16 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
       }
       
       // Save to MongoDB via API
-      await saveUser({
+      const response = await saveUser({
         auth0Id: user.sub,
         username,
         accountType: selectedType
       });
+      
+      // Update the global userData state with the returned user data
+      if (response.success && response.data) {
+        setUserData(response.data);
+      }
       
       // Still save to localStorage as a backup/for quick access
       localStorage.setItem(`user_type_${user.sub}`, selectedType);

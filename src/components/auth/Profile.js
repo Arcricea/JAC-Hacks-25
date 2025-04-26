@@ -1,14 +1,24 @@
-import React, { useState } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import "../../assets/styles/Profile.css";
+import { UserContext } from "../../App";
+import { saveUser } from "../../services/userService";
 
 const Profile = () => {
   const { user, isAuthenticated, isLoading } = useAuth0();
-  const [nickname, setNickname] = useState(user?.nickname || "");
+  const { userData, setUserData } = useContext(UserContext);
+  const [nickname, setNickname] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Set nickname from userData when it becomes available
+  useEffect(() => {
+    if (userData?.username) {
+      setNickname(userData.username);
+    }
+  }, [userData]);
 
   if (isLoading) {
     return <div className="profile-loading">Loading...</div>;
@@ -19,15 +29,27 @@ const Profile = () => {
   }
 
   const handleUpdateNickname = async () => {
-    // This would require Auth0 Management API setup
-    // For now, we'll just save it to localStorage as a demo
     setIsSaving(true);
     setError("");
     
     try {
-      // In a real implementation, you would call the Auth0 Management API
-      // For demo purposes, we'll store in localStorage
+      // Save to both localStorage and database
       localStorage.setItem(`user_nickname_${user.sub}`, nickname);
+      
+      if (userData) {
+        // Update in database
+        await saveUser({
+          auth0Id: user.sub,
+          username: nickname,
+          accountType: userData.accountType || 'individual'
+        });
+        
+        // Update the global userData state
+        setUserData(prev => ({
+          ...prev,
+          username: nickname
+        }));
+      }
       
       // Show success message
       setSuccessMessage("Username updated successfully!");
@@ -73,7 +95,7 @@ const Profile = () => {
                 <button 
                   onClick={() => {
                     setIsEditing(false);
-                    setNickname(user?.nickname || "");
+                    setNickname(userData?.username || "");
                   }}
                   className="cancel-btn"
                 >
@@ -96,6 +118,11 @@ const Profile = () => {
           {successMessage && <p className="success-message">{successMessage}</p>}
         </div>
         
+        <div className="profile-account-type">
+          <h3>Account Type</h3>
+          <p>{userData?.accountType ? formatAccountType(userData.accountType) : "Not set"}</p>
+        </div>
+        
         <div className="profile-details">
           {user.sub && <p><strong>Auth0 ID:</strong> {user.sub}</p>}
           {user.updated_at && (
@@ -109,5 +136,15 @@ const Profile = () => {
     </div>
   );
 };
+
+// Helper function to format account type for display
+function formatAccountType(type) {
+  const types = {
+    individual: "Individual User",
+    business: "Business / Restaurant",
+    distributor: "Food Bank / Distributor"
+  };
+  return types[type] || type;
+}
 
 export default Profile; 

@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../../assets/styles/UsernameSetupModal.css';
 import { saveUser, getUserByAuth0Id } from '../../services/userService';
+import { UserContext } from '../../App';
 
 const UsernameSetupModal = ({ isOpen, onComplete }) => {
   const { user } = useAuth0();
+  const { setUserData } = useContext(UserContext);
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,6 +25,9 @@ const UsernameSetupModal = ({ isOpen, onComplete }) => {
             localStorage.setItem(`user_nickname_${user.sub}`, userData.data.username);
             localStorage.setItem(`username_set_${user.sub}`, 'true');
             
+            // Update global userData state
+            setUserData(userData.data);
+            
             // Close the modal and proceed
             onComplete(userData.data.username);
           }
@@ -35,7 +40,7 @@ const UsernameSetupModal = ({ isOpen, onComplete }) => {
           setInitialLoading(false);
         });
     }
-  }, [isOpen, user, onComplete]);
+  }, [isOpen, user, onComplete, setUserData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -64,16 +69,28 @@ const UsernameSetupModal = ({ isOpen, onComplete }) => {
       localStorage.setItem(`user_nickname_${user.sub}`, username);
       localStorage.setItem(`username_set_${user.sub}`, 'true');
       
+      // Set initial userData state with just the username
+      setUserData({
+        auth0Id: user.sub,
+        username,
+        accountType: 'individual' // Default, will be properly set in UserTypeModal
+      });
+      
       // Check if user already exists and has an account type
       try {
         const userData = await getUserByAuth0Id(user.sub);
         if (userData.success && userData.data) {
           // If user exists, update with new username
-          await saveUser({
+          const response = await saveUser({
             auth0Id: user.sub,
             username,
             accountType: userData.data.accountType
           });
+          
+          // Update userData with server response
+          if (response.success && response.data) {
+            setUserData(response.data);
+          }
         }
       } catch (error) {
         // User doesn't exist yet, which is fine

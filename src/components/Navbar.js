@@ -1,19 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../assets/styles/Navbar.css';
 import AuthenticationButton from './auth/AuthenticationButton';
 import SignupButton from './auth/SignupButton';
+import { UserContext } from '../App';
 
 const Navbar = () => {
   const { isAuthenticated, user } = useAuth0();
+  const { userData } = useContext(UserContext);
   const [displayName, setDisplayName] = useState('');
   const [userType, setUserType] = useState('');
   
-  // Update display name and user type whenever user changes
+  // Update display name and user type whenever user or userData changes
   useEffect(() => {
-    if (user?.sub) {
-      // Try to get nickname from localStorage first
+    if (userData) {
+      // If we have userData from context, use it (this is the most up-to-date)
+      setDisplayName(userData.username || '');
+      setUserType(userData.accountType || '');
+    } else if (user?.sub) {
+      // Fallback to localStorage if context doesn't have data yet
       const savedNickname = localStorage.getItem(`user_nickname_${user.sub}`);
       if (savedNickname) {
         setDisplayName(savedNickname);
@@ -31,7 +37,7 @@ const Navbar = () => {
       setDisplayName('');
       setUserType('');
     }
-  }, [user]);
+  }, [user, userData]);
   
   // Get display label for user type
   const getUserTypeLabel = () => {
