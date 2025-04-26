@@ -8,11 +8,10 @@ const HowItWorks = () => {
       {/* Hero Section */}
       <section className="hero-section">
         <div className="hero-content">
-          <h1>Making Food Rescue Simple</h1>
+          <h1>Making Food Rescue Easier and Faster</h1>
           <p>
-            Join our mission to reduce food waste and feed communities in need. 
-            FoodForward connects food suppliers with food banks and individuals 
-            through an easy-to-use platform.
+            Join our mission to reduce food waste and feed those who need it most. 
+            FoodForward connects food banks with suppliers and individuals who want to help, in a system that benefits everyone! 
           </p>
           <div className="hero-buttons">
             <Link to="/signup" className="primary-btn">Get Started Now</Link>
@@ -32,12 +31,12 @@ const HowItWorks = () => {
           <div className="step">
             <div className="step-icon">📝</div>
             <h3>1. Sign Up</h3>
-            <p>Create your account as a food supplier, food bank, or individual seeking assistance</p>
+            <p>Create your account as a food supplier, food bank, or individual volunteer</p>
           </div>
           <div className="step">
             <div className="step-icon">🔍</div>
             <h3>2. Connect</h3>
-            <p>Food suppliers list available items, while food banks and individuals find nearby donations</p>
+            <p>Food banks and volunteers can find nearby food suppliers to donate to</p>
           </div>
           <div className="step">
             <div className="step-icon">🤝</div>
