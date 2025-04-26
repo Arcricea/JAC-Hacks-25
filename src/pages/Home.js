@@ -1,8 +1,23 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import '../assets/styles/Home.css';
+import freshFruit from '../assets/fresh_fruit.jpg';
+import freshVegetables from '../assets/fresh_vegetables.jpg';
+import freshCooked from '../assets/fresh_cooked.webp';
 
 const Home = () => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const images = [freshFruit, freshVegetables, freshCooked];
+  const imageNames = ['Fresh Fruit', 'Fresh Vegetables', 'Fresh Cooked'];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => (prevIndex + 1) % images.length);
+    }, 3000); // Change image every 3 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="home-page">
       {/* Hero Section */}
@@ -18,9 +33,15 @@ const Home = () => {
           </div>
         </div>
         <div className="hero-image">
-          {/* This would be an image in production */}
-          <div className="placeholder-image">
-            <span className="hero-emoji">🥗 🍎 🥖</span>
+          <div className="rotating-images">
+            {images.map((image, index) => (
+              <img
+                key={index}
+                src={image}
+                alt={imageNames[index]}
+                className={`hero-img ${index === currentImageIndex ? 'active' : ''}`}
+              />
+            ))}
           </div>
         </div>
       </section>
