@@ -1,0 +1,446 @@
+.dashboard-container {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.dashboard-container h2 {
+  color: #1b5e20;
+  margin-bottom: 2rem;
+  font-size: 2rem;
+}
+
+/* Demo Controls - would be removed in production */
+.demo-controls {
+  background-color: #f5f5f5;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.demo-controls p {
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+.demo-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.demo-buttons button {
+  padding: 0.5rem 1rem;
+  background-color: transparent;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.demo-buttons button.active {
+  background-color: #2e7d32;
+  color: white;
+  border-color: #2e7d32;
+}
+
+.demo-buttons button:hover:not(.active) {
+  background-color: #f0f0f0;
+}
+
+/* Dashboard Tabs */
+.dashboard-tabs {
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+  gap: 1rem;
+}
+
+.dashboard-tabs button {
+  padding: 0.8rem 1.5rem;
+  background-color: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-weight: 600;
+  color: #555;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.dashboard-tabs button.active {
+  color: #2e7d32;
+  border-bottom-color: #2e7d32;
+}
+
+.dashboard-tabs button:hover:not(.active) {
+  color: #2e7d32;
+  background-color: rgba(46, 125, 50, 0.05);
+}
+
+/* Dashboard Content */
+.dashboard-content {
+  background-color: white;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  min-height: 60vh;
+}
+
+/* Stats Cards */
+.stats-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-card {
+  flex: 1;
+  min-width: 180px;
+  background-color: #f9f9f9;
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+}
+
+.stat-card h3 {
+  font-size: 2rem;
+  color: #2e7d32;
+  margin-bottom: 0.5rem;
+}
+
+.stat-card p {
+  color: #555;
+  font-size: 0.9rem;
+}
+
+/* Data Tables */
+.recent-activity {
+  margin-top: 2rem;
+}
+
+.recent-activity h3, 
+.donate-section h3, 
+.available-section h3,
+.distribution-section h3,
+.current-inventory h3,
+.impact-section h3,
+.history-section h3,
+.resources-section h3 {
+  color: #2e7d32;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.data-table th, .data-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.data-table th {
+  background-color: #f9f9f9;
+  font-weight: 600;
+  color: #333;
+}
+
+.data-table tr:hover {
+  background-color: #f5f5f5;
+}
+
+.status {
+  display: inline-block;
+  padding: 0.3rem 0.8rem;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.status.picked-up {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status.scheduled {
+  background-color: #fff8e1;
+  color: #f57c00;
+}
+
+.status.completed {
+  background-color: #e3f2fd;
+  color: #1976d2;
+}
+
+.status.confirmed {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+/* Forms within Dashboard */
+.donate-form, .distribution-tools {
+  background-color: #f9f9f9;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  border-color: #2e7d32;
+  outline: none;
+}
+
+.primary-btn, .secondary-btn {
+  padding: 0.8rem 1.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: none;
+}
+
+.primary-btn {
+  background-color: #2e7d32;
+  color: white;
+}
+
+.primary-btn:hover {
+  background-color: #1b5e20;
+}
+
+.secondary-btn {
+  background-color: transparent;
+  color: #2e7d32;
+  border: 1px solid #2e7d32;
+}
+
+.secondary-btn:hover {
+  background-color: rgba(46, 125, 50, 0.1);
+}
+
+.small-btn {
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  background-color: #e0e0e0;
+  color: #333;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.small-btn:hover {
+  background-color: #d0d0d0;
+}
+
+.small-btn.danger {
+  background-color: #ffebee;
+  color: #d32f2f;
+}
+
+.small-btn.danger:hover {
+  background-color: #ffcdd2;
+}
+
+/* Donation Cards */
+.donation-filters {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.donation-filters input,
+.donation-filters select {
+  padding: 0.8rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.donation-filters input {
+  flex: 2;
+}
+
+.donation-filters select {
+  flex: 1;
+}
+
+.available-donations {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.donation-card, .assistance-card, .resource-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.donation-card:hover, .assistance-card:hover, .resource-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.donation-info, .assistance-details {
+  margin-bottom: 1.5rem;
+}
+
+.donation-info h4, .assistance-details h4, .resource-card h4 {
+  color: #2e7d32;
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+}
+
+.donation-info p, .assistance-details p, .resource-card p {
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+.donation-actions {
+  text-align: center;
+}
+
+/* Assistance Cards */
+.assistance-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* Impact Section */
+.impact-charts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.impact-chart {
+  flex: 1;
+  min-width: 300px;
+  background-color: #f9f9f9;
+  padding: 1.5rem;
+  border-radius: 8px;
+}
+
+.impact-chart h4 {
+  color: #2e7d32;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.chart-placeholder {
+  height: 200px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(46, 125, 50, 0.05);
+  border-radius: 8px;
+  font-size: 2rem;
+}
+
+.impact-testimonials {
+  background-color: #f9f9f9;
+  padding: 1.5rem;
+  border-radius: 8px;
+}
+
+.impact-testimonials h4 {
+  color: #2e7d32;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.testimonial {
+  padding: 1.5rem;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.testimonial p {
+  font-style: italic;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.testimonial-source {
+  text-align: right;
+  font-weight: 600;
+  color: #555;
+}
+
+/* Resources Section */
+.resource-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 1rem;
+  }
+  
+  .dashboard-tabs {
+    flex-wrap: wrap;
+  }
+  
+  .stats-cards, .impact-charts {
+    flex-direction: column;
+  }
+  
+  .donation-filters {
+    flex-direction: column;
+  }
+  
+  .data-table {
+    display: block;
+    overflow-x: auto;
+  }
+  
+  .demo-buttons {
+    flex-direction: column;
+  }
+} 
