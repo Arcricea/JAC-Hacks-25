@@ -46,6 +46,20 @@ const Navbar = () => {
         return '';
     }
   };
+
+  // Get the correct dashboard route based on user type
+  const getDashboardRoute = () => {
+    switch(userType) {
+      case 'individual':
+        return '/individual-dashboard';
+      case 'business':
+        return '/supplier-dashboard';
+      case 'distributor':
+        return '/foodbank-dashboard';
+      default:
+        return '/dashboard'; // Fallback route
+    }
+  };
   
   return (
     <nav className="navbar">
@@ -60,7 +74,7 @@ const Navbar = () => {
           <Link to="/about" className="nav-link">About</Link>
           <Link to="/how-it-works" className="nav-link">How It Works</Link>
           <Link to="/contact" className="nav-link">Contact</Link>
-          {isAuthenticated && <Link to="/dashboard" className="nav-link">Dashboard</Link>}
+          {isAuthenticated && <Link to={getDashboardRoute()} className="nav-link">Dashboard</Link>}
         </div>
         
         <div className="auth-buttons">
