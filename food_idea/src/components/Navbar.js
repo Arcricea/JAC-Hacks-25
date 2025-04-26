@@ -1,11 +1,51 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../assets/styles/Navbar.css';
 import AuthenticationButton from './auth/AuthenticationButton';
+import SignupButton from './auth/SignupButton';
 
 const Navbar = () => {
   const { isAuthenticated, user } = useAuth0();
+  const [displayName, setDisplayName] = useState('');
+  const [userType, setUserType] = useState('');
+  
+  // Update display name and user type whenever user changes
+  useEffect(() => {
+    if (user?.sub) {
+      // Try to get nickname from localStorage first
+      const savedNickname = localStorage.getItem(`user_nickname_${user.sub}`);
+      if (savedNickname) {
+        setDisplayName(savedNickname);
+      } else {
+        // Fall back to user object data
+        setDisplayName(user.nickname || (user.name ? user.name.split(' ')[0] : user.email));
+      }
+      
+      // Get user type
+      const savedUserType = localStorage.getItem(`user_type_${user.sub}`);
+      if (savedUserType) {
+        setUserType(savedUserType);
+      }
+    } else {
+      setDisplayName('');
+      setUserType('');
+    }
+  }, [user]);
+  
+  // Get display label for user type
+  const getUserTypeLabel = () => {
+    switch(userType) {
+      case 'individual':
+        return 'Individual';
+      case 'business':
+        return 'Business';
+      case 'distributor':
+        return 'Food Bank';
+      default:
+        return '';
+    }
+  };
   
   return (
     <nav className="navbar">
@@ -29,17 +69,20 @@ const Navbar = () => {
               <Link to="/profile" className="profile-link">
                 <img 
                   src={user?.picture} 
-                  alt={user?.name} 
+                  alt={displayName || user?.name} 
                   className="profile-image"
                 />
-                <span className="profile-name">{user?.name?.split(' ')[0]}</span>
+                <div className="profile-info">
+                  <span className="profile-name">{displayName}</span>
+                  {userType && <span className="user-type-badge">{getUserTypeLabel()}</span>}
+                </div>
               </Link>
               <AuthenticationButton />
             </div>
           ) : (
             <>
               <AuthenticationButton />
-              <Link to="/signup" className="signup-btn">Sign Up</Link>
+              <SignupButton />
             </>
           )}
         </div>

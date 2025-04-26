@@ -8,8 +8,8 @@
 
 .profile-card {
   background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   width: 100%;
   max-width: 500px;
   padding: 2rem;
@@ -24,17 +24,128 @@
 }
 
 .profile-picture {
-  width: 100px;
-  height: 100px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   object-fit: cover;
   margin-bottom: 1rem;
   border: 3px solid #2e7d32;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.15);
 }
 
 .profile-email {
   color: #666;
   margin-top: 0.5rem;
+}
+
+.profile-username-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.profile-username-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #2e7d32;
+}
+
+.username-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.username-display p {
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.edit-username-btn {
+  background-color: transparent;
+  color: #2e7d32;
+  border: 1px solid #2e7d32;
+  padding: 0.4rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.edit-username-btn:hover {
+  background-color: rgba(46, 125, 50, 0.08);
+}
+
+.username-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.username-input {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.username-input:focus {
+  border-color: #2e7d32;
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.1);
+}
+
+.username-actions {
+  display: flex;
+  gap: 0.8rem;
+}
+
+.save-username-btn, .cancel-btn {
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.save-username-btn {
+  background-color: #2e7d32;
+  color: white;
+}
+
+.save-username-btn:hover {
+  background-color: #1b5e20;
+}
+
+.save-username-btn:disabled {
+  background-color: #a5d6a7;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  background-color: #f5f5f5;
+  color: #555;
+}
+
+.cancel-btn:hover {
+  background-color: #e0e0e0;
+}
+
+.error-message {
+  color: #d32f2f;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.success-message {
+  color: #2e7d32;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
 }
 
 .profile-details {
