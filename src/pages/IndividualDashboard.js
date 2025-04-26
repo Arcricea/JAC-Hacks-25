@@ -28,74 +28,106 @@ const IndividualDashboard = () => {
           Overview
         </button>
         <button 
-          className={activeTab === 'assistance' ? 'active' : ''} 
-          onClick={() => setActiveTab('assistance')}
+          className={activeTab === 'history' ? 'active' : ''} 
+          onClick={() => setActiveTab('history')}
         >
-          Find Assistance
+          History
         </button>
         <button 
-          className={activeTab === 'appointments' ? 'active' : ''} 
-          onClick={() => setActiveTab('appointments')}
+          className={activeTab === 'resources' ? 'active' : ''} 
+          onClick={() => setActiveTab('resources')}
         >
-          Appointments
+          Resources
         </button>
       </div>
 
       {activeTab === 'overview' && (
         <div className="overview-section">
-          <div className="upcoming-assistance">
-            <h3>Available Assistance</h3>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Provider</th>
-                  <th>Type</th>
-                  <th>Location</th>
-                  <th>Date</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {individualData.availableAssistance.map(assistance => (
-                  <tr key={assistance.id}>
-                    <td>{assistance.provider}</td>
-                    <td>{assistance.type}</td>
-                    <td>{assistance.location}</td>
-                    <td>{assistance.date}</td>
-                    <td><button className="small-btn">Request</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <h3>Available Food Assistance</h3>
+          <div className="assistance-cards">
+            {individualData.availableAssistance.map(assistance => (
+              <div key={assistance.id} className="assistance-card">
+                <div className="assistance-details">
+                  <h4>{assistance.provider}</h4>
+                  <p><strong>Type:</strong> {assistance.type}</p>
+                  <p><strong>Location:</strong> {assistance.location}</p>
+                  <p><strong>Date:</strong> {assistance.date}</p>
+                </div>
+                <button className="primary-btn">Register</button>
+              </div>
+            ))}
           </div>
-
-          <div className="appointments">
-            <h3>Upcoming Appointments</h3>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Provider</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Status</th>
+          
+          <h3>Upcoming Appointments</h3>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {individualData.upcomingAppointments.map(appointment => (
+                <tr key={appointment.id}>
+                  <td>{appointment.provider}</td>
+                  <td>{appointment.date}</td>
+                  <td>{appointment.time}</td>
+                  <td><span className="status confirmed">{appointment.status}</span></td>
                 </tr>
-              </thead>
-              <tbody>
-                {individualData.upcomingAppointments.map(appointment => (
-                  <tr key={appointment.id}>
-                    <td>{appointment.provider}</td>
-                    <td>{appointment.date}</td>
-                    <td>{appointment.time}</td>
-                    <td><span className="status confirmed">{appointment.status}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Assistance and Appointments tabs would go here */}
+      {activeTab === 'history' && (
+        <div className="history-section">
+          <h3>Assistance History</h3>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Provider</th>
+                <th>Date</th>
+                <th>Items Received</th>
+              </tr>
+            </thead>
+            <tbody>
+              {individualData.assistanceHistory.map(history => (
+                <tr key={history.id}>
+                  <td>{history.provider}</td>
+                  <td>{history.date}</td>
+                  <td>{history.items}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {activeTab === 'resources' && (
+        <div className="resources-section">
+          <h3>Additional Resources</h3>
+          <div className="resource-cards">
+            <div className="resource-card">
+              <h4>Nutrition Information</h4>
+              <p>Access guides on balanced meals and nutrition with limited resources.</p>
+              <button className="secondary-btn">View Resources</button>
+            </div>
+            <div className="resource-card">
+              <h4>Financial Assistance</h4>
+              <p>Information on additional support programs and financial assistance.</p>
+              <button className="secondary-btn">Learn More</button>
+            </div>
+            <div className="resource-card">
+              <h4>Community Support</h4>
+              <p>Connect with local community support groups and services.</p>
+              <button className="secondary-btn">Find Support</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
