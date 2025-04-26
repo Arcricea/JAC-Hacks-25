@@ -2,43 +2,67 @@ import React, { useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../../assets/styles/UsernameSetupModal.css';
 
+// API base URL - replace with your actual server URL
+const API_URL = 'http://localhost:5000';
+
 const UsernameSetupModal = ({ isOpen, onComplete }) => {
   const { user } = useAuth0();
   const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
-
+    
     if (!username.trim()) {
-      setError('Username is required');
+      setError('Username cannot be empty');
       return;
     }
-
-    if (username.length < 3) {
-      setError('Username must be at least 3 characters');
-      return;
-    }
-
-    // Regular expression to check if username only contains letters, numbers, and underscores
-    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
-      setError('Username can only contain letters, numbers, and underscores');
-      return;
-    }
-
+    
     setIsSubmitting(true);
     
-    // In a production app, you'd verify username availability on your backend
-    // For now, we're just saving to localStorage
     try {
-      localStorage.setItem(`user_nickname_${user.sub}`, username);
+      // Save to localStorage for immediate use
       localStorage.setItem(`username_set_${user.sub}`, 'true');
+      localStorage.setItem(`user_nickname_${user.sub}`, username);
       
-      // Notify parent that username has been set
+      // Save to MongoDB 
+      const userData = {
+        auth0Id: user.sub,
+        username: username,
+        email: user.email,
+        userType: '', // Will be set in UserTypeModal
+        profilePicture: user.picture
+      };
+      
+      // Check if user already exists
+      const checkResponse = await fetch(`${API_URL}/api/users/auth0/${user.sub}`);
+      
+      if (checkResponse.status === 404) {
+        // User doesn't exist, create new user
+        await fetch(`${API_URL}/api/users`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(userData),
+        });
+      } else {
+        // User exists, update username
+        const existingUser = await checkResponse.json();
+        await fetch(`${API_URL}/api/users/${existingUser._id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username }),
+        });
+      }
+      
+      // Call the onComplete prop
       onComplete(username);
-    } catch (err) {
+    } catch (error) {
+      console.error('Failed to save username:', error);
       setError('Failed to save username. Please try again.');
     } finally {
       setIsSubmitting(false);

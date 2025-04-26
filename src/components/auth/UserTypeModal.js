@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../../assets/styles/UserTypeModal.css';
 
+// API base URL - replace with your actual server URL
+const API_URL = 'http://localhost:5000';
+
 const UserTypeModal = ({ isOpen, onComplete }) => {
   const { user } = useAuth0();
   const [selectedType, setSelectedType] = useState('');
@@ -29,6 +32,43 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
     }
   ];
 
+  const handleSelection = async (selectedType) => {
+    setIsSubmitting(true);
+    
+    try {
+      // Save to localStorage for immediate use
+      localStorage.setItem(`user_type_${user.sub}`, selectedType);
+      localStorage.setItem(`user_type_set_${user.sub}`, 'true');
+      
+      // Save to MongoDB - update the user record
+      // First find the user by Auth0 ID
+      const response = await fetch(`${API_URL}/api/users/auth0/${user.sub}`);
+      
+      if (response.ok) {
+        const userData = await response.json();
+        // Update the user type
+        await fetch(`${API_URL}/api/users/${userData._id}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userType: selectedType }),
+        });
+      } else {
+        console.error('User not found in database');
+        // You might want to create the user here as a fallback
+      }
+      
+      // Call the onComplete prop
+      onComplete(selectedType);
+    } catch (error) {
+      console.error('Failed to save user type:', error);
+      setError('Failed to save user type. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setError('');
@@ -38,21 +78,7 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
       return;
     }
 
-    setIsSubmitting(true);
-    
-    // In a production app, you'd save this to your backend
-    // For now, we're just saving to localStorage
-    try {
-      localStorage.setItem(`user_type_${user.sub}`, selectedType);
-      localStorage.setItem(`user_type_set_${user.sub}`, 'true');
-      
-      // Notify parent that user type has been set
-      onComplete(selectedType);
-    } catch (err) {
-      setError('Failed to save selection. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    handleSelection(selectedType);
   };
 
   if (!isOpen) return null;

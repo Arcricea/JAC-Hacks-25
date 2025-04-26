@@ -9,8 +9,15 @@ const PORT = config.PORT;
 const foodRoutes = require('./routes/foodRoutes');
 const userRoutes = require('./routes/userRoutes');
 
-// Middleware
-app.use(cors());
+// CORS Configuration - Allow requests from the React app
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'], // Add your React app URL here
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Other middleware
 app.use(express.json());
 
 // MongoDB Connection
