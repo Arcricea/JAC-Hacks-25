@@ -52,8 +52,8 @@
 
 .hero-image {
   position: relative;
-  width: 500px;
-  height: 500px;
+  width: 600px;
+  height: 400px;
   overflow: hidden;
   border-radius: 20px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -425,8 +425,8 @@
   }
 
   .hero-image {
-    width: 400px;
-    height: 400px;
+    width: 500px;
+    height: 333px;
   }
 }
 
@@ -442,7 +442,7 @@
 
   .hero-image {
     width: 100%;
-    max-width: 500px;
+    max-width: 600px;
     height: 400px;
   }
 }
