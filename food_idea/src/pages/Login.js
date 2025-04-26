@@ -16,7 +16,7 @@ const Login = () => {
   return (
     <div className="auth-container">
       <div className="auth-card">
-        <h2>Log In to FoodForward</h2>
+        <h2>Log In to MealNet</h2>
         <div className="user-type-toggle">
           <button 
             className={userType === 'individual' ? 'active' : ''}

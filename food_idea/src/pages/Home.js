@@ -10,7 +10,7 @@ const Home = () => {
         <div className="hero-content">
           <h1>Reduce Food Waste, Feed Communities</h1>
           <p>
-            FoodForward connects food suppliers with food banks and individuals in need to rescue surplus food 
+            MealNet connects food suppliers with food banks and individuals in need to rescue surplus food 
             before it's wasted. Join us in creating a more sustainable future.
           </p>
           <div className="hero-buttons">
@@ -44,7 +44,7 @@ const Home = () => {
 
       {/* How It Works Section */}
       <section className="how-it-works">
-        <h2>How FoodForward Works</h2>
+        <h2>How MealNet Works</h2>
         <div className="steps-container">
           <div className="step">
             <div className="step-icon">📝</div>
@@ -71,7 +71,7 @@ const Home = () => {
 
       {/* User Types Section */}
       <section className="user-types">
-        <h2>Who Can Use FoodForward?</h2>
+        <h2>Who Can Use MealNet?</h2>
         <div className="user-cards">
           <div className="user-card">
             <div className="user-icon">🍽️</div>
