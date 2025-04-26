@@ -11,7 +11,7 @@ const HowItWorks = () => {
           <h1>Making Food Rescue Easier and Faster</h1>
           <p>
             Join our mission to reduce food waste and feed those who need it most. 
-            FoodForward connects food banks with suppliers and individuals who want to help, in a system that benefits everyone! 
+            MealNet connects food banks with suppliers and individuals who want to help, in a system that benefits everyone! 
           </p>
           <div className="hero-buttons">
             <Link to="/signup" className="primary-btn">Get Started Now</Link>
@@ -53,7 +53,7 @@ const HowItWorks = () => {
 
       {/* User Roles */}
       <section className="user-types">
-        <h2>Who Can Use FoodForward?</h2>
+        <h2>Who Can Use MealNet?</h2>
         <div className="user-cards">
           <div className="user-card">
             <div className="user-icon">🏪</div>
@@ -69,7 +69,7 @@ const HowItWorks = () => {
           </div>
           <div className="user-card">
             <div className="user-icon">🏢</div>
-            <h3>Food Banks</h3>
+            <h3>Food Banks & Shelters</h3>
             <p>Food banks and charitable organizations can find and collect available donations</p>
             <ul className="feature-list">
               <li>✓ Real-time donation alerts</li>
@@ -113,7 +113,7 @@ const HowItWorks = () => {
       {/* CTA Section */}
       <section className="cta-section">
         <h2>Ready to Make a Difference?</h2>
-        <p>Join FoodForward today and be part of the solution to food waste and hunger</p>
+        <p>Join MealNet today and be part of the solution to food waste and hunger</p>
         <Link to="/signup" className="cta-button">Get Started</Link>
       </section>
     </div>
