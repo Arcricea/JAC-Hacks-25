@@ -1,13 +1,8 @@
-<<<<<<< HEAD
 import React, { useEffect, useState } from 'react';
-=======
-import React from 'react';
->>>>>>> 639b2e151a493d6e1b2c70216b734204e47e5c23
 import { Link } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../assets/styles/Navbar.css';
 import AuthenticationButton from './auth/AuthenticationButton';
-<<<<<<< HEAD
 import SignupButton from './auth/SignupButton';
 
 const Navbar = () => {
@@ -51,11 +46,6 @@ const Navbar = () => {
         return '';
     }
   };
-=======
-
-const Navbar = () => {
-  const { isAuthenticated, user } = useAuth0();
->>>>>>> 639b2e151a493d6e1b2c70216b734204e47e5c23
   
   return (
     <nav className="navbar">
@@ -79,7 +69,6 @@ const Navbar = () => {
               <Link to="/profile" className="profile-link">
                 <img 
                   src={user?.picture} 
-<<<<<<< HEAD
                   alt={displayName || user?.name} 
                   className="profile-image"
                 />
@@ -87,23 +76,13 @@ const Navbar = () => {
                   <span className="profile-name">{displayName}</span>
                   {userType && <span className="user-type-badge">{getUserTypeLabel()}</span>}
                 </div>
-=======
-                  alt={user?.name} 
-                  className="profile-image"
-                />
-                <span className="profile-name">{user?.name?.split(' ')[0]}</span>
->>>>>>> 639b2e151a493d6e1b2c70216b734204e47e5c23
               </Link>
               <AuthenticationButton />
             </div>
           ) : (
             <>
               <AuthenticationButton />
-<<<<<<< HEAD
               <SignupButton />
-=======
-              <Link to="/signup" className="signup-btn">Sign Up</Link>
->>>>>>> 639b2e151a493d6e1b2c70216b734204e47e5c23
             </>
           )}
         </div>
