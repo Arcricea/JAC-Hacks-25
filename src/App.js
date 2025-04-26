@@ -16,75 +16,28 @@ import HowItWorks from './pages/HowItWorks';
 import Contact from './pages/Contact';
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
-import SupplierDashboard from './pages/SupplierDashboard';
-import FoodBankDashboard from './pages/FoodBankDashboard';
-import IndividualDashboard from './pages/IndividualDashboard';
+import Dashboard from './pages/Dashboard';
 import Profile from './components/auth/Profile';
-
-const API_URL = 'http://localhost:5000';
 
 function App() {
   const { isAuthenticated, user } = useAuth0();
   const [showUsernameModal, setShowUsernameModal] = useState(false);
   const [showUserTypeModal, setShowUserTypeModal] = useState(false);
-  const [isDataLoading, setIsDataLoading] = useState(false);
   
   useEffect(() => {
     // Only run this check when the user is authenticated and user object is available
     if (isAuthenticated && user?.sub) {
-      setIsDataLoading(true);
-      
-      // Check if user exists in MongoDB
-      const checkUserInDatabase = async () => {
-        try {
-          const response = await fetch(`${API_URL}/api/users/auth0/${user.sub}`);
-          
-          if (response.status === 404) {
-            // User doesn't exist in DB - this is a new signup
-            // First check localStorage as fallback
-            const hasUsername = localStorage.getItem(`username_set_${user.sub}`);
-            if (!hasUsername) {
-              setShowUsernameModal(true);
-            } else {
-              // If username is set in localStorage but not in DB, show usertype modal
-              const hasUserType = localStorage.getItem(`user_type_set_${user.sub}`);
-              if (!hasUserType) {
-                setShowUserTypeModal(true);
-              }
-            }
-          } else {
-            // User exists in DB - this is a login
-            const userData = await response.json();
-            
-            // Only sync MongoDB data with localStorage for offline use
-            if (userData.username) {
-              localStorage.setItem(`username_set_${user.sub}`, 'true');
-              localStorage.setItem(`user_nickname_${user.sub}`, userData.username);
-            }
-            
-            if (userData.userType) {
-              localStorage.setItem(`user_type_set_${user.sub}`, 'true');
-              localStorage.setItem(`user_type_${user.sub}`, userData.userType);
-            }
-          }
-        } catch (error) {
-          console.error('Error checking user in database:', error);
-          // Fallback to localStorage if can't connect to database
-          const hasUsername = localStorage.getItem(`username_set_${user.sub}`);
-          if (!hasUsername) {
-            setShowUsernameModal(true);
-          } else {
-            const hasUserType = localStorage.getItem(`user_type_set_${user.sub}`);
-            if (!hasUserType) {
-              setShowUserTypeModal(true);
-            }
-          }
-        } finally {
-          setIsDataLoading(false);
+      // Check if username has been set
+      const hasUsername = localStorage.getItem(`username_set_${user.sub}`);
+      if (!hasUsername) {
+        setShowUsernameModal(true);
+      } else {
+        // If username is set, check if user type is set
+        const hasUserType = localStorage.getItem(`user_type_set_${user.sub}`);
+        if (!hasUserType) {
+          setShowUserTypeModal(true);
         }
-      };
-      
-      checkUserInDatabase();
+      }
     }
   }, [isAuthenticated, user]);
   
@@ -112,9 +65,7 @@ function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
-            <Route path="/supplier-dashboard" element={<SupplierDashboard />} />
-            <Route path="/foodbank-dashboard" element={<FoodBankDashboard />} />
-            <Route path="/individual-dashboard" element={<IndividualDashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
             {/* Add more routes as needed */}
           </Routes>

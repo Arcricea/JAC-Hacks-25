@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import "../../assets/styles/Profile.css";
-
-const API_URL = 'http://localhost:5000';
 
 const Profile = () => {
   const { user, isAuthenticated, isLoading } = useAuth0();
@@ -11,36 +9,6 @@ const Profile = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [userId, setUserId] = useState(null);
-  
-  // Fetch user data from MongoDB when component mounts
-  useEffect(() => {
-    if (isAuthenticated && user?.sub) {
-      const fetchUserData = async () => {
-        try {
-          const response = await fetch(`${API_URL}/api/users/auth0/${user.sub}`);
-          
-          if (response.ok) {
-            const userData = await response.json();
-            if (userData.username) {
-              setNickname(userData.username);
-            }
-            // Store the MongoDB _id for future API calls
-            setUserId(userData._id);
-          }
-        } catch (error) {
-          console.error('Error fetching user data:', error);
-          // Fallback to localStorage
-          const savedNickname = localStorage.getItem(`user_nickname_${user.sub}`);
-          if (savedNickname) {
-            setNickname(savedNickname);
-          }
-        }
-      };
-      
-      fetchUserData();
-    }
-  }, [isAuthenticated, user]);
 
   if (isLoading) {
     return <div className="profile-loading">Loading...</div>;
@@ -51,63 +19,15 @@ const Profile = () => {
   }
 
   const handleUpdateNickname = async () => {
+    // This would require Auth0 Management API setup
+    // For now, we'll just save it to localStorage as a demo
     setIsSaving(true);
     setError("");
     
     try {
-      // Save to localStorage for immediate use
+      // In a real implementation, you would call the Auth0 Management API
+      // For demo purposes, we'll store in localStorage
       localStorage.setItem(`user_nickname_${user.sub}`, nickname);
-      
-      // Save to MongoDB
-      if (userId) {
-        // User exists in MongoDB, update their username
-        await fetch(`${API_URL}/api/users/${userId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ username: nickname }),
-        });
-      } else {
-        // Try to find user by Auth0 ID
-        const response = await fetch(`${API_URL}/api/users/auth0/${user.sub}`);
-        
-        if (response.status === 404) {
-          // User doesn't exist, create new user
-          const userData = {
-            auth0Id: user.sub,
-            username: nickname,
-            email: user.email,
-            userType: localStorage.getItem(`user_type_${user.sub}`) || '',
-            profilePicture: user.picture
-          };
-          
-          const createResponse = await fetch(`${API_URL}/api/users`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(userData),
-          });
-          
-          if (createResponse.ok) {
-            const newUser = await createResponse.json();
-            setUserId(newUser._id);
-          }
-        } else {
-          // User exists, update their username
-          const userData = await response.json();
-          setUserId(userData._id);
-          
-          await fetch(`${API_URL}/api/users/${userData._id}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ username: nickname }),
-          });
-        }
-      }
       
       // Show success message
       setSuccessMessage("Username updated successfully!");
@@ -116,7 +36,6 @@ const Profile = () => {
       // Exit edit mode
       setIsEditing(false);
     } catch (err) {
-      console.error('Error updating username:', err);
       setError("Failed to update username. Please try again.");
     } finally {
       setIsSaving(false);

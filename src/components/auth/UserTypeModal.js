@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../../assets/styles/UserTypeModal.css';
-
-// API base URL - replace with your actual server URL
-const API_URL = 'http://localhost:5000';
+import { saveUser } from '../../services/userService';
 
 const UserTypeModal = ({ isOpen, onComplete }) => {
   const { user } = useAuth0();
@@ -32,69 +30,7 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
     }
   ];
 
-  const handleSelection = async (selectedType) => {
-    setIsSubmitting(true);
-    
-    try {
-      // Save to localStorage for immediate use
-      localStorage.setItem(`user_type_${user.sub}`, selectedType);
-      localStorage.setItem(`user_type_set_${user.sub}`, 'true');
-      
-      // Save to MongoDB - update the user record
-      // First find the user by Auth0 ID
-      const response = await fetch(`${API_URL}/api/users/auth0/${user.sub}`);
-      
-      if (response.ok) {
-        const userData = await response.json();
-        // Update the user type
-        const updateResponse = await fetch(`${API_URL}/api/users/${userData._id}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ userType: selectedType }),
-        });
-        
-        if (!updateResponse.ok) {
-          console.error('Failed to update user type in database');
-          setError('Failed to update user type. Please try again.');
-          return;
-        }
-      } else {
-        console.error('User not found in database');
-        // Create a new user record if not found
-        const createResponse = await fetch(`${API_URL}/api/users`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            auth0Id: user.sub,
-            username: localStorage.getItem(`user_nickname_${user.sub}`) || user.nickname || user.name,
-            email: user.email,
-            userType: selectedType,
-            profilePicture: user.picture
-          }),
-        });
-        
-        if (!createResponse.ok) {
-          console.error('Failed to create user in database');
-          setError('Failed to save user information. Please try again.');
-          return;
-        }
-      }
-      
-      // Call the onComplete prop
-      onComplete(selectedType);
-    } catch (error) {
-      console.error('Failed to save user type:', error);
-      setError('Failed to save user type. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
 
@@ -103,7 +39,34 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
       return;
     }
 
-    handleSelection(selectedType);
+    setIsSubmitting(true);
+    
+    try {
+      // Get the username from localStorage (set in UsernameSetupModal)
+      const username = localStorage.getItem(`user_nickname_${user.sub}`);
+      
+      if (!username) {
+        throw new Error('Username not found. Please set a username first.');
+      }
+      
+      // Save to MongoDB via API
+      await saveUser({
+        auth0Id: user.sub,
+        username,
+        accountType: selectedType
+      });
+      
+      // Still save to localStorage as a backup/for quick access
+      localStorage.setItem(`user_type_${user.sub}`, selectedType);
+      localStorage.setItem(`user_type_set_${user.sub}`, 'true');
+      
+      // Notify parent that user type has been set
+      onComplete(selectedType);
+    } catch (err) {
+      setError(err.message || 'Failed to save selection. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;

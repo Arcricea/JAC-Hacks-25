@@ -1,40 +1,45 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config(); // Load environment variables from .env file
+const userRoutes = require('./routes/userRoutes');
+
+// Import MongoDB URI from test-mongodb.js
+const { mongoURI } = require('./config/db');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Import routes
-const foodRoutes = require('./routes/foodRoutes');
-const userRoutes = require('./routes/userRoutes');
-
-// CORS Configuration - Allow requests from the React app
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'], // Add your React app URL here
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
-// Other middleware
+// Middleware
+app.use(cors());
 app.use(express.json());
 
-// MongoDB Connection
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB Atlas'))
-  .catch(err => console.error('Error connecting to MongoDB:', err));
-
 // Routes
-app.use('/api/food', foodRoutes);
 app.use('/api/users', userRoutes);
 
-// Base Route
-app.get('/', (req, res) => {
-  res.send('MealNet API is running');
+// Health check route
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Server is running' });
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Connect to MongoDB
+mongoose.connect(mongoURI)
+  .then(() => {
+    console.log('MongoDB connection successful!');
+    
+    // Start server after successful database connection
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error('MongoDB connection failed!');
+    console.error('Error details:', error.message);
+    process.exit(1);
+  });
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.log('UNHANDLED REJECTION! Shutting down...');
+  console.error(err);
+  process.exit(1);
 }); 

@@ -9,38 +9,22 @@ const userSchema = new mongoose.Schema({
   username: {
     type: String,
     required: true,
-    trim: true
+    unique: true,
+    trim: true,
+    minlength: 3
   },
-  email: {
+  accountType: {
     type: String,
     required: true,
-    unique: true,
-    trim: true
-  },
-  userType: {
-    type: String,
-    enum: ['individual', 'business', 'distributor'],
-    required: true
-  },
-  location: {
-    type: String,
-    trim: true
-  },
-  profilePicture: {
-    type: String
+    enum: ['error','individual', 'business', 'distributor'],
+    default: 'error'
   },
   createdAt: {
     type: Date,
     default: Date.now
-  },
-  donatedItems: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Food'
-  }],
-  claimedItems: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Food'
-  }]
+  }
 });
 
-module.exports = mongoose.model('User', userSchema); 
+const User = mongoose.model('User', userSchema);
+
+module.exports = User; 
