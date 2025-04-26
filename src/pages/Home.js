@@ -15,7 +15,6 @@ const Home = () => {
           </p>
           <div className="hero-buttons">
             <Link to="/signup" className="primary-btn">Get Started</Link>
-            <Link to="/how-it-works" className="secondary-btn">Learn More</Link>
           </div>
         </div>
         <div className="hero-image">
@@ -77,19 +76,16 @@ const Home = () => {
             <div className="user-icon">🍽️</div>
             <h3>Restaurants & Grocery Stores</h3>
             <p>Donate surplus food, reduce waste, and make a difference in your community</p>
-            <Link to="/for-restaurants" className="learn-more">Learn More</Link>
           </div>
           <div className="user-card">
             <div className="user-icon">🏠</div>
             <h3>Food Banks & Shelters</h3>
             <p>Connect with food suppliers to receive fresh donations for those in need</p>
-            <Link to="/for-foodbanks" className="learn-more">Learn More</Link>
           </div>
           <div className="user-card">
             <div className="user-icon">👪</div>
             <h3>Individuals</h3>
             <p>Access available food assistance or volunteer to help with food distribution</p>
-            <Link to="/for-individuals" className="learn-more">Learn More</Link>
           </div>
         </div>
       </section>
