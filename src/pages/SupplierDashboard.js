@@ -232,7 +232,7 @@ const SupplierDashboard = () => {
             <h4>Community Impact</h4>
             <div className="testimonial">
               <p>"Your donations have helped us serve over 200 families this month. Thank you for making a difference!"</p>
-              <div className="testimonial-source">- Community Food Bank</div>
+              <div className="testimonial-source">- MealNet Community Partner</div>
             </div>
             
             <div className="impact-badges">

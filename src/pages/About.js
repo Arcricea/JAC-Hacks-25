@@ -6,7 +6,7 @@ const About = () => {
     <div className="about-page">
       <section className="about-hero">
         <div className="container">
-          <h1>About FoodForward</h1>
+          <h1>About MealNet</h1>
           <p className="about-subtitle">Our mission to reduce food waste and fight hunger</p>
         </div>
       </section>
@@ -15,7 +15,7 @@ const About = () => {
         <div className="container">
           <h2>Our Mission</h2>
           <p>
-            FoodForward is a revolutionary platform designed to address two critical global challenges: food waste and food insecurity.
+            MealNet is a revolutionary platform designed to address two critical global challenges: food waste and food insecurity.
             We connect food suppliers like restaurants, grocers, and food businesses with food banks, shelters, and individuals in need,
             creating an efficient ecosystem for food rescue and redistribution.
           </p>
@@ -29,7 +29,7 @@ const About = () => {
       <section className="about-sdg">
         <div className="container">
           <h2>Supporting UN Sustainable Development Goals</h2>
-          <p>FoodForward proudly aligns with several of the United Nations Sustainable Development Goals (SDGs), directly contributing to a more sustainable future:</p>
+          <p>MealNet proudly aligns with several of the United Nations Sustainable Development Goals (SDGs), directly contributing to a more sustainable future:</p>
           <div className="sdg-grid">
             <div className="sdg-item">
               <div className="sdg-number">1</div>
@@ -75,7 +75,7 @@ const About = () => {
 
       <section className="about-how-it-works">
         <div className="container">
-          <h2>How FoodForward Works</h2>
+          <h2>How MealNet Works</h2>
           <div className="about-steps">
             <div className="step">
               <div className="step-icon">🏪</div>
@@ -103,7 +103,7 @@ const About = () => {
             <div className="security-icon">🔒</div>
             <div className="security-info">
               <p>
-                At FoodForward, we take the security of your information extremely seriously. All data on our platform is highly encrypted
+                At MealNet, we take the security of your information extremely seriously. All data on our platform is highly encrypted
                 using industry-leading Auth0 authentication and security protocols.
               </p>
               <p>
@@ -130,7 +130,7 @@ const About = () => {
           <div className="impact-stats">
             <div className="impact-stat">
               <h3>Reducing Waste</h3>
-              <p>Every year, approximately one-third of all food produced globally goes to waste. FoodForward aims to significantly reduce this number in our communities.</p>
+              <p>Every year, approximately one-third of all food produced globally goes to waste. MealNet aims to significantly reduce this number in our communities.</p>
             </div>
             <div className="impact-stat">
               <h3>Fighting Hunger</h3>
@@ -148,7 +148,7 @@ const About = () => {
         <div className="container">
           <h2>Our Team</h2>
           <p>
-            FoodForward was founded by a passionate team of food sustainability advocates, technologists, 
+            MealNet was founded by a passionate team of food sustainability advocates, technologists, 
             and community organizers who believe in the power of technology to solve real-world problems.
           </p>
           <p>
@@ -165,7 +165,7 @@ const About = () => {
           <p>
             Whether you're a restaurant with surplus food, a food bank looking for donations,
             or an individual who wants to help reduce food waste in your community, 
-            FoodForward welcomes you to join our growing network of change-makers.
+            MealNet welcomes you to join our growing network of change-makers.
           </p>
           <div className="join-buttons">
             <a href="/signup" className="primary-btn">Sign Up Now</a>
