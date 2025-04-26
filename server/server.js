@@ -1,9 +1,9 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const config = require('./config');
+require('dotenv').config(); // Load environment variables from .env file
 const app = express();
-const PORT = config.PORT;
+const PORT = process.env.PORT || 5000;
 
 // Import routes
 const foodRoutes = require('./routes/foodRoutes');
@@ -21,7 +21,7 @@ app.use(cors({
 app.use(express.json());
 
 // MongoDB Connection
-mongoose.connect(config.MONGODB_URI)
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB Atlas'))
   .catch(err => console.error('Error connecting to MongoDB:', err));
 

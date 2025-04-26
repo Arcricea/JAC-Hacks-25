@@ -47,16 +47,41 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
       if (response.ok) {
         const userData = await response.json();
         // Update the user type
-        await fetch(`${API_URL}/api/users/${userData._id}`, {
+        const updateResponse = await fetch(`${API_URL}/api/users/${userData._id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ userType: selectedType }),
         });
+        
+        if (!updateResponse.ok) {
+          console.error('Failed to update user type in database');
+          setError('Failed to update user type. Please try again.');
+          return;
+        }
       } else {
         console.error('User not found in database');
-        // You might want to create the user here as a fallback
+        // Create a new user record if not found
+        const createResponse = await fetch(`${API_URL}/api/users`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            auth0Id: user.sub,
+            username: localStorage.getItem(`user_nickname_${user.sub}`) || user.nickname || user.name,
+            email: user.email,
+            userType: selectedType,
+            profilePicture: user.picture
+          }),
+        });
+        
+        if (!createResponse.ok) {
+          console.error('Failed to create user in database');
+          setError('Failed to save user information. Please try again.');
+          return;
+        }
       }
       
       // Call the onComplete prop

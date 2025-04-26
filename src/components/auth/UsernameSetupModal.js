@@ -40,31 +40,44 @@ const UsernameSetupModal = ({ isOpen, onComplete }) => {
       
       if (checkResponse.status === 404) {
         // User doesn't exist, create new user
-        await fetch(`${API_URL}/api/users`, {
+        const createResponse = await fetch(`${API_URL}/api/users`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(userData),
         });
+        
+        if (!createResponse.ok) {
+          console.error('Failed to create user in database');
+          setError('Failed to save username. Please try again.');
+          setIsSubmitting(false);
+          return;
+        }
       } else {
         // User exists, update username
         const existingUser = await checkResponse.json();
-        await fetch(`${API_URL}/api/users/${existingUser._id}`, {
+        const updateResponse = await fetch(`${API_URL}/api/users/${existingUser._id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ username }),
         });
+        
+        if (!updateResponse.ok) {
+          console.error('Failed to update username in database');
+          setError('Failed to update username. Please try again.');
+          setIsSubmitting(false);
+          return;
+        }
       }
       
       // Call the onComplete prop
       onComplete(username);
     } catch (error) {
-      console.error('Failed to save username:', error);
+      console.error('Error saving username:', error);
       setError('Failed to save username. Please try again.');
-    } finally {
       setIsSubmitting(false);
     }
   };

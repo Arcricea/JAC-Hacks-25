@@ -40,7 +40,8 @@ function App() {
           const response = await fetch(`${API_URL}/api/users/auth0/${user.sub}`);
           
           if (response.status === 404) {
-            // User doesn't exist in DB, check localStorage as fallback
+            // User doesn't exist in DB - this is a new signup
+            // First check localStorage as fallback
             const hasUsername = localStorage.getItem(`username_set_${user.sub}`);
             if (!hasUsername) {
               setShowUsernameModal(true);
@@ -52,16 +53,10 @@ function App() {
               }
             }
           } else {
-            // User exists in DB, check if username and userType are set
+            // User exists in DB - this is a login
             const userData = await response.json();
             
-            if (!userData.username) {
-              setShowUsernameModal(true);
-            } else if (!userData.userType) {
-              setShowUserTypeModal(true);
-            }
-            
-            // Sync MongoDB data with localStorage for offline use
+            // Only sync MongoDB data with localStorage for offline use
             if (userData.username) {
               localStorage.setItem(`username_set_${user.sub}`, 'true');
               localStorage.setItem(`user_nickname_${user.sub}`, userData.username);

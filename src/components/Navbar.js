@@ -32,6 +32,7 @@ const Navbar = () => {
               setDisplayName(userData.username);
               // Sync to localStorage for offline use
               localStorage.setItem(`user_nickname_${user.sub}`, userData.username);
+              localStorage.setItem(`username_set_${user.sub}`, 'true');
             } else {
               // Fallback to Auth0 data if no username set in MongoDB
               setDisplayName(user.nickname || (user.name ? user.name.split(' ')[0] : user.email));
@@ -41,6 +42,7 @@ const Navbar = () => {
               setUserType(userData.userType);
               // Sync to localStorage for offline use
               localStorage.setItem(`user_type_${user.sub}`, userData.userType);
+              localStorage.setItem(`user_type_set_${user.sub}`, 'true');
             }
           } else {
             // User not in database, fall back to localStorage or Auth0 data
