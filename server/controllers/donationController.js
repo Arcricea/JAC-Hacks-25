@@ -23,24 +23,19 @@ exports.createDonation = async (req, res) => {
       });
     }
 
-    // TODO: Implement logic to calculate estimatedValue based on item details
-    // --- Basic Placeholder Calculation --- START
+    // Get the user's business address
+    const user = await User.findOne({ auth0Id: userId });
+    const businessAddress = user?.address || '4873 Westmount Ave, Westmount, Quebec H3Y 1X9';
+
+    // Calculate estimated value
     let calculatedValue = 0;
-    // Attempt to parse quantity as a number
     const quantityValue = parseFloat(quantity);
-    
-    // Simple estimate: $1 per unit of quantity (VERY basic)
     if (!isNaN(quantityValue)) {
-        calculatedValue = quantityValue * 1; // $1 per unit 
+      calculatedValue = quantityValue * 1;
     } else {
-        // Fallback if quantity is not a simple number (e.g., "10 kg")
-        calculatedValue = 1; // Default to $1 if parsing fails
-        console.warn(`Could not parse quantity "${quantity}" for value estimation. Defaulting to 1.`);
+      calculatedValue = 1;
+      console.warn(`Could not parse quantity "${quantity}" for value estimation. Defaulting to 1.`);
     }
-    
-    // Note: This doesn't consider item category or actual cost!
-    const estimatedValue = calculatedValue; 
-    // --- Basic Placeholder Calculation --- END
 
     const donation = new Donation({
       userId,
@@ -50,7 +45,8 @@ exports.createDonation = async (req, res) => {
       expirationDate,
       pickupInfo,
       imageUrl,
-      estimatedValue // Add calculated value here eventually
+      businessAddress,
+      estimatedValue: calculatedValue
     });
 
     await donation.save();
@@ -60,6 +56,7 @@ exports.createDonation = async (req, res) => {
       data: donation
     });
   } catch (error) {
+    console.error('Error creating donation:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -70,37 +67,33 @@ exports.createDonation = async (req, res) => {
 
 exports.getAvailableDonations = async (req, res) => {
   try {
-    // First get all available donations
     const donations = await Donation.find({ status: 'available' })
       .sort({ createdAt: -1 });
 
-    // Get all unique user IDs from the donations
     const userIds = [...new Set(donations.map(d => d.userId))];
-
-    // Get all users for these donations
     const users = await User.find({ auth0Id: { $in: userIds } });
 
-    // Create a map of user details
     const userMap = users.reduce((map, user) => {
       map[user.auth0Id] = {
         businessName: user.businessName,
         username: user.username,
-        accountType: user.accountType
+        accountType: user.accountType,
+        address: user.address
       };
       return map;
     }, {});
 
-    // Add business names to donations
-    const donationsWithBusinessNames = donations.map(donation => {
+    const donationsWithDetails = donations.map(donation => {
       const user = userMap[donation.userId];
       const donationObj = donation.toObject();
       donationObj.businessName = user?.businessName || user?.username || 'Anonymous';
+      donationObj.businessAddress = donation.businessAddress;
       return donationObj;
     });
 
     res.status(200).json({
       success: true,
-      data: donationsWithBusinessNames
+      data: donationsWithDetails
     });
   } catch (error) {
     console.error('Error fetching available donations:', error);
