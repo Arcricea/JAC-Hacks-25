@@ -18,14 +18,14 @@ const PORT = process.env.PORT || 5000;
 // Configure CORS
 const corsOptions = {
   origin: [
-      'https://your-gce-or-netlify-url.app', // Replace with your production URL
+      'https://mealnet.netlify.app', // Replace with your production URL
       'http://localhost:3000' // Your local React dev server
       // Add any other origins you need to allow
     ],
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
 
-// Middleware
+// Middlewareu
 app.use(cors(corsOptions));
 app.use(express.json());
 

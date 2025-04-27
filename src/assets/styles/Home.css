@@ -9,7 +9,9 @@
   align-items: center;
   justify-content: center;
   padding: 80px 40px;
-  background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   min-height: 80vh;
   width: 100%;
 }
