@@ -30,6 +30,10 @@ const donationSchema = new mongoose.Schema({
   imageUrl: {
     type: String
   },
+  estimatedValue: {
+    type: Number,
+    default: 0
+  },
   status: {
     type: String,
     enum: ['available', 'scheduled', 'completed', 'cancelled'],
