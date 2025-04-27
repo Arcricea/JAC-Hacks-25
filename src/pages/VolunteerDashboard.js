@@ -10,7 +10,8 @@ import {
   assignDonationToVolunteer,
   getVolunteerScheduledDonations,
   getVolunteerCompletedDonationCount,
-  cancelVolunteerAssignment
+  cancelVolunteerAssignment,
+  getVolunteerCompletedDonations
 } from '../services/donationService';
 import { markDonationPickedUp } from '../services/foodBankService';
 
@@ -24,8 +25,10 @@ const VolunteerDashboard = () => {
   const [isAssigning, setIsAssigning] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [scheduledDonations, setScheduledDonations] = useState([]);
+  const [completedDonations, setCompletedDonations] = useState([]); // For history tab
   const [completedCount, setCompletedCount] = useState(0); // State for completed count
   const [isLoadingStats, setIsLoadingStats] = useState(false); // Loading state for stats
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false); // Loading state for history
   const [selectedPickup, setSelectedPickup] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
@@ -41,6 +44,12 @@ const VolunteerDashboard = () => {
   useEffect(() => {
     if (activeTab === 'tasks' && userData?.auth0Id) {
       fetchScheduledDonations();
+    }
+  }, [activeTab, userData]);
+
+  useEffect(() => {
+    if (activeTab === 'history' && userData?.auth0Id) {
+      fetchCompletedDonations();
     }
   }, [activeTab, userData]);
 
@@ -120,6 +129,25 @@ const VolunteerDashboard = () => {
       console.error('Error fetching donation stats:', err);
     } finally {
       setIsLoadingStats(false);
+    }
+  };
+
+  const fetchCompletedDonations = async () => {
+    if (!userData?.auth0Id) return;
+    setIsLoadingHistory(true);
+    setError(null);
+    try {
+      const response = await getVolunteerCompletedDonations(userData.auth0Id);
+      if (response.success) {
+        setCompletedDonations(response.data);
+      } else {
+        setError(response.message || 'Failed to load your completed deliveries.');
+      }
+    } catch (err) {
+      console.error('Error fetching completed deliveries:', err);
+      setError('Failed to load your completed deliveries. Please try again later.');
+    } finally {
+      setIsLoadingHistory(false);
     }
   };
 
@@ -289,6 +317,7 @@ const VolunteerDashboard = () => {
       // Refresh data after delivery
       fetchScheduledDonations();
       fetchCompletedDonationCount();
+      fetchCompletedDonations(); // Refresh history data
     }
   };
 
@@ -328,6 +357,12 @@ const VolunteerDashboard = () => {
         >
           Available Pickups
         </button>
+        <button 
+          className={activeTab === 'history' ? 'active' : ''} 
+          onClick={() => setActiveTab('history')}
+        >
+          History
+        </button>
       </div>
 
       <div className="dashboard-content">
@@ -351,68 +386,81 @@ const VolunteerDashboard = () => {
 
         {activeTab === 'tasks' && (
           <div className="my-tasks-section">
-            <h3>My Scheduled Pickups</h3>
-            {isLoading && <p>Loading scheduled pickups...</p>}
+            <h3>My Pickups</h3>
+            {isLoading && <p>Loading your pickups...</p>}
             {error && <div className="error-message">{error}</div>}
             {!isLoading && !error && (
               scheduledDonations.length > 0 ? (
                 <div className="task-list">
-                  {scheduledDonations.map(task => (
-                    <div key={task._id} className="task-card">
-                      <div className="task-card-header">
-                        <h4>{task.itemName} ({task.quantity})</h4>
-                        <span className={`status-badge ${task.status}`}>{task.status}</span>
-                      </div>
-                      
-                      <div className="task-card-body">
-                        <p><strong>Category:</strong> {task.category}</p>
-                        <p><strong>Expires:</strong> {formatDate(task.expirationDate)}</p>
-                        <p><strong>Address:</strong> {task.businessAddress || 'No address provided'}</p>
-                        <p><strong>Extra Information:</strong> {task.pickupInfo}</p>
-                        <div className="task-actions">
-                          <button 
-                            className="view-details-btn"
-                            onClick={() => handleViewDetails(task)}
-                          >
-                            View Details
-                          </button>
-                          {task.status === 'scheduled' && (
-                            <>
-                              <button 
-                                className="scan-qr-btn"
-                                onClick={() => handleScanQRCode(task._id)}
-                                disabled={isPickingUp}
-                              >
-                                {isPickingUp ? 'Processing...' : 'Scan QR & Pickup'}
-                              </button>
-                              <button 
-                                className="cancel-pickup-btn"
-                                onClick={() => handleCancelTask(task._id)}
-                                disabled={isCancelling}
-                              >
-                                Cancel
-                              </button>
-                            </>
-                          )}
-                          {task.status === 'picked_up' && (
+                  {[...scheduledDonations]
+                    .sort((a, b) => {
+                      // Show "picked_up" (on its way) items first
+                      if (a.status === 'picked_up' && b.status !== 'picked_up') return -1;
+                      if (a.status !== 'picked_up' && b.status === 'picked_up') return 1;
+                      // Then sort by creation date (newest first)
+                      return new Date(b.createdAt) - new Date(a.createdAt);
+                    })
+                    .map(task => (
+                      <div 
+                        key={task._id} 
+                        className={`task-card ${task.status === 'picked_up' ? 'task-in-progress' : ''}`}
+                      >
+                        <div className="task-card-header">
+                          <h4>{task.itemName} ({task.quantity})</h4>
+                          <span className={`status-badge ${task.status}`}>
+                            {task.status === 'picked_up' ? 'On Its Way' : task.status}
+                          </span>
+                        </div>
+                        
+                        <div className="task-card-body">
+                          <p><strong>Category:</strong> {task.category}</p>
+                          <p><strong>Expires:</strong> {formatDate(task.expirationDate)}</p>
+                          <p><strong>Address:</strong> {task.businessAddress || 'No address provided'}</p>
+                          <p><strong>Extra Information:</strong> {task.pickupInfo}</p>
+                          <div className="task-actions">
                             <button 
-                              className="delivery-btn"
-                              onClick={() => {
-                                setSelectedPickup(task);
-                                setIsFoodBankModalOpen(true);
-                              }}
+                              className="view-details-btn"
+                              onClick={() => handleViewDetails(task)}
                             >
-                              Deliver to Food Bank
+                              View Details
                             </button>
-                          )}
+                            {task.status === 'scheduled' && (
+                              <>
+                                <button 
+                                  className="scan-qr-btn"
+                                  onClick={() => handleScanQRCode(task._id)}
+                                  disabled={isPickingUp}
+                                >
+                                  {isPickingUp ? 'Processing...' : 'Scan QR & Pickup'}
+                                </button>
+                                <button 
+                                  className="cancel-pickup-btn"
+                                  onClick={() => handleCancelTask(task._id)}
+                                  disabled={isCancelling}
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            )}
+                            {task.status === 'picked_up' && (
+                              <button 
+                                className="delivery-btn"
+                                onClick={() => {
+                                  setSelectedPickup(task);
+                                  setIsFoodBankModalOpen(true);
+                                }}
+                              >
+                                Mark as Delivered
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               ) : (
                 <div className="no-tasks-message">
-                  <p>You have no pickups currently scheduled.</p>
+                  <p>You have no pickups scheduled or in progress.</p>
                   <p>Check the Available Pickups tab to find tasks!</p>
                 </div>
               )
@@ -450,7 +498,10 @@ const VolunteerDashboard = () => {
                 {availableTasks.length > 0 ? (
                   <div className="task-list">
                     {availableTasks.map(task => (
-                      <div key={task._id} className="task-card">
+                      <div 
+                        key={task._id} 
+                        className={`task-card ${task.status === 'picked_up' ? 'task-in-progress' : ''}`}
+                      >
                         <div className="task-header">
                           <span className="task-title">
                             {task.businessName || task.donorName || 'Anonymous'} Food Delivery Task
@@ -511,6 +562,52 @@ const VolunteerDashboard = () => {
                   </div>
                 )}
               </>
+            )}
+          </div>
+        )}
+
+        {/* History tab for completed deliveries */}
+        {activeTab === 'history' && (
+          <div className="history-section">
+            <h3>Completed Deliveries</h3>
+            {isLoadingHistory && <p>Loading your delivery history...</p>}
+            {error && <div className="error-message">{error}</div>}
+            {!isLoadingHistory && !error && (
+              completedDonations.length > 0 ? (
+                <div className="task-list">
+                  {completedDonations.map(task => (
+                    <div 
+                      key={task._id} 
+                      className="task-card completed-task"
+                    >
+                      <div className="task-card-header">
+                        <h4>{task.itemName} ({task.quantity})</h4>
+                        <span className="status-badge completed">Completed</span>
+                      </div>
+                      
+                      <div className="task-card-body">
+                        <p><strong>Category:</strong> {task.category}</p>
+                        <p><strong>Delivery Date:</strong> {formatDate(task.deliveryDate || task.updatedAt)}</p>
+                        <p><strong>Donor:</strong> {task.businessName || 'Anonymous'}</p>
+                        <p><strong>Address:</strong> {task.businessAddress || 'No address provided'}</p>
+                        <div className="task-actions">
+                          <button 
+                            className="view-details-btn"
+                            onClick={() => handleViewDetails(task)}
+                          >
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="no-tasks-message">
+                  <p>You have no completed deliveries yet.</p>
+                  <p>Deliveries will appear here after you complete them.</p>
+                </div>
+              )
             )}
           </div>
         )}

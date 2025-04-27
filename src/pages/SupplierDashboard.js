@@ -151,7 +151,7 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
       const response = await confirmSupplierPickup(resourceUserId, scannedVolunteerId, requestingUserId);
       setConfirmationResult({ 
         success: true, 
-        message: response.message || 'Pickup confirmed successfully!' 
+        message: response.message || 'Pickup confirmed! Items are now on their way to food banks.' 
       });
       // Optionally trigger refresh of overview/listed items if needed
       if (response.success && response.modifiedCount > 0) {
@@ -684,7 +684,7 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
       {activeTab === 'confirm-pickup' && (
         <div className="verify-section"> {/* Keep class name or rename if desired */} 
           <h3>Confirm Donation Pickup</h3>
-          <p>Scan the QR code presented by the volunteer/driver to confirm they have picked up your available donations. This will mark the items as 'completed'.</p>
+          <p>Scan the QR code presented by the volunteer/driver to confirm they have picked up your available donations. This will mark the items as 'on its way'.</p>
 
                  {!showScanner && (
                     <button 
