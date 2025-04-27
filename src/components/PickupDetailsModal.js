@@ -194,28 +194,6 @@ const PickupDetailsModal = ({ isOpen, onClose, pickup, onAccept, onCancel }) => 
           </div>
           
           <div className="modal-footer">
-            <button onClick={onClose} className="close-btn-modal">Close</button>
-            
-            {pickup.status === 'assigned' && (
-              <button 
-                className="cancel-pickup-btn"
-                onClick={handleCancelTask}
-                disabled={isCancelling}
-              >
-                {isCancelling ? 'Cancelling...' : 'Cancel Pickup'}
-              </button>
-            )}
-            
-            {pickup.status !== 'assigned' && pickup.status !== 'completed' && pickup.status !== 'delivered' && (
-              <button 
-                className="accept-pickup-btn"
-                onClick={handleAcceptTask}
-                disabled={isAssigning}
-              >
-                {isAssigning ? 'Processing...' : 'Accept Pickup'}
-              </button>
-            )}
-            
             {(pickup.status === 'completed' || pickup.status === 'delivered') && (
               <span className="delivery-status-badge">
                 Delivery Completed

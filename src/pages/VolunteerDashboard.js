@@ -503,16 +503,16 @@ const VolunteerDashboard = () => {
           My Code 
         </button>
         <button 
-          className={activeTab === 'tasks' ? 'active' : ''} 
-          onClick={() => setActiveTab('tasks')}
-        >
-          My Scheduled Pickups
-        </button>
-        <button 
           className={activeTab === 'available' ? 'active' : ''} 
           onClick={() => setActiveTab('available')}
         >
           Available Pickups
+        </button>
+        <button 
+          className={activeTab === 'tasks' ? 'active' : ''} 
+          onClick={() => setActiveTab('tasks')}
+        >
+          My Scheduled Pickups
         </button>
         <button 
           className={activeTab === 'history' ? 'active' : ''} 

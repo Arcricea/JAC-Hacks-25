@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Modal, Alert } from 'react-bootstrap';
 import { GrLocation, FiClock } from './Icons';
 import '../assets/styles/FoodBankSuggestionModal.css';
@@ -6,6 +6,8 @@ import { foodBankService } from '../services/foodBankService';
 import { donationService } from '../services/donationService';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
+import axios from 'axios';
+import { useAuth0 } from '@auth0/auth0-react';
 
 const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeliveryConfirmed }) => {
   const [loading, setLoading] = useState(true);
@@ -13,6 +15,9 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
   const [foodBanks, setFoodBanks] = useState([]);
   const [selectedFoodBank, setSelectedFoodBank] = useState(null);
   const [isLoadingGoogle, setIsLoadingGoogle] = useState(true);
+  const [rankedFoodBanks, setRankedFoodBanks] = useState([]);
+  const [apiCallAttempts, setApiCallAttempts] = useState(0);
+  const [mapInitialized, setMapInitialized] = useState(false);
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
@@ -21,6 +26,479 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
   const directionsServiceRef = useRef(null);
   const directionsRendererRef = useRef(null);
   const travelTimeRef = useRef({});
+  const [apiBaseUrl, setApiBaseUrl] = useState(process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000');
+  const [token, setToken] = useState('');
+  const [userId, setUserId] = useState('');
+  const [maxDistance, setMaxDistance] = useState(10);
+  const [selectedFoodType, setSelectedFoodType] = useState('general');
+  const [userLocationState, setUserLocationState] = useState(null);
+  const [searchRadius, setSearchRadius] = useState(25); // Default 25 miles
+  const { getAccessTokenSilently, user } = useAuth0(); // Add Auth0 hook
+
+  // Update useEffect to get auth token from Auth0
+  useEffect(() => {
+    const getToken = async () => {
+      try {
+        // Get token from Auth0
+        const accessToken = await getAccessTokenSilently();
+        setToken(accessToken);
+        console.log('Got Auth0 token:', accessToken ? 'Token received' : 'No token');
+        
+        // Set userId from Auth0 user if available
+        if (user && user.sub) {
+          const cleanedId = user.sub.includes('|') ? user.sub.split('|')[1] : user.sub;
+          setUserId(cleanedId);
+          console.log('Using Auth0 user ID:', cleanedId);
+        }
+      } catch (error) {
+        console.error('Error getting Auth0 token:', error);
+      }
+    };
+    
+    getToken();
+  }, [getAccessTokenSilently, user]);
+
+  // Define handleFoodBankSelect early in the component
+  const handleFoodBankSelect = useCallback((foodBank) => {
+    setSelectedFoodBank(foodBank);
+    // Don't close modal or confirm delivery yet
+  }, []);
+
+  // Add a geocoding cache to avoid repeated geocoding requests
+  const geocodeCache = useRef({});
+
+  // Geocode address and cache results
+  const geocodeAddressAndCache = useCallback((address) => {
+    return new Promise((resolve, reject) => {
+      // Check if we already have this address cached
+      if (geocodeCache.current[address]) {
+        console.log('Using cached geocode result for:', address);
+        resolve(geocodeCache.current[address]);
+        return;
+      }
+
+      // First try OpenStreetMap's Nominatim service which has excellent coverage for Montreal
+      const tryNominatim = async () => {
+        try {
+          // Add Montreal or Quebec to the address if it doesn't contain them
+          let searchAddress = address;
+          if (!searchAddress.toLowerCase().includes('montreal') && 
+              !searchAddress.toLowerCase().includes('québec') && 
+              !searchAddress.toLowerCase().includes('quebec')) {
+            searchAddress += ', Montreal, Quebec, Canada';
+          }
+          
+          // Encode for URL
+          searchAddress = encodeURIComponent(searchAddress);
+          
+          console.log('Trying Nominatim geocoding for:', searchAddress);
+          
+          // Make request to Nominatim API
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${searchAddress}&format=json&limit=1&addressdetails=1`,
+            { 
+              headers: { 
+                'Accept-Language': 'en-CA,en;q=0.9,fr-CA;q=0.8,fr;q=0.7', 
+                'User-Agent': 'FoodRescueApp/1.0'
+              } 
+            }
+          );
+          
+          if (!response.ok) {
+            throw new Error(`Nominatim API error: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          
+          if (data && data.length > 0) {
+            console.log('Nominatim geocoding result:', data[0]);
+            const coords = {
+              latitude: parseFloat(data[0].lat),
+              longitude: parseFloat(data[0].lon),
+              formattedAddress: data[0].display_name
+            };
+            
+            // Cache the result
+            geocodeCache.current[address] = coords;
+            return coords;
+          }
+          
+          throw new Error('No results from Nominatim');
+        } catch (err) {
+          console.warn('Nominatim geocoding failed:', err);
+          // Let it fall through to Google Maps geocoding
+          return null;
+        }
+      };
+      
+      // Start with Nominatim
+      tryNominatim()
+        .then(coords => {
+          // If Nominatim worked, resolve with those coords
+          if (coords) {
+            resolve(coords);
+            return;
+          }
+          
+          // Fall back to Google Maps geocoding if available
+          if (window.google && window.google.maps && window.google.maps.Geocoder) {
+            console.log('Falling back to Google Maps geocoding for:', address);
+            
+            // Create correct formatted address for Montreal
+            let searchAddress = address;
+            if (!searchAddress.toLowerCase().includes('montreal') && 
+                !searchAddress.toLowerCase().includes('québec') && 
+                !searchAddress.toLowerCase().includes('quebec')) {
+              searchAddress += ', Montreal, Quebec, Canada';
+            }
+            
+            const geocoder = new window.google.maps.Geocoder();
+            geocoder.geocode({ address: searchAddress }, (results, status) => {
+              if (status === 'OK' && results && results[0]) {
+                const location = results[0].geometry.location;
+                const coords = {
+                  latitude: location.lat(),
+                  longitude: location.lng(),
+                  formattedAddress: results[0].formatted_address
+                };
+                
+                console.log('Google Maps geocoding result:', coords);
+                
+                // Cache the result
+                geocodeCache.current[address] = coords;
+                
+                resolve(coords);
+              } else {
+                console.warn('Google Maps geocoding failed:', status);
+                
+                // Last resort - use approximate Montreal coordinates
+                // This is just a fallback to show something on the map
+                const montrealCoords = {
+                  latitude: 45.5017,
+                  longitude: -73.5673,
+                  formattedAddress: 'Montreal, Quebec, Canada'
+                };
+                
+                resolve(montrealCoords);
+              }
+            });
+          } else {
+            console.warn('No geocoding services available');
+            
+            // Return downtown Montreal as a last resort
+            resolve({
+              latitude: 45.5017,
+              longitude: -73.5673,
+              formattedAddress: 'Montreal, Quebec, Canada'
+            });
+          }
+        })
+        .catch(err => {
+          console.error('Geocoding error:', err);
+          reject(err);
+        });
+    });
+  }, []);
+
+  // Initialize directions services when the map is created
+  const initializeMapServices = useCallback(() => {
+    if (window.google && window.google.maps && window.google.maps.DirectionsService) {
+      try {
+      directionsServiceRef.current = new window.google.maps.DirectionsService();
+        if (window.google.maps.DirectionsRenderer) {
+      directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
+        suppressMarkers: true,
+        polylineOptions: {
+          strokeColor: '#4CAF50',
+          strokeWeight: 5,
+          strokeOpacity: 0.7
+        }
+      });
+      
+          if (mapInstanceRef.current) {
+            directionsRendererRef.current.setMap(mapInstanceRef.current);
+          }
+        }
+      } catch (err) {
+        console.error('Error initializing map services:', err);
+      }
+    }
+  }, []);
+
+  // Initialize map with food banks and user location
+  const initMap = useCallback(() => {
+    // Prevent multiple initializations
+    if (mapInitialized) {
+      console.log('Map already initialized, skipping');
+      return;
+    }
+    
+    console.log('Initializing map with foodbanks:', foodBanks);
+    
+    if (!window.google || !window.google.maps) {
+      console.error('Google Maps not loaded');
+      setError('Google Maps failed to load. Please refresh the page.');
+      return;
+    }
+    
+    if (!userLocationState) {
+      console.error('User location not available');
+      setError('Your location is not available. Please enable location services.');
+      return;
+    }
+    
+    if (!mapRef.current) {
+      console.error('Map reference not available');
+      return;
+    }
+    
+    try {
+      // Ensure we have a valid location with lat/lng properties
+      const userPos = {
+        lat: parseFloat(userLocationState.lat || userLocationState.latitude),
+        lng: parseFloat(userLocationState.lng || userLocationState.longitude)
+      };
+      
+      // Handle Google Maps API quota error
+      if (window.google.maps.hasOwnProperty('OverQuotaMapError') || 
+          (window.google.maps.hasOwnProperty('DirectionsStatus') && 
+           window.google.maps.DirectionsStatus.OVER_QUERY_LIMIT)) {
+        console.error('Google Maps quota exceeded');
+        setError('Google Maps quota exceeded. Some features may not work properly.');
+      }
+      
+      // Create a new map
+      const map = new window.google.maps.Map(mapRef.current, {
+        center: userPos,
+        zoom: 10,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
+        zoomControl: true,
+        styles: [
+          {
+            featureType: "poi",
+            elementType: "labels",
+            stylers: [{ visibility: "off" }]
+          }
+        ]
+      });
+      
+      // Store the map reference
+      mapInstanceRef.current = map;
+        
+      // Initialize directions service and renderer after the map is created
+      initializeMapServices();
+      
+      // Create info window (only one for the whole map)
+      const infoWindow = new window.google.maps.InfoWindow();
+      infoWindowRef.current = infoWindow;
+      
+      // Add user marker
+      new window.google.maps.Marker({
+        position: userPos,
+                map: map,
+        title: 'Your Location',
+                icon: {
+          url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+                  scaledSize: new window.google.maps.Size(40, 40)
+                },
+        zIndex: 999
+      });
+      
+      const markers = [];
+      const bounds = new window.google.maps.LatLngBounds();
+      bounds.extend(userPos);
+      
+      // Process food banks and create markers
+      foodBanks.forEach(async (foodBank, index) => {
+        try {
+          // Check if we have explicit coordinates
+          let position = null;
+          
+          // Case 1: Check for explicit lat/lng coordinates
+          if (foodBank.coordinates?.latitude !== undefined && foodBank.coordinates?.longitude !== undefined) {
+            position = {
+              lat: parseFloat(foodBank.coordinates.latitude),
+              lng: parseFloat(foodBank.coordinates.longitude)
+            };
+            console.log(`Using explicit coordinates for ${foodBank.name}:`, position);
+          }
+          // Case 2: Check for lat/lng properties directly
+          else if (foodBank.coordinates?.lat !== undefined && foodBank.coordinates?.lng !== undefined) {
+            position = {
+              lat: parseFloat(foodBank.coordinates.lat),
+              lng: parseFloat(foodBank.coordinates.lng)
+            };
+            console.log(`Using lat/lng coordinates for ${foodBank.name}:`, position);
+          }
+          // Case 3: Check for GeoJSON format coordinates
+          else if (foodBank.location?.coordinates?.length === 2) {
+            // GeoJSON format is [longitude, latitude]
+            position = {
+              lat: parseFloat(foodBank.location.coordinates[1]),
+              lng: parseFloat(foodBank.location.coordinates[0])
+            };
+            console.log(`Using GeoJSON coordinates for ${foodBank.name}:`, position);
+          }
+          // Case 4: Try to geocode the address
+          else if (foodBank.address) {
+            try {
+              const geocodeResult = await geocodeAddressAndCache(foodBank.address);
+              position = {
+                lat: parseFloat(geocodeResult.latitude),
+                lng: parseFloat(geocodeResult.longitude)
+              };
+              console.log(`Geocoded address for ${foodBank.name}:`, position);
+            } catch (error) {
+              console.error(`Failed to geocode address for ${foodBank.name}:`, error);
+            }
+          }
+          
+          // If we couldn't get a position, skip this food bank
+          if (!position || isNaN(position.lat) || isNaN(position.lng)) {
+            console.warn(`No valid position for food bank: ${foodBank.name}`);
+            return;
+          }
+          
+          // Determine marker icon based on need level
+          let iconUrl = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+          
+          // Convert needLevel to string representation for display
+          let needLevelText = 'Medium';
+          let needLevelColor = '#f0ad4e';
+          
+          // Handle needLevel whether it's a string or number
+          const needLevel = foodBank.needLevel || foodBank.needStatus?.priorityLevel || 3;
+          
+          if (typeof needLevel === 'string') {
+            if (needLevel.toLowerCase() === 'high' || needLevel.toLowerCase() === 'critical' || needLevel.toLowerCase() === 'urgent') {
+              iconUrl = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+              needLevelText = 'High';
+              needLevelColor = '#d9534f';
+            } else if (needLevel.toLowerCase() === 'medium') {
+              iconUrl = 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png';
+              needLevelText = 'Medium';
+              needLevelColor = '#f0ad4e';
+            } else if (needLevel.toLowerCase() === 'low') {
+              iconUrl = 'http://maps.google.com/mapfiles/ms/icons/green-dot.png';
+              needLevelText = 'Low';
+              needLevelColor = '#5cb85c';
+            }
+          } else if (typeof needLevel === 'number') {
+            // Handle numeric need levels
+            if (needLevel >= 4) {
+              iconUrl = 'http://maps.google.com/mapfiles/ms/icons/red-dot.png';
+              needLevelText = 'High';
+              needLevelColor = '#d9534f';
+            } else if (needLevel === 3) {
+              iconUrl = 'http://maps.google.com/mapfiles/ms/icons/yellow-dot.png';
+              needLevelText = 'Medium';
+              needLevelColor = '#f0ad4e';
+            } else {
+              iconUrl = 'http://maps.google.com/mapfiles/ms/icons/green-dot.png';
+              needLevelText = 'Low';
+              needLevelColor = '#5cb85c';
+            }
+          }
+          
+          // Create marker
+          const marker = new window.google.maps.Marker({
+            position,
+            map,
+            title: foodBank.name,
+            icon: {
+              url: iconUrl,
+              scaledSize: new window.google.maps.Size(35, 35)
+            },
+            animation: window.google.maps.Animation.DROP,
+            zIndex: 10
+          });
+          
+          // Prepare the address display
+          const addressDisplay = typeof foodBank.address === 'object' ? 
+            `${foodBank.address.street || ''}, ${foodBank.address.city || ''}, ${foodBank.address.state || ''} ${foodBank.address.zip || ''}`.trim() : 
+            (foodBank.address || 'No address provided');
+          
+          // Add click listener to marker
+          marker.addListener('click', () => {
+            // Build info window content
+            const contentString = `
+              <div style="max-width: 250px; padding: 10px;">
+                <h5 style="margin-top: 0; color: #3a3a3a;">${foodBank.name}</h5>
+                <p style="font-size: 14px; margin: 5px 0;">${addressDisplay}</p>
+                ${foodBank.phoneNumber ? `<p style="font-size: 13px; margin: 5px 0;"><strong>Phone:</strong> ${foodBank.phoneNumber}</p>` : ''}
+                ${foodBank.email ? `<p style="font-size: 13px; margin: 5px 0;"><strong>Email:</strong> ${foodBank.email}</p>` : ''}
+                <div style="margin-top: 8px;">
+                  <strong>Need Level:</strong> 
+                  <span style="color: ${needLevelColor};">
+                    ${needLevelText}
+                  </span>
+                </div>
+                <div style="margin-top: 8px; text-align: center;">
+                  <button onclick="window.selectFoodBank('${foodBank._id}')" 
+                    style="background: #4CAF50; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">
+                    Select This Food Bank
+                  </button>
+                </div>
+              </div>
+            `;
+            
+            // Set info window content and open it
+            infoWindow.setContent(contentString);
+            infoWindow.open(map, marker);
+            
+            // Also select this food bank
+            setSelectedFoodBank(foodBank);
+          });
+          
+          // Add marker to array and extend bounds
+          markers.push(marker);
+          bounds.extend(position);
+          
+          // Store marker reference
+          markersRef.current.push(marker);
+          
+          // If this is the last food bank, fit bounds
+          if (index === foodBanks.length - 1) {
+            // Fit bounds but ensure we don't zoom in too much for a single point
+            map.fitBounds(bounds);
+            
+            // Set a reasonable zoom level if we're too zoomed in
+            const listener = window.google.maps.event.addListener(map, 'idle', () => {
+              if (map.getZoom() > 14) {
+                map.setZoom(14);
+              }
+              window.google.maps.event.removeListener(listener);
+            });
+            
+            // After creating all markers, calculate routes for ranking
+            setTimeout(() => {
+              calculateAllRoutes();
+            }, 500);
+          }
+        } catch (error) {
+          console.error(`Error processing food bank ${foodBank.name}:`, error);
+        }
+      });
+      
+      // Set up window function to select food bank
+      window.selectFoodBank = (foodBankId) => {
+        const selected = foodBanks.find(fb => fb._id === foodBankId);
+        if (selected) {
+          handleFoodBankSelect(selected);
+        }
+      };
+      
+      mapRef.current.map = map;
+      
+      // Mark initialization as complete
+      setMapInitialized(true);
+    } catch (error) {
+      console.error('Error in initMap:', error);
+      setError('An error occurred initializing the map. You can still select a food bank from the list.');
+    }
+  }, [foodBanks, userLocationState, handleFoodBankSelect, initializeMapServices, geocodeAddressAndCache, mapInitialized]);
 
   // Load Google Maps API
   useEffect(() => {
@@ -29,15 +507,26 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
         // Set a flag to indicate we're attempting to load Google Maps
         localStorage.setItem('mapLoadAttempt', Date.now().toString());
         
+        // Check if we already have a script tag for Google Maps
+        const existingScript = document.querySelector('script[src*="maps.googleapis.com/maps/api/js"]');
+        if (existingScript) {
+          console.log('Google Maps script already exists, not adding another');
+          setIsLoadingGoogle(false);
+          localStorage.setItem('mapLoadSuccess', 'true');
+          return;
+        }
+        
         const googleMapScript = document.createElement('script');
         
         // Check if the API key is available
         const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY || 'AIzaSyDpG-NeL-XGYAduQul2JenVr86HIPITEso';
         
-        googleMapScript.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+        googleMapScript.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&loading=async`;
         googleMapScript.async = true;
         googleMapScript.defer = true;
         googleMapScript.onload = () => {
+          console.log('Google Maps script loaded');
+          // Don't initialize services here - wait until the API is fully loaded
           setIsLoadingGoogle(false);
           localStorage.setItem('mapLoadSuccess', 'true');
         };
@@ -60,11 +549,6 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
         
         return () => {
           clearTimeout(timeout);
-          try {
-            document.body.removeChild(googleMapScript);
-          } catch (e) {
-            console.warn('Error removing Google Maps script:', e);
-          }
         };
       } catch (err) {
         console.error('Error loading Google Maps:', err);
@@ -80,20 +564,27 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
 
   // Fetch food bank recommendations when modal opens
   useEffect(() => {
-    if (show && donation) {
+    let isMounted = true;
+    
+    if (show && donation && !foodBanks.length && apiCallAttempts < 3) {
       fetchFoodBankRecommendations();
     }
-  }, [show, donation]);
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [show, donation, apiCallAttempts]);
 
   // Initialize map when Google Maps is loaded and food banks are available
   useEffect(() => {
-    if (!isLoadingGoogle && foodBanks.length > 0 && mapRef.current && show) {
+    if (!isLoadingGoogle && foodBanks.length > 0 && mapRef.current && show && !mapInitialized) {
       // Add a small delay to ensure the DOM is fully rendered
       const initMapTimer = setTimeout(() => {
         // Check if Google Maps is actually available
         if (window.google && window.google.maps) {
           try {
             initMap();
+            setMapInitialized(true);
           } catch (err) {
             console.error('Error initializing map:', err);
             setError('Could not initialize map. You can still select a food bank from the list.');
@@ -105,7 +596,7 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
       
       return () => clearTimeout(initMapTimer);
     }
-  }, [isLoadingGoogle, foodBanks, show]);
+  }, [isLoadingGoogle, foodBanks, show, handleFoodBankSelect, initMap, mapInitialized]);
 
   // Ensure map properly renders when component is mounted
   useEffect(() => {
@@ -113,17 +604,24 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
     if (show && mapRef.current && window.google && window.google.maps && mapInstanceRef.current) {
       const resizeTimer = setTimeout(() => {
         window.google.maps.event.trigger(mapInstanceRef.current, 'resize');
-        if (userLocation) {
+        if (userLocationState) {
           mapInstanceRef.current.setCenter({ 
-            lat: userLocation.latitude, 
-            lng: userLocation.longitude 
+            lat: userLocationState.latitude, 
+            lng: userLocationState.longitude 
           });
         }
       }, 500);
       
       return () => clearTimeout(resizeTimer);
     }
-  }, [show, userLocation]);
+  }, [show, userLocationState, mapInitialized]);
+
+  // Reset state when modal closes
+  useEffect(() => {
+    if (!show) {
+      setMapInitialized(false);
+    }
+  }, [show]);
 
   // Update map when selected food bank changes
   useEffect(() => {
@@ -132,756 +630,636 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
     }
   }, [selectedFoodBank]);
 
-  const fetchFoodBankRecommendations = async () => {
-    setLoading(true);
-    setError(null);
-    setSelectedFoodBank(null);
-    setFoodBanks([]);
-
-    try {
-      const response = await foodBankService.getFoodBankRecommendations(
-        donation.id || donation._id,
-        '',
-        userLocation
-      );
-      
-      if (response.data && response.data.length > 0) {
-        // Transform data to ensure it has the right format
-        const formattedFoodBanks = response.data.map(fb => ({
-          _id: fb.id || fb._id,
-          name: fb.name || 'Food Bank',
-          address: typeof fb.address === 'object' ? 
-            `${fb.address.street || ''}, ${fb.address.city || ''}, ${fb.address.state || ''} ${fb.address.zip || ''}`.trim() : 
-            (fb.address || 'No address provided'),
-          needLevel: fb.needLevel || 3,
-          openingHours: fb.openingHours || 'Contact for hours',
-          phoneNumber: fb.phoneNumber || fb.phone || 'No phone provided',
-          coordinates: {
-            latitude: fb.location?.coordinates?.[1] || userLocation.latitude + (Math.random() * 0.01 - 0.005),
-            longitude: fb.location?.coordinates?.[0] || userLocation.longitude + (Math.random() * 0.01 - 0.005)
-          }
-        }));
-        
-        setFoodBanks(formattedFoodBanks);
-        if (formattedFoodBanks.length > 0) {
-          setSelectedFoodBank(formattedFoodBanks[0]);
-        }
-      } else {
-        throw new Error('No food banks found');
-      }
-    } catch (err) {
-      console.error('Error fetching food bank recommendations:', err);
-      
-      // Provide fallback data
-      const fallbackFoodBanks = [
-        {
-          _id: 'default1',
-          name: 'Community Food Bank',
-          address: '123 Main Street, Anytown',
-          needLevel: 4,
-          openingHours: 'Mon-Fri: 9am-5pm',
-          phoneNumber: '(555) 123-4567',
-          coordinates: {
-            latitude: userLocation.latitude + 0.007,
-            longitude: userLocation.longitude - 0.005
-          }
-        },
-        {
-          _id: 'default2',
-          name: 'Food Pantry Center',
-          address: '456 Oak Avenue, Somecity',
-          needLevel: 3,
-          openingHours: 'Mon-Sat: 10am-6pm',
-          phoneNumber: '(555) 987-6543',
-          coordinates: {
-            latitude: userLocation.latitude - 0.005,
-            longitude: userLocation.longitude + 0.008
-          }
-        },
-        {
-          _id: 'default3',
-          name: 'Neighborhood Assistance',
-          address: '789 Pine Road, Cityville',
-          needLevel: 5,
-          openingHours: 'Mon-Sun: 8am-7pm',
-          phoneNumber: '(555) 456-7890',
-          coordinates: {
-            latitude: userLocation.latitude + 0.003,
-            longitude: userLocation.longitude + 0.004
-          }
-        }
-      ];
-      
-      setFoodBanks(fallbackFoodBanks);
-      setSelectedFoodBank(fallbackFoodBanks[0]);
-      setError('Could not connect to server. Using nearby food banks.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Enhanced geocoding function to accurately place food bank markers
-  const geocodeAddress = (address, callback) => {
-    if (!window.google || !window.google.maps) {
-      callback(null, new Error('Google Maps not loaded'));
+  // Geocode address using Google Maps Geocoding API
+  const geocodeAddress = useCallback((address) => {
+    return new Promise((resolve, reject) => {
+      if (!window.google || !window.google.maps || !window.google.maps.Geocoder) {
+        reject(new Error('Google Maps Geocoder not available'));
       return;
     }
 
     const geocoder = new window.google.maps.Geocoder();
     geocoder.geocode({ address }, (results, status) => {
-      if (status === 'OK' && results && results[0]) {
+        if (status === 'OK' && results[0]) {
         const location = results[0].geometry.location;
-        callback({
-          lat: location.lat(),
-          lng: location.lng()
-        }, null);
+          resolve({
+            latitude: location.lat(),
+            longitude: location.lng(),
+            formattedAddress: results[0].formatted_address
+          });
       } else {
-        console.error('Geocoding failed:', status);
-        callback(null, new Error(`Geocoding failed: ${status}`));
-      }
+          reject(new Error(`Geocoding failed: ${status}`));
+        }
+      });
     });
-  };
+  }, []);
 
-  // Initialize map with improved geocoding
-  const initMap = () => {
-    try {
-      if (!window.google || !window.google.maps || !mapRef.current) {
-        console.error('Google Maps not loaded or map container not found');
-        return;
+  // Update useEffect to get userId from localStorage and clean up auth0 prefix
+  useEffect(() => {
+    // Try different possible keys for user ID
+    const storedUserId = localStorage.getItem('userId') 
+      || localStorage.getItem('user_id')
+      || localStorage.getItem('userID')
+      || localStorage.getItem('user')
+      || '';
+    
+    // Try to parse if it's stored as an object
+    let userIdValue = storedUserId;
+    if (storedUserId && storedUserId.startsWith('{')) {
+      try {
+        const userObj = JSON.parse(storedUserId);
+        userIdValue = userObj._id || userObj.id || userObj.userId || userObj;
+      } catch (e) {
+        console.error('Error parsing user data from localStorage:', e);
       }
-
-      // Clean up any existing map instance
-      if (mapInstanceRef.current) {
-        // Clean up existing resources
-        if (markersRef.current && markersRef.current.length) {
-          markersRef.current.forEach(marker => {
-            if (marker) marker.setMap(null);
-          });
-        }
-        
-        if (userMarkerRef.current) {
-          userMarkerRef.current.setMap(null);
-        }
-        
-        if (directionsRendererRef.current) {
-          directionsRendererRef.current.setMap(null);
-        }
-      }
-      
-      // Create a new map instance
-      const mapOptions = {
-        zoom: 12,
-        center: { 
-          lat: userLocation?.latitude || 45.4922, // Default to Montreal coordinates
-          lng: userLocation?.longitude || -73.5947
-        },
-        mapTypeControl: false,
-        fullscreenControl: true,
-        streetViewControl: true,
-        zoomControl: true,
-        gestureHandling: 'cooperative',
-      };
-      
-      const map = new window.google.maps.Map(mapRef.current, mapOptions);
-      mapInstanceRef.current = map;
-      
-      // Initialize map components
-      infoWindowRef.current = new window.google.maps.InfoWindow();
-      directionsServiceRef.current = new window.google.maps.DirectionsService();
-      directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
-        map: map,
-        suppressMarkers: true,
-        polylineOptions: {
-          strokeColor: '#4CAF50',
-          strokeWeight: 5,
-          strokeOpacity: 0.7
-        }
-      });
-      
-      // Reset markers array
-      markersRef.current = [];
-      
-      // Add user location marker
-      const bounds = new window.google.maps.LatLngBounds();
-      if (userLocation) {
-        const userLatLng = new window.google.maps.LatLng(
-          userLocation.latitude,
-          userLocation.longitude
-        );
-        
-        userMarkerRef.current = new window.google.maps.Marker({
-          position: userLatLng,
-          map: map,
-          icon: {
-            path: window.google.maps.SymbolPath.CIRCLE,
-            scale: 10,
-            fillColor: '#4285F4',
-            fillOpacity: 1,
-            strokeColor: 'white',
-            strokeWeight: 2,
-          },
-          title: 'Your Location',
-          zIndex: 999
-        });
-        
-        bounds.extend(userLatLng);
-      }
-      
-      // Process each food bank
-      const processedFoodBanks = [];
-      
-      // Function to add markers for all food banks
-      const addAllFoodBankMarkers = () => {
-        processedFoodBanks.forEach(fb => {
-          if (fb.coordinates) {
-            const marker = new window.google.maps.Marker({
-              position: new window.google.maps.LatLng(fb.coordinates.lat, fb.coordinates.lng),
-              map: map,
-              icon: {
-                url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
-                scaledSize: new window.google.maps.Size(40, 40)
-              },
-              title: fb.name,
-              animation: window.google.maps.Animation.DROP
-            });
-            
-            const infoContent = `
-              <div class="map-info-window">
-                <h4>${fb.name}</h4>
-                <p><strong>Address:</strong> ${fb.address}</p>
-                ${fb.phoneNumber ? `<p><strong>Phone:</strong> ${fb.phoneNumber}</p>` : ''}
-                ${fb.openingHours ? `<p><strong>Hours:</strong> ${fb.openingHours}</p>` : ''}
-                <p><strong>Need Level:</strong> <span style="color: ${getNeedLevelColor(fb.needLevel || 1)}; font-weight: bold;">${getNeedLevelText(fb.needLevel || 1)}</span></p>
-              </div>
-            `;
-            
-            window.google.maps.event.addListener(marker, 'click', function() {
-              infoWindowRef.current.setContent(infoContent);
-              infoWindowRef.current.open(map, marker);
-              setSelectedFoodBank(fb);
-            });
-            
-            markersRef.current.push(marker);
-            bounds.extend(marker.getPosition());
-            
-            // If this is the selected food bank, open its info window
-            if (selectedFoodBank && fb._id === selectedFoodBank._id) {
-              infoWindowRef.current.setContent(infoContent);
-              infoWindowRef.current.open(map, marker);
-            }
-          }
-        });
-        
-        // Fit bounds to show all markers
-        if (markersRef.current.length > 0) {
-          map.fitBounds(bounds);
-          const listener = window.google.maps.event.addListenerOnce(map, 'idle', function() {
-            if (map.getZoom() > 15) {
-              map.setZoom(15);
-            }
-          });
-        }
-      };
-      
-      // Process food banks with geocoding if necessary
-      let pendingGeocodes = foodBanks.length;
-      
-      foodBanks.forEach(foodBank => {
-        const processedFoodBank = {...foodBank};
-        
-        const addressString = typeof foodBank.address === 'object' ? 
-          `${foodBank.address.street || ''}, ${foodBank.address.city || ''}, ${foodBank.address.state || ''} ${foodBank.address.zip || ''}`.trim() : 
-          (foodBank.address || '');
-        
-        // Store the formatted address string
-        processedFoodBank.address = addressString;
-        
-        // Check if coordinates need geocoding
-        if (foodBank.coordinates && 
-            typeof foodBank.coordinates.latitude === 'number' && 
-            foodBank.coordinates.latitude !== 0 &&
-            typeof foodBank.coordinates.longitude === 'number' && 
-            foodBank.coordinates.longitude !== 0) {
-          
-          // Use existing coordinates
-          processedFoodBank.coordinates = {
-            lat: foodBank.coordinates.latitude,
-            lng: foodBank.coordinates.longitude
-          };
-          processedFoodBanks.push(processedFoodBank);
-          pendingGeocodes--;
-          
-          if (pendingGeocodes === 0) {
-            addAllFoodBankMarkers();
-          }
-        } 
-        else if (addressString) {
-          // Need to geocode the address
-          geocodeAddress(addressString, (location, error) => {
-            if (location) {
-              processedFoodBank.coordinates = location;
-            } else {
-              console.error('Failed to geocode address:', addressString, error);
-              // Fallback to approximate coordinates based on Montreal
-              processedFoodBank.coordinates = {
-                lat: userLocation?.latitude + (Math.random() * 0.02 - 0.01) || 45.4922 + (Math.random() * 0.02 - 0.01),
-                lng: userLocation?.longitude + (Math.random() * 0.02 - 0.01) || -73.5947 + (Math.random() * 0.02 - 0.01)
-              };
-            }
-            
-            processedFoodBanks.push(processedFoodBank);
-            pendingGeocodes--;
-            
-            if (pendingGeocodes === 0) {
-              addAllFoodBankMarkers();
-            }
-          });
-        } else {
-          // No address to geocode
-          pendingGeocodes--;
-          
-          if (pendingGeocodes === 0) {
-            addAllFoodBankMarkers();
-          }
-        }
-      });
-    } catch (err) {
-      console.error('Error initializing map:', err);
     }
-  };
-
-  const addUserLocationMarker = () => {
-    if (!userLocation || !userLocation.latitude || !userLocation.longitude) return;
     
-    const userLatLng = new window.google.maps.LatLng(
-      userLocation.latitude,
-      userLocation.longitude
-    );
-    
-    userMarkerRef.current = new window.google.maps.Marker({
-      position: userLatLng,
-      map: mapInstanceRef.current,
-      icon: {
-        path: window.google.maps.SymbolPath.CIRCLE,
-        scale: 10,
-        fillColor: '#4285F4',
-        fillOpacity: 1,
-        strokeColor: 'white',
-        strokeWeight: 2,
-      },
-      title: 'Your Location',
-      zIndex: 999
+    // Log what we found for debugging
+    console.log('Looking for user ID in localStorage:', {
+      storedUserId,
+      parsedValue: userIdValue,
+      keys: Object.keys(localStorage).filter(k => k.toLowerCase().includes('user') || k.toLowerCase().includes('auth')),
     });
     
-    // Add info window for user location
-    const infoContent = `
-      <div class="map-info-window">
-        <h4>Your Location</h4>
-        <p>This is your current location</p>
-      </div>
-    `;
-    
-    window.google.maps.event.addListener(userMarkerRef.current, 'click', function() {
-      infoWindowRef.current.setContent(infoContent);
-      infoWindowRef.current.open(mapInstanceRef.current, userMarkerRef.current);
-    });
-  };
-
-  const addFoodBankMarker = (foodBank) => {
-    try {
-      if (!mapInstanceRef.current || !window.google) return null;
-      if (!foodBank.coordinates || (!foodBank.coordinates.latitude && !foodBank.coordinates.latitude !== 0) || 
-          (!foodBank.coordinates.longitude && !foodBank.coordinates.longitude !== 0)) {
-        console.error('Invalid food bank coordinates:', foodBank);
-        return null;
-      }
-      
-      const position = new window.google.maps.LatLng(
-        foodBank.coordinates.latitude,
-        foodBank.coordinates.longitude
-      );
-      
-      const marker = new window.google.maps.Marker({
-        position: position,
-        map: mapInstanceRef.current,
-        icon: {
-          url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
-          scaledSize: new window.google.maps.Size(40, 40)
-        },
-        title: foodBank.name,
-        animation: window.google.maps.Animation.DROP
-      });
-      
-      const needColor = getNeedLevelColor(foodBank.needLevel || 1);
-      
-      const addressDisplay = typeof foodBank.address === 'object' ? 
-        `${foodBank.address.street || ''}, ${foodBank.address.city || ''}, ${foodBank.address.state || ''} ${foodBank.address.zip || ''}`.trim() : 
-        (foodBank.address || 'No address provided');
-      
-      const infoContent = `
-        <div class="map-info-window">
-          <h4>${foodBank.name}</h4>
-          <p><strong>Address:</strong> ${addressDisplay}</p>
-          ${foodBank.phoneNumber ? `<p><strong>Phone:</strong> ${foodBank.phoneNumber}</p>` : ''}
-          ${foodBank.openingHours ? `<p><strong>Hours:</strong> ${foodBank.openingHours}</p>` : ''}
-          <p><strong>Need Level:</strong> <span style="color: ${needColor}; font-weight: bold;">${getNeedLevelText(foodBank.needLevel || 1)}</span></p>
-        </div>
-      `;
-      
-      window.google.maps.event.addListener(marker, 'click', function() {
-        setSelectedFoodBank(foodBank);
-        infoWindowRef.current.setContent(infoContent);
-        infoWindowRef.current.open(mapInstanceRef.current, marker);
-      });
-      
-      markersRef.current.push(marker);
-      return marker;
-    } catch (err) {
-      console.error('Error adding food bank marker:', err);
-      return null;
+    // If userIdValue is an object, extract the ID
+    if (typeof userIdValue === 'object' && userIdValue !== null) {
+      userIdValue = userIdValue._id || userIdValue.id || userIdValue.userId || '';
     }
-  };
-
-  const calculateTravelTimes = () => {
-    try {
-      if (!directionsServiceRef.current || !userLocation || !window.google) {
-        console.warn('Directions service or user location not available');
-        return;
+    
+    // Clean up auth0 prefix if present
+    if (typeof userIdValue === 'string' && userIdValue.includes('|')) {
+      userIdValue = userIdValue.split('|')[1];
+      console.log('Cleaned auth0 prefix from user ID:', userIdValue);
+    }
+    
+    setUserId(userIdValue || '');
+    console.log('Setting user ID to:', userIdValue);
+    
+    // Also try to get user ID from the donation object if available
+    if (donation && (donation.userId || donation.createdBy)) {
+      let donationUserId = donation.userId || donation.createdBy;
+      
+      // Clean up auth0 prefix if present
+      if (typeof donationUserId === 'string' && donationUserId.includes('|')) {
+        donationUserId = donationUserId.split('|')[1];
+        console.log('Cleaned auth0 prefix from donation user ID:', donationUserId);
       }
       
-      const origin = new window.google.maps.LatLng(
-        userLocation.latitude,
-        userLocation.longitude
-      );
-      
-      foodBanks.forEach(foodBank => {
-        if (!foodBank.coordinates || !foodBank.coordinates.latitude || !foodBank.coordinates.longitude) {
-          // Provide fallback estimated travel time
-          travelTimeRef.current = {
-            ...travelTimeRef.current,
-            [foodBank._id]: { duration: 'Est. 15-25 min', distance: 'Approx. 3-8 km' }
-          };
-          return;
-        }
-        
-        const destination = new window.google.maps.LatLng(
-          foodBank.coordinates.latitude,
-          foodBank.coordinates.longitude
-        );
-        
+      console.log('Found user ID in donation:', donationUserId);
+      if (!userIdValue && donationUserId) {
+        setUserId(donationUserId);
+        console.log('Using user ID from donation:', donationUserId);
+      }
+    }
+  }, [donation]);
+
+  // Log current headers for debugging
+  useEffect(() => {
+    console.log('Current request headers will be:', {
+      'Authorization': token ? `Bearer ${token}` : 'None',
+      'X-Requesting-User-Id': userId || 'None'
+    });
+  }, [token, userId]);
+
+  // Fetch food bank recommendations based on user location and food type
+  const fetchFoodBankRecommendations = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    setApiCallAttempts(prev => prev + 1);
+    
+    try {
+      // Try to get a fresh token if needed
+      let currentToken = token;
+      if (!currentToken) {
         try {
-          directionsServiceRef.current.route({
-            origin: origin,
-            destination: destination,
-            travelMode: window.google.maps.TravelMode.DRIVING
-          }, (response, status) => {
-            if (status === 'OK') {
-              const route = response.routes[0];
-              if (route && route.legs[0]) {
-                const duration = route.legs[0].duration.text;
-                const distance = route.legs[0].distance.text;
-                
-                travelTimeRef.current = {
-                  ...travelTimeRef.current,
-                  [foodBank._id]: { duration, distance }
-                };
-                
-                // Force re-render to show travel times
-                setFoodBanks([...foodBanks]);
-              }
-            } else {
-              // If directions failed, provide an estimate
-              console.warn('Directions request failed with status:', status);
-              
-              // Calculate straight-line distance and estimate travel time
-              const lat1 = userLocation.latitude;
-              const lon1 = userLocation.longitude;
-              const lat2 = foodBank.coordinates.latitude;
-              const lon2 = foodBank.coordinates.longitude;
-              
-              // Haversine formula for rough distance calculation
-              const R = 6371; // Radius of the Earth in km
-              const dLat = (lat2 - lat1) * Math.PI / 180;
-              const dLon = (lon2 - lon1) * Math.PI / 180;
-              const a = 
-                Math.sin(dLat/2) * Math.sin(dLat/2) +
-                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-                Math.sin(dLon/2) * Math.sin(dLon/2);
-              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-              const distance = R * c;
-              
-              // Rough estimate of driving time (assuming 30 km/h average speed)
-              const timeInMinutes = Math.round(distance * 2);
-              
-              travelTimeRef.current = {
-                ...travelTimeRef.current,
-                [foodBank._id]: { 
-                  duration: `Est. ${timeInMinutes} min`, 
-                  distance: `Approx. ${distance.toFixed(1)} km` 
-                }
-              };
-              
-              // Force re-render to show estimated travel times
-              setFoodBanks([...foodBanks]);
-            }
-          });
-        } catch (routeError) {
-          console.error('Error calculating route:', routeError);
-          
-          // Provide fallback estimated travel time
-          travelTimeRef.current = {
-            ...travelTimeRef.current,
-            [foodBank._id]: { duration: 'Est. 15-25 min', distance: 'Approx. 3-8 km' }
-          };
-          
-          // Force re-render to show estimated travel times
-          setFoodBanks([...foodBanks]);
+          currentToken = await getAccessTokenSilently();
+          setToken(currentToken);
+          console.log('Retrieved fresh Auth0 token');
+        } catch (tokenError) {
+          console.warn('Could not get Auth0 token:', tokenError);
         }
-      });
-    } catch (err) {
-      console.error('Error calculating travel times:', err);
-    }
-  };
-
-  const highlightSelectedFoodBank = () => {
-    if (!selectedFoodBank || !mapInstanceRef.current) return;
-    
-    // Find the marker for the selected food bank
-    const selectedMarker = markersRef.current.find(marker => {
-      if (!selectedFoodBank.coordinates) return false;
+      }
       
-      const markerPos = marker.getPosition();
-      const fbLat = typeof selectedFoodBank.coordinates.latitude === 'number' ? 
-        selectedFoodBank.coordinates.latitude : selectedFoodBank.coordinates.lat;
-      const fbLng = typeof selectedFoodBank.coordinates.longitude === 'number' ? 
-        selectedFoodBank.coordinates.longitude : selectedFoodBank.coordinates.lng;
+      // Try fetching specific distributors by ID first
+      const distributorIds = [
+        "680df6bdbe06fe5db7767dc9", // WestIslandMission
+        "680df78cbe06fe5db7767de6", // OnRockCommunityService
+        "680df810be06fe5db7767dfe", // FamilleDeLileOuest
+        "680df863be06fe5db7767e22", // CentreVertical
+        "680df89cbe06fe5db7767e37", // LesSamaritains
+        "680df8e5be06fe5db7767e4a", // MoissonSudOuest
+        "680df99cbe06fe5db7767e68"  // ExtendedHands
+      ];
       
-      return Math.abs(markerPos.lat() - fbLat) < 0.0001 && 
-             Math.abs(markerPos.lng() - fbLng) < 0.0001;
-    });
-    
-    if (selectedMarker) {
-      // Pan to selected food bank
-      mapInstanceRef.current.panTo(selectedMarker.getPosition());
-      mapInstanceRef.current.setZoom(14);
+      // Fetch each distributor individually
+      const distributors = [];
+      let fetchSuccess = false;
       
-      // Show info window
-      const addressDisplay = typeof selectedFoodBank.address === 'object' ? 
-        `${selectedFoodBank.address.street || ''}, ${selectedFoodBank.address.city || ''}, ${selectedFoodBank.address.state || ''} ${selectedFoodBank.address.zip || ''}`.trim() : 
-        (selectedFoodBank.address || 'No address provided');
+      console.log('Fetching distributors by ID with Auth0 token');
       
-      const infoContent = `
-        <div class="map-info-window">
-          <h4>${selectedFoodBank.name}</h4>
-          <p><strong>Address:</strong> ${addressDisplay}</p>
-          ${selectedFoodBank.phoneNumber ? `<p><strong>Phone:</strong> ${selectedFoodBank.phoneNumber}</p>` : ''}
-          ${selectedFoodBank.openingHours ? `<p><strong>Hours:</strong> ${selectedFoodBank.openingHours}</p>` : ''}
-          <p><strong>Need Level:</strong> <span style="color: ${getNeedLevelColor(selectedFoodBank.needLevel || 1)}; font-weight: bold;">${getNeedLevelText(selectedFoodBank.needLevel || 1)}</span></p>
-        </div>
-      `;
+      // If we've already tried API calls multiple times without success, skip to fallback data
+      if (apiCallAttempts >= 2) {
+        console.warn('Multiple API attempts failed, using fallback data directly');
+        throw new Error('API calls unsuccessful after multiple attempts');
+      }
       
-      infoWindowRef.current.setContent(infoContent);
-      infoWindowRef.current.open(mapInstanceRef.current, selectedMarker);
+      // Limit concurrent API calls to prevent spamming the server
+      const MAX_CONCURRENT_REQUESTS = 2;
       
-      // Show route if user location is available
-      if (userLocation && userLocation.latitude && userLocation.longitude && directionsServiceRef.current) {
-        const origin = new window.google.maps.LatLng(
-          userLocation.latitude,
-          userLocation.longitude
+      // Process distributors in smaller batches
+      for (let i = 0; i < distributorIds.length; i += MAX_CONCURRENT_REQUESTS) {
+        const batch = distributorIds.slice(i, i + MAX_CONCURRENT_REQUESTS);
+        
+        // Process distributors in current batch concurrently
+        const batchResults = await Promise.allSettled(
+          batch.map(id => 
+            axios.get(
+              `${apiBaseUrl}/api/users/${id}`, 
+              { 
+                headers: { 
+                  'Authorization': currentToken ? `Bearer ${currentToken}` : '',
+                  'Accept': 'application/json'
+                },
+                timeout: 3000
+              }
+            )
+          )
         );
         
-        const destination = selectedMarker.getPosition();
-        
-        directionsServiceRef.current.route({
-          origin: origin,
-          destination: destination,
-          travelMode: window.google.maps.TravelMode.DRIVING
-        }, (response, status) => {
-          if (status === 'OK' && directionsRendererRef.current) {
-            directionsRendererRef.current.setDirections(response);
+        // Process results from the current batch
+        batchResults.forEach((result, index) => {
+          if (result.status === 'fulfilled' && result.value.data) {
+            console.log(`Successfully fetched distributor: ${batch[index]}`, result.value.data);
+            distributors.push(result.value.data);
+            fetchSuccess = true;
+          } else {
+            console.warn(`Failed to fetch distributor ${batch[index]}:`, 
+              result.reason ? result.reason.message : 'Unknown error');
           }
         });
+        
+        // Small delay between batches to be nice to the server
+        if (i + MAX_CONCURRENT_REQUESTS < distributorIds.length) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
       }
-    }
-  };
-
-  const adjustMapBounds = () => {
-    if (!mapInstanceRef.current) return;
-    
-    const bounds = new window.google.maps.LatLngBounds();
-    let hasValidMarkers = false;
-    
-    // Add user location to bounds
-    if (userLocation && userLocation.latitude && userLocation.longitude) {
-      bounds.extend(new window.google.maps.LatLng(
-        userLocation.latitude,
-        userLocation.longitude
-      ));
-      hasValidMarkers = true;
-    }
-    
-    // Add food bank locations to bounds
-    foodBanks.forEach(foodBank => {
-      if (foodBank.coordinates && foodBank.coordinates.latitude && foodBank.coordinates.longitude) {
-        bounds.extend(new window.google.maps.LatLng(
-          foodBank.coordinates.latitude,
-          foodBank.coordinates.longitude
-        ));
-        hasValidMarkers = true;
-      }
-    });
-    
-    // Adjust map to show all markers
-    if (hasValidMarkers) {
-      mapInstanceRef.current.fitBounds(bounds);
       
-      // Don't zoom in too far
-      const zoom = mapInstanceRef.current.getZoom();
-      if (zoom > 15) {
-        mapInstanceRef.current.setZoom(15);
+      if (fetchSuccess && distributors.length > 0) {
+        // Transform distributor data to food bank format
+        const foodBanksFromDistributors = await Promise.all(distributors.map(async (distributor) => {
+          // Extract address details
+          let addressStr = '';
+          let coordinates = null;
+          
+          if (typeof distributor.address === 'object' && distributor.address !== null) {
+            if (distributor.address.street) {
+              addressStr = distributor.address.street;
+              
+              // Add any additional address fields if available
+              if (distributor.address.city) addressStr += `, ${distributor.address.city}`;
+              if (distributor.address.state) addressStr += `, ${distributor.address.state}`;
+              if (distributor.address.zipCode) addressStr += ` ${distributor.address.zipCode}`;
+            }
+          } else if (typeof distributor.address === 'string') {
+            addressStr = distributor.address;
+          }
+
+          // Get need priority level, mimicking FoodBankDashboard.js approach
+          let needLevel = 3; // Default priority level
+
+          if (distributor.needStatus) {
+            // If needStatus exists, try to get priorityLevel or level
+            if (typeof distributor.needStatus.priorityLevel !== 'undefined') {
+              needLevel = distributor.needStatus.priorityLevel;
+            } else if (typeof distributor.needStatus.level !== 'undefined') {
+              needLevel = distributor.needStatus.level;
+            }
+          }
+          
+          // Try to geocode the address if we don't have coordinates
+          if ((!distributor.coordinates || !distributor.coordinates.latitude) && 
+              (!distributor.location || !distributor.location.coordinates) && 
+              addressStr) {
+            try {
+              // Try geocoding the address
+              coordinates = await geocodeAddressAndCache(addressStr);
+              console.log(`Geocoded address for ${distributor.username}:`, coordinates);
+            } catch (geocodeErr) {
+              console.warn(`Failed to geocode address for ${distributor.username}:`, geocodeErr);
+            }
+          } else if (distributor.coordinates) {
+            coordinates = {
+              latitude: distributor.coordinates.latitude,
+              longitude: distributor.coordinates.longitude
+            };
+          } else if (distributor.location?.coordinates?.length === 2) {
+            // Handle GeoJSON format coordinates [longitude, latitude]
+            coordinates = {
+              latitude: distributor.location.coordinates[1],
+              longitude: distributor.location.coordinates[0]
+            };
+          }
+          
+          // Use exact coordinates for known food banks
+          const exactCoordinates = {
+            'OnRockCommunityService': { latitude: 45.50336284654082, longitude: -73.77964738937693 },
+            'WestIslandMission': { latitude: 45.479481379487986, longitude: -73.80522404704882 },
+            'FamilleDeLileOuest': { latitude: 45.48081046638597, longitude: -73.86389826054254 },
+            'CentreVertical': { latitude: 45.57115430677246, longitude: -73.54096562985544 },
+            'LesSamaritains': { latitude: 45.54947317793671, longitude: -73.64833550286876 },
+            'MoissonSudOuest': { latitude: 45.2337964686707, longitude: -74.1180536182237 },
+            'ExtendedHands': { latitude: 45.440253589930535, longitude: -73.68039692801301 }
+          };
+          
+          // Check if we have exact coordinates for this distributor based on username
+          if (distributor.username && exactCoordinates[distributor.username]) {
+            coordinates = exactCoordinates[distributor.username];
+            console.log(`Using exact coordinates for ${distributor.username}`);
+          }
+          
+          return {
+            _id: distributor._id,
+            name: distributor.businessName || distributor.username || 'Food Distribution Center',
+            address: addressStr || 'Address not available',
+            phoneNumber: distributor.phone || distributor.phoneNumber || '',
+            email: distributor.email || '',
+            openingHours: distributor.openingHours || '',
+            needLevel: needLevel,
+            coordinates: coordinates
+          };
+        }));
+        
+        console.log('Transformed food banks with priority levels:', foodBanksFromDistributors);
+        
+        // Filter out food banks without coordinates
+        const validFoodBanks = foodBanksFromDistributors.filter(fb => 
+          fb.coordinates && (fb.coordinates.latitude !== undefined || fb.coordinates.lat !== undefined)
+        );
+        
+        if (validFoodBanks.length > 0) {
+          setFoodBanks(validFoodBanks);
+          setLoading(false);
+          return;
+        } else {
+          console.warn('No food banks with valid coordinates found');
+        }
       }
-    } else {
-      // Default center if no valid markers
-      mapInstanceRef.current.setCenter({ lat: 37.7749, lng: -122.4194 });
-      mapInstanceRef.current.setZoom(12);
+      
+      // If API attempts fail, use fallback data with exact coordinates
+      console.warn('All API attempts failed, using fallback data');
+      
+      // Define key Montreal food bank locations with actual addresses and coordinates
+      const montrealFoodBanks = [
+        {
+          _id: '1',
+          name: 'OnRock Community Services',
+          address: '9665 Gouin Blvd W, Pierrefonds, QC H8Y 1R4',
+          phoneNumber: '(514) 696-1905',
+          email: 'foodbank2@gmail.com',
+          openingHours: 'Monday - Friday 9:00 AM - 4:00 PM',
+          needLevel: 3, // Using same priority scale as FoodBankDashboard.js
+          needStatus: {
+            priorityLevel: 3, // Ensuring both formats work
+            customMessage: "We have some shortages in key areas"
+          },
+          coordinates: {
+            latitude: 45.50336284654082,
+            longitude: -73.77964738937693
+          }
+        },
+        {
+          _id: '2',
+          name: 'West Island Mission',
+          address: '1 Holiday Ave, Pointe-Claire, QC H9R 5N3',
+          phoneNumber: '(514) 912-6813',
+          email: 'foodbank@gmail.com',
+          openingHours: 'Monday - Thursday 9:00 AM - 4:00 PM',
+          needLevel: 2,
+          needStatus: {
+            priorityLevel: 2,
+            customMessage: "We could use some specific items, but not urgent"
+          },
+          coordinates: {
+            latitude: 45.479481379487986,
+            longitude: -73.80522404704882
+          }
+        },
+        {
+          _id: '3',
+          name: 'Famille De L\'ile Ouest',
+          address: '15650A, boulevard de Pierrefonds, Pierrefonds, QC H9H 4K1',
+          phoneNumber: '(514) 620-7373',
+          email: 'foodbank3@gmail.com',
+          openingHours: 'Monday - Thursday 8:30 AM - 12:00 PM & 1:00 PM - 4:30 PM',
+          needLevel: 2,
+          needStatus: {
+            priorityLevel: 2,
+            customMessage: "We could use some specific items, but not urgent"
+          },
+          coordinates: {
+            latitude: 45.48081046638597,
+            longitude: -73.86389826054254
+          }
+        },
+        {
+          _id: '4',
+          name: 'Centre Vertical',
+          address: '5700 av. Pierre-de-Coubertin, Montreal, QC H1N 1R5',
+          phoneNumber: '(514) 332-5550',
+          email: 'foodbank4@gmail.com',
+          openingHours: 'Monday - Friday 8:30 AM - 4:30 PM',
+          needLevel: 4,
+          needStatus: {
+            priorityLevel: 4,
+            customMessage: "We have significant shortages"
+          },
+          coordinates: {
+            latitude: 45.57115430677246,
+            longitude: -73.54096562985544
+          }
+        },
+        {
+          _id: '5',
+          name: 'Les Samaritains',
+          address: '500 Avenue 8e, Lachine, QC H8S 3L4',
+          phoneNumber: '(514) 376-5885',
+          email: 'foodbank5@gmail.com',
+          openingHours: 'Monday - Friday 8:30 AM - 4:30 PM',
+          needLevel: 4,
+          needStatus: {
+            priorityLevel: 4,
+            customMessage: "We have significant shortages"
+          },
+          coordinates: {
+            latitude: 45.54947317793671,
+            longitude: -73.64833550286876
+          }
+        },
+        {
+          _id: '6',
+          name: 'Moisson Sud Ouest',
+          address: 'Ville St-Laurent, QC',
+          phoneNumber: '(450) 377-7691',
+          email: 'foodbank6@gmail.com',
+          openingHours: 'Monday - Friday 8:00 AM - 4:00 PM',
+          needLevel: 3,
+          needStatus: {
+            priorityLevel: 3,
+            customMessage: "We have some shortages in key areas"
+          },
+          coordinates: {
+            latitude: 45.2337964686707,
+            longitude: -74.1180536182237
+          }
+        },
+        {
+          _id: '7',
+          name: 'Extended Hands',
+          address: 'Rue Fleury, Ahuntsic, QC',
+          phoneNumber: '(514) 482-1701',
+          email: 'foodbank7@gmail.com',
+          openingHours: 'Wednesdays 10:00 AM - 1:00 PM',
+          needLevel: 1,
+          needStatus: {
+            priorityLevel: 1,
+            customMessage: "We currently have sufficient supplies"
+          },
+          coordinates: {
+            latitude: 45.440253589930535,
+            longitude: -73.68039692801301
+          }
+        }
+      ];
+      
+      setFoodBanks(montrealFoodBanks);
+      setLoading(false);
+      
+    } catch (error) {
+      console.error('Error in fetchFoodBankRecommendations:', error);
+      // Use fallback data directly on error
+      const montrealFoodBanks = [
+        {
+          _id: '1',
+          name: 'OnRock Community Services',
+          address: '9665 Gouin Blvd W, Pierrefonds, QC H8Y 1R4',
+          phoneNumber: '(514) 696-1905',
+          email: 'foodbank2@gmail.com',
+          openingHours: 'Monday - Friday 9:00 AM - 4:00 PM',
+          needLevel: 3,
+          coordinates: {
+            latitude: 45.50336284654082,
+            longitude: -73.77964738937693
+          }
+        },
+        {
+          _id: '2',
+          name: 'West Island Mission',
+          address: '1 Holiday Ave, Pointe-Claire, QC H9R 5N3',
+          phoneNumber: '(514) 912-6813',
+          email: 'foodbank@gmail.com',
+          openingHours: 'Monday - Thursday 9:00 AM - 4:00 PM',
+          needLevel: 2,
+          coordinates: {
+            latitude: 45.479481379487986,
+            longitude: -73.80522404704882
+          }
+        },
+        // Include remaining food banks as in the original fallback data
+        {
+          _id: '3',
+          name: 'Famille De L\'ile Ouest',
+          address: '15650A, boulevard de Pierrefonds, Pierrefonds, QC H9H 4K1',
+          phoneNumber: '(514) 620-7373',
+          email: 'foodbank3@gmail.com',
+          openingHours: 'Monday - Thursday 8:30 AM - 12:00 PM & 1:00 PM - 4:30 PM',
+          needLevel: 2,
+          coordinates: {
+            latitude: 45.48081046638597,
+            longitude: -73.86389826054254
+          }
+        },
+        {
+          _id: '4',
+          name: 'Centre Vertical',
+          address: '5700 av. Pierre-de-Coubertin, Montreal, QC H1N 1R5',
+          phoneNumber: '(514) 332-5550',
+          email: 'foodbank4@gmail.com',
+          openingHours: 'Monday - Friday 8:30 AM - 4:30 PM',
+          needLevel: 4,
+          coordinates: {
+            latitude: 45.57115430677246,
+            longitude: -73.54096562985544
+          }
+        },
+        {
+          _id: '5',
+          name: 'Les Samaritains',
+          address: '500 Avenue 8e, Lachine, QC H8S 3L4',
+          phoneNumber: '(514) 376-5885',
+          email: 'foodbank5@gmail.com',
+          openingHours: 'Monday - Friday 8:30 AM - 4:30 PM',
+          needLevel: 4,
+          coordinates: {
+            latitude: 45.54947317793671,
+            longitude: -73.64833550286876
+          }
+        },
+        {
+          _id: '6',
+          name: 'Moisson Sud Ouest',
+          address: 'Ville St-Laurent, QC',
+          phoneNumber: '(450) 377-7691',
+          email: 'foodbank6@gmail.com',
+          openingHours: 'Monday - Friday 8:00 AM - 4:00 PM',
+          needLevel: 3,
+          coordinates: {
+            latitude: 45.2337964686707,
+            longitude: -74.1180536182237
+          }
+        },
+        {
+          _id: '7',
+          name: 'Extended Hands',
+          address: 'Rue Fleury, Ahuntsic, QC',
+          phoneNumber: '(514) 482-1701',
+          email: 'foodbank7@gmail.com',
+          openingHours: 'Wednesdays 10:00 AM - 1:00 PM',
+          needLevel: 1,
+          coordinates: {
+            latitude: 45.440253589930535,
+            longitude: -73.68039692801301
+          }
+        }
+      ];
+      
+      setFoodBanks(montrealFoodBanks);
+      setLoading(false);
     }
-  };
+  }, [apiBaseUrl, token, userId, geocodeAddressAndCache, getAccessTokenSilently, apiCallAttempts]);
 
-  const handleFoodBankSelect = (foodBank) => {
-    setSelectedFoodBank(foodBank);
-  };
-
-  const getTravelTime = (foodBankId) => {
-    // Use the cached value if available
-    if (travelTimeRef.current[foodBankId]) {
-      return travelTimeRef.current[foodBankId];
-    }
-    
-    // If we don't have travel time info, calculate it using the Haversine formula
-    const foodBank = foodBanks.find(fb => fb._id === foodBankId);
-    if (!foodBank || !foodBank.coordinates || !userLocation) {
-      return { duration: 'Calculating...', distance: 'Calculating...' };
-    }
-    
-    // Calculate straight-line distance using the Haversine formula
-    const R = 6371; // Radius of the earth in km
-    const lat1 = userLocation.latitude;
-    const lon1 = userLocation.longitude;
-    const lat2 = foodBank.coordinates.latitude;
-    const lon2 = foodBank.coordinates.longitude;
-    
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    const distance = R * c;
-    
-    // Estimate travel time: Assume average speed of 30 km/h in city, 60 km/h on highways
-    // We'll use a blend based on distance
-    let speed;
-    if (distance < 5) {
-      speed = 25; // Slower in very local areas (km/h)
-    } else if (distance < 15) {
-      speed = 35; // Medium speed in city/suburbs
-    } else {
-      speed = 60; // Faster on highways
-    }
-    
-    const timeHours = distance / speed;
-    const timeMinutes = Math.round(timeHours * 60);
-    
-    // Format the results
-    let durationText;
-    if (timeMinutes < 60) {
-      durationText = `${timeMinutes} mins`;
-    } else {
-      const hours = Math.floor(timeHours);
-      const mins = Math.round((timeHours - hours) * 60);
-      durationText = `${hours} hr${hours > 1 ? 's' : ''} ${mins > 0 ? mins + ' mins' : ''}`;
-    }
-    
-    const distanceText = distance < 1 ? 
-      `${Math.round(distance * 1000)} m` : 
-      `${distance.toFixed(1)} km`;
-    
-    // Cache the result
-    const result = { duration: durationText, distance: distanceText };
-    travelTimeRef.current = {
-      ...travelTimeRef.current,
-      [foodBankId]: result
-    };
-    
-    return result;
-  };
-
-  const confirmDelivery = async () => {
-    if (!selectedFoodBank) {
-      toast.error('Please select a food bank first');
+  // Load food banks from API based on location
+  const loadFoodBanks = useCallback(async (location) => {
+    if (!location || !location.lat || !location.lng) {
+      console.error('Invalid location for loadFoodBanks:', location);
       return;
     }
 
-    try {
-      setLoading(true);
-      const donationId = donation.id || donation._id;
-      const foodBankId = selectedFoodBank._id || selectedFoodBank.id || 'default_food_bank';
-      
-      try {
-        // Try to use the donationService
-        await donationService.markDonationDelivered(donationId, foodBankId);
-      } catch (serviceErr) {
-        // If the API call failed, try direct call using the imported function
-        console.warn('First delivery method failed, trying alternative method', serviceErr);
-        
-        if (window.confirm('Connection issue detected. Mark as delivered anyway?')) {
-          // Mark it as delivered locally without API if needed
-          console.log('Marking donation as delivered locally:', {
-            donationId: donationId,
-            foodBankName: selectedFoodBank.name,
-            timestamp: new Date().toISOString()
-          });
-        } else {
-          throw new Error('Delivery confirmation cancelled by user');
-        }
-      }
-      
-      toast.success('Donation marked as delivered to food bank!');
-      
-      // Call onDeliveryConfirmed if it exists
-      if (typeof onDeliveryConfirmed === 'function') {
-        onDeliveryConfirmed();
-      }
-      onClose();
-    } catch (err) {
-      console.error('Error confirming delivery:', err);
-      toast.error('Failed to mark donation as delivered. Please try again.');
-    } finally {
+    // Since we're using direct IDs, we'll just call fetchFoodBankRecommendations
+    // which will take care of getting the data we need
+    fetchFoodBankRecommendations();
+    
+  }, [fetchFoodBankRecommendations]);
+
+  // Get user location using browser geolocation
+  const getUserLocation = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    
+    // Check if browser supports geolocation
+    if (!navigator.geolocation) {
+      setError('Geolocation is not supported by your browser. Please enter your location manually.');
       setLoading(false);
+      return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        console.log('Got user location:', position);
+        const userLoc = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        };
+        setUserLocationState(userLoc);
+        setLoading(false);
+        
+        // After getting location, load food banks
+        loadFoodBanks(userLoc);
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        let errorMessage = 'Unable to retrieve your location. ';
+        
+        switch(error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage += 'You denied the request for geolocation.';
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage += 'Location information is unavailable.';
+            break;
+          case error.TIMEOUT:
+            errorMessage += 'The request to get your location timed out.';
+            break;
+          default:
+            errorMessage += 'An unknown error occurred.';
+        }
+        
+        setError(errorMessage);
+        setLoading(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  }, [loadFoodBanks]);
+
+  // Initialize user location from props when available or get it from browser
+  useEffect(() => {
+    if (show) {
+      if (userLocation) {
+        // Format the user location to work with our component
+        const formattedLocation = {
+          latitude: userLocation.latitude || userLocation.lat,
+          longitude: userLocation.longitude || userLocation.lng,
+          lat: userLocation.lat || userLocation.latitude,
+          lng: userLocation.lng || userLocation.longitude
+        };
+        
+        console.log('Setting user location from props:', formattedLocation);
+        setUserLocationState(formattedLocation);
+    
+        // Load food banks with the user location
+        if (formattedLocation.lat && formattedLocation.lng) {
+          loadFoodBanks(formattedLocation);
+        }
+    } else {
+        // If no user location is provided, try to get it from the browser
+        getUserLocation();
+      }
+    }
+  }, [show, userLocation, getUserLocation, loadFoodBanks]);
+
+  // Initialize map when both food banks and user location are available
+  useEffect(() => {
+    if (show && mapRef.current && userLocationState && foodBanks.length > 0) {
+      initMap();
+    }
+  }, [show, mapRef, userLocationState, foodBanks, initMap]);
+
+  // Helper functions for need level display
+  const getNeedLevelColor = (level) => {
+    switch (level) {
+      case 1: return '#4CAF50'; // Green - Low need
+      case 2: return '#FFC107'; // Yellow - Medium need
+      case 3: return '#FF9800'; // Orange - High need
+      case 4: return '#F44336'; // Red - Critical need
+      case 5: return '#B71C1C'; // Dark red - Urgent need
+      default: return '#FF9800'; // Default to orange
     }
   };
 
   const getNeedLevelText = (level) => {
-    const levels = {
-      1: 'Low Need',
-      2: 'Some Need',
-      3: 'Moderate',
-      4: 'High Need',
-      5: 'Urgent'
-    };
-    return levels[level] || 'Unknown';
-  };
-
-  const getNeedLevelColor = (level) => {
-    const colors = {
-      1: '#4CAF50',
-      2: '#8BC34A',
-      3: '#FFC107',
-      4: '#FF9800',
-      5: '#F44336'
-    };
-    return colors[level] || '#4CAF50';
+    switch (level) {
+      case 1: return 'Low';
+      case 2: return 'Medium';
+      case 3: return 'High';
+      case 4: return 'Critical';
+      case 5: return 'Urgent';
+      default: return 'High';
+    }
   };
 
   // Custom InfoIcon to replace FaInfoCircle
@@ -916,22 +1294,430 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
 
   // Helper function to create info window content
   const createInfoWindowContent = (foodBank) => {
-    const needColor = getNeedLevelColor(foodBank.needLevel || 1);
-    
-    const addressDisplay = typeof foodBank.address === 'object' ? 
-      `${foodBank.address.street || ''}, ${foodBank.address.city || ''}, ${foodBank.address.state || ''} ${foodBank.address.zip || ''}`.trim() : 
-      (foodBank.address || 'No address provided');
-    
+      const needColor = getNeedLevelColor(foodBank.needLevel || 1);
+      
+      const addressDisplay = typeof foodBank.address === 'object' ? 
+        `${foodBank.address.street || ''}, ${foodBank.address.city || ''}, ${foodBank.address.state || ''} ${foodBank.address.zip || ''}`.trim() : 
+        (foodBank.address || 'No address provided');
+      
     return `
-      <div class="map-info-window">
-        <h4>${foodBank.name}</h4>
-        <p><strong>Address:</strong> ${addressDisplay}</p>
-        ${foodBank.phoneNumber ? `<p><strong>Phone:</strong> ${foodBank.phoneNumber}</p>` : ''}
-        ${foodBank.openingHours ? `<p><strong>Hours:</strong> ${foodBank.openingHours}</p>` : ''}
-        <p><strong>Need Level:</strong> <span style="color: ${needColor}; font-weight: bold;">${getNeedLevelText(foodBank.needLevel || 1)}</span></p>
-      </div>
-    `;
+        <div class="map-info-window">
+          <h4>${foodBank.name}</h4>
+          <p><strong>Address:</strong> ${addressDisplay}</p>
+          ${foodBank.phoneNumber ? `<p><strong>Phone:</strong> ${foodBank.phoneNumber}</p>` : ''}
+          ${foodBank.openingHours ? `<p><strong>Hours:</strong> ${foodBank.openingHours}</p>` : ''}
+          <p><strong>Need Level:</strong> <span style="color: ${needColor}; font-weight: bold;">${getNeedLevelText(foodBank.needLevel || 1)}</span></p>
+        </div>
+      `;
   };
+
+  // Helper function to get travel time info for a food bank
+  const getTravelTime = (foodBankId) => {
+    if (!travelTimeRef.current[foodBankId]) {
+      // Return a direct time estimate instead of "Calculating..."
+      return { duration: 'Est. 15 min', distance: 'Est. 5 km' };
+    }
+    return travelTimeRef.current[foodBankId];
+  };
+
+  // Calculate a priority score based on need level and distance
+  const calculatePriorityScore = useCallback((foodBank) => {
+    const needLevel = foodBank.needLevel || foodBank.needStatus?.priorityLevel || 3;
+    const travelInfo = travelTimeRef.current[foodBank._id];
+    
+    // If we don't have travel info yet, return a default medium score
+    if (!travelInfo || !travelInfo.durationValue) {
+      return 50; // Medium priority if we don't have travel data
+    }
+    
+    // Convert duration to minutes (if it's in seconds)
+    const durationInMinutes = travelInfo.durationValue / 60;
+    
+    // Weight factors - give more weight to distance than before
+    const needWeight = 0.6; // Reduced from 0.7
+    const proximityWeight = 0.4; // Increased from 0.3
+    
+    // Calculate individual scores
+    // Need score: Higher need level = higher score (scale of 0-100)
+    const needScore = (needLevel / 5) * 100;
+    
+    // Proximity score: Lower duration = higher score (scale of 0-100)
+    // Assumes most travel times will be under 60 minutes
+    const proximityScore = Math.max(0, 100 - (durationInMinutes * 1.5));
+    
+    // Calculate weighted score
+    const totalScore = (needScore * needWeight) + (proximityScore * proximityWeight);
+    
+    return totalScore;
+  }, []);
+  
+  // Sort and rank food banks based on priority score
+  const rankFoodBanks = useCallback(() => {
+    if (!foodBanks.length) return;
+    
+    // Calculate scores for each food bank
+    const scoredFoodBanks = foodBanks.map(foodBank => ({
+      ...foodBank,
+      priorityScore: calculatePriorityScore(foodBank)
+    }));
+    
+    // Sort by priority score (highest first)
+    const sorted = [...scoredFoodBanks].sort((a, b) => b.priorityScore - a.priorityScore);
+    
+    // Add rank property to each food bank
+    const ranked = sorted.map((foodBank, index) => ({
+      ...foodBank,
+      rank: index + 1
+    }));
+    
+    setRankedFoodBanks(ranked);
+  }, [foodBanks, calculatePriorityScore]);
+
+  // Update rankings whenever travel times change
+  useEffect(() => {
+    const hasAllTravelTimes = foodBanks.every(foodBank => 
+      travelTimeRef.current[foodBank._id] && travelTimeRef.current[foodBank._id].durationValue
+    );
+    
+    if (hasAllTravelTimes && foodBanks.length > 0) {
+      rankFoodBanks();
+    }
+  }, [foodBanks, travelTimeRef.current, rankFoodBanks]);
+
+  // Calculate routes and travel times for all food banks
+  const calculateAllRoutes = useCallback(() => {
+    if (!mapInstanceRef.current || !userLocationState || !foodBanks.length || 
+        !window.google || !window.google.maps || !window.google.maps.DirectionsService) {
+      return;
+    }
+    
+    const directionsService = new window.google.maps.DirectionsService();
+    
+    // Find user position
+    const userPosition = new window.google.maps.LatLng(
+      userLocationState.latitude || userLocationState.lat,
+      userLocationState.longitude || userLocationState.lng
+    );
+    
+    // For each food bank, calculate route and travel time
+    foodBanks.forEach(foodBank => {
+      // Find coordinates for this food bank
+      let foodBankPosition = null;
+      
+      // Try different possible coordinate formats
+      if (foodBank.coordinates?.latitude !== undefined && foodBank.coordinates?.longitude !== undefined) {
+        foodBankPosition = new window.google.maps.LatLng(
+          foodBank.coordinates.latitude,
+          foodBank.coordinates.longitude
+        );
+      } else if (foodBank.coordinates?.lat !== undefined && foodBank.coordinates?.lng !== undefined) {
+        foodBankPosition = new window.google.maps.LatLng(
+          foodBank.coordinates.lat,
+          foodBank.coordinates.lng
+        );
+      } else if (foodBank.location?.coordinates?.length === 2) {
+        // GeoJSON format [longitude, latitude]
+        foodBankPosition = new window.google.maps.LatLng(
+          foodBank.location.coordinates[1],
+          foodBank.location.coordinates[0]
+        );
+      }
+      
+      if (!foodBankPosition) {
+        console.warn('Could not find position for food bank:', foodBank.name);
+        return;
+      }
+      
+      // Request directions
+      directionsService.route({
+        origin: userPosition,
+        destination: foodBankPosition,
+        travelMode: window.google.maps.TravelMode.DRIVING
+      }, (response, status) => {
+        if (status === 'OK') {
+          // Update travel time if route contains legs
+          if (response.routes && response.routes[0] && response.routes[0].legs && response.routes[0].legs[0]) {
+            const leg = response.routes[0].legs[0];
+            
+            // Store both text and value (seconds/meters) for calculations
+            travelTimeRef.current = {
+              ...travelTimeRef.current,
+              [foodBank._id]: { 
+                duration: leg.duration.text, 
+                distance: leg.distance.text,
+                durationValue: leg.duration.value, // in seconds
+                distanceValue: leg.distance.value  // in meters
+              }
+            };
+            
+            // Trigger re-render and ranking update
+            if (foodBanks.every(fb => travelTimeRef.current[fb._id])) {
+              setFoodBanks([...foodBanks]);
+              rankFoodBanks();
+            }
+          }
+        } else {
+          console.warn('Directions request failed for', foodBank.name, 'with status:', status);
+          
+          // Set an estimated time based on straight-line distance
+          const dist = window.google.maps.geometry.spherical.computeDistanceBetween(
+            userPosition, foodBankPosition
+          );
+          
+          // Rough estimate: 50 km/h average speed (0.8 km per minute)
+          const estMinutes = Math.ceil(dist / 1000 / 0.8);
+          
+          travelTimeRef.current = {
+            ...travelTimeRef.current,
+            [foodBank._id]: { 
+              duration: `${estMinutes} min`, 
+              distance: `${(dist/1000).toFixed(1)} km`,
+              durationValue: estMinutes * 60, // Estimated seconds
+              distanceValue: dist  // in meters
+            }
+          };
+          
+          // Trigger re-render and ranking update
+          if (foodBanks.every(fb => travelTimeRef.current[fb._id])) {
+            setFoodBanks([...foodBanks]);
+            rankFoodBanks();
+          }
+        }
+      });
+    });
+  }, [userLocationState, foodBanks, rankFoodBanks]);
+
+  // Call calculateAllRoutes when map is ready
+  useEffect(() => {
+    if (mapInitialized && mapInstanceRef.current && foodBanks.length > 0 && userLocationState) {
+      const timer = setTimeout(() => {
+        calculateAllRoutes();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [mapInitialized, foodBanks, userLocationState, calculateAllRoutes]);
+
+  // Handle confirmation of delivery
+  const confirmDelivery = () => {
+    if (selectedFoodBank) {
+      console.log('Confirming delivery to food bank:', selectedFoodBank);
+      onDeliveryConfirmed(selectedFoodBank);
+      onClose();
+    } else {
+      // If no food bank is selected, show an error or prompt
+      setError('Please select a food bank first');
+    }
+  };
+
+  const highlightSelectedFoodBank = () => {
+    if (!selectedFoodBank || !mapInstanceRef.current) return;
+    
+    // Clear any existing route
+    if (directionsRendererRef.current) {
+      directionsRendererRef.current.setMap(null);
+      directionsRendererRef.current.setMap(mapInstanceRef.current);
+    }
+    
+    // Find coordinates for the selected food bank
+    let selectedPosition = null;
+    
+    // Try different possible coordinate formats
+    if (selectedFoodBank.coordinates?.latitude !== undefined && selectedFoodBank.coordinates?.longitude !== undefined) {
+      selectedPosition = new window.google.maps.LatLng(
+        selectedFoodBank.coordinates.latitude,
+        selectedFoodBank.coordinates.longitude
+      );
+    } else if (selectedFoodBank.coordinates?.lat !== undefined && selectedFoodBank.coordinates?.lng !== undefined) {
+      selectedPosition = new window.google.maps.LatLng(
+        selectedFoodBank.coordinates.lat,
+        selectedFoodBank.coordinates.lng
+      );
+    } else if (selectedFoodBank.location?.coordinates?.length === 2) {
+      // GeoJSON format [longitude, latitude]
+      selectedPosition = new window.google.maps.LatLng(
+        selectedFoodBank.location.coordinates[1],
+        selectedFoodBank.location.coordinates[0]
+      );
+    }
+    
+    if (!selectedPosition) {
+      console.warn('Could not find position for selected food bank');
+      return;
+    }
+    
+    // Find the marker for the selected food bank by checking position
+    const selectedMarker = markersRef.current.find(marker => {
+      const markerPos = marker.getPosition();
+      return Math.abs(markerPos.lat() - selectedPosition.lat()) < 0.0001 && 
+             Math.abs(markerPos.lng() - selectedPosition.lng()) < 0.0001;
+    });
+    
+    if (selectedMarker) {
+      // Pan to the selected food bank and highlight it
+      mapInstanceRef.current.panTo(selectedPosition);
+      mapInstanceRef.current.setZoom(14);
+      
+      // Bounce animation for the selected marker
+      selectedMarker.setAnimation(window.google.maps.Animation.BOUNCE);
+      setTimeout(() => {
+        selectedMarker.setAnimation(null);
+      }, 1500);
+      
+      // Create and show info window with selected food bank details
+      if (infoWindowRef.current) {
+        // Prepare address for display
+      const addressDisplay = typeof selectedFoodBank.address === 'object' ? 
+        `${selectedFoodBank.address.street || ''}, ${selectedFoodBank.address.city || ''}, ${selectedFoodBank.address.state || ''} ${selectedFoodBank.address.zip || ''}`.trim() : 
+        (selectedFoodBank.address || 'No address provided');
+      
+        // Get need level color and text
+        let needLevelText = 'Medium';
+        let needLevelColor = '#f0ad4e';
+        
+        // Determine need level display based on value
+        const needLevel = selectedFoodBank.needLevel || selectedFoodBank.needStatus?.priorityLevel || 3;
+        if (needLevel >= 4) {
+          needLevelColor = '#d9534f';
+          needLevelText = 'High';
+        } else if (needLevel === 3) {
+          needLevelColor = '#f0ad4e';
+          needLevelText = 'Medium';
+        } else {
+          needLevelColor = '#5cb85c';
+          needLevelText = 'Low';
+        }
+        
+        // Create info window content
+      const infoContent = `
+          <div class="map-info-window" style="max-width: 250px; padding: 10px;">
+            <h4 style="margin-top: 0; color: #3a3a3a;">${selectedFoodBank.name}</h4>
+            <p style="font-size: 14px; margin: 5px 0;"><strong>Address:</strong> ${addressDisplay}</p>
+            ${selectedFoodBank.phoneNumber ? `<p style="font-size: 13px; margin: 5px 0;"><strong>Phone:</strong> ${selectedFoodBank.phoneNumber}</p>` : ''}
+            ${selectedFoodBank.email ? `<p style="font-size: 13px; margin: 5px 0;"><strong>Email:</strong> ${selectedFoodBank.email}</p>` : ''}
+            ${selectedFoodBank.openingHours ? `<p style="font-size: 13px; margin: 5px 0;"><strong>Hours:</strong> ${selectedFoodBank.openingHours}</p>` : ''}
+            <p style="font-size: 13px; margin: 5px 0;"><strong>Need Level:</strong> <span style="color: ${needLevelColor}; font-weight: bold;">${needLevelText}</span></p>
+            <div style="margin-top: 10px; text-align: center;">
+              <span style="background: #4CAF50; color: white; padding: 5px 10px; border-radius: 4px; display: inline-block; font-weight: 500;">
+                ✓ Selected for Delivery
+              </span>
+            </div>
+        </div>
+      `;
+      
+      infoWindowRef.current.setContent(infoContent);
+      infoWindowRef.current.open(mapInstanceRef.current, selectedMarker);
+      }
+      
+      // Calculate and show route if user location is available
+      if (userLocationState && directionsServiceRef.current) {
+        // Find user position
+        const userPosition = new window.google.maps.LatLng(
+          userLocationState.latitude || userLocationState.lat,
+          userLocationState.longitude || userLocationState.lng
+        );
+        
+        // Request directions
+        directionsServiceRef.current.route({
+          origin: userPosition,
+          destination: selectedPosition,
+          travelMode: window.google.maps.TravelMode.DRIVING
+        }, (response, status) => {
+          if (status === 'OK' && directionsRendererRef.current) {
+            directionsRendererRef.current.setDirections(response);
+            
+            // Update travel time if route contains legs
+            if (response.routes && response.routes[0] && response.routes[0].legs && response.routes[0].legs[0]) {
+              const leg = response.routes[0].legs[0];
+              
+              // Store both text and value (seconds/meters) for calculations
+              travelTimeRef.current = {
+                ...travelTimeRef.current,
+                [selectedFoodBank._id]: { 
+                  duration: leg.duration.text, 
+                  distance: leg.distance.text,
+                  durationValue: leg.duration.value, // in seconds
+                  distanceValue: leg.distance.value  // in meters
+                }
+              };
+              
+              console.log(`Route calculated: ${leg.distance.text} (${leg.duration.text})`);
+            }
+          } else {
+            console.warn('Directions request failed with status:', status);
+          }
+        });
+      }
+    } else {
+      console.warn('Could not find marker for selected food bank');
+    }
+  };
+
+  const adjustMapBounds = () => {
+    if (!mapInstanceRef.current) return;
+    
+    const bounds = new window.google.maps.LatLngBounds();
+    let hasValidMarkers = false;
+    
+    // Add user location to bounds
+    if (userLocationState && userLocationState.latitude && userLocationState.longitude) {
+      bounds.extend(new window.google.maps.LatLng(
+        userLocationState.latitude,
+        userLocationState.longitude
+      ));
+      hasValidMarkers = true;
+    }
+    
+    // Add food bank locations to bounds
+    foodBanks.forEach(foodBank => {
+      if (foodBank.coordinates && foodBank.coordinates.latitude && foodBank.coordinates.longitude) {
+        bounds.extend(new window.google.maps.LatLng(
+          foodBank.coordinates.latitude,
+          foodBank.coordinates.longitude
+        ));
+        hasValidMarkers = true;
+      }
+    });
+    
+    // Adjust map to show all markers
+    if (hasValidMarkers) {
+      mapInstanceRef.current.fitBounds(bounds);
+      
+      // Don't zoom in too far
+      const zoom = mapInstanceRef.current.getZoom();
+      if (zoom > 15) {
+        mapInstanceRef.current.setZoom(15);
+      }
+    } else {
+      // Default center if no valid markers
+      mapInstanceRef.current.setCenter({ lat: 37.7749, lng: -122.4194 });
+      mapInstanceRef.current.setZoom(12);
+    }
+  };
+
+  // Clean up when component unmounts
+  useEffect(() => {
+    return () => {
+      if (window.selectFoodBank) {
+        delete window.selectFoodBank;
+      }
+      
+      // Clear markers
+      if (markersRef.current.length > 0) {
+        markersRef.current.forEach(marker => {
+          if (marker) marker.setMap(null);
+        });
+        markersRef.current = [];
+      }
+      
+      // Clear directions renderer
+      if (directionsRendererRef.current) {
+        directionsRendererRef.current.setMap(null);
+      }
+      
+      // Clear map instance
+      mapInstanceRef.current = null;
+    };
+  }, []);
 
   return (
     <Modal 
@@ -1022,19 +1808,138 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
                   background: 'white',
                   zIndex: 1
                 }}>Food Banks Near You</h3>
-                {foodBanks.length === 0 ? (
-                  <p style={{ color: '#666', textAlign: 'center', padding: '20px 0' }}>No food banks found. Please try again later.</p>
-                ) : (
-                  <ul className="foodbank-recommendations" style={{ 
-                    listStyle: 'none', 
-                    padding: 0, 
-                    margin: 0,
+                {rankedFoodBanks.length > 0 
+                  ? rankedFoodBanks.map((foodBank) => {
+                    const addressDisplay = typeof foodBank.address === 'object' ? 
+                      `${foodBank.address.street || ''}, ${foodBank.address.city || ''}, ${foodBank.address.state || ''} ${foodBank.address.zip || ''}`.trim() : 
+                      (foodBank.address || 'No address provided');
+                      
+                    const travelInfo = getTravelTime(foodBank._id);
+                    const isRecommended = foodBank.rank === 1;
+                      
+                    return (
+                      <li 
+                        key={foodBank._id}
+                        className={`foodbank-item ${selectedFoodBank?._id === foodBank._id ? 'selected' : ''}`}
+                        onClick={() => handleFoodBankSelect(foodBank)}
+                        style={{ 
+                          padding: '10px 12px', 
+                          borderRadius: '8px', 
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          border: `1px solid ${selectedFoodBank?._id === foodBank._id ? '#4CAF50' : isRecommended ? '#4CAF50' : '#e0e0e0'}`,
+                          backgroundColor: selectedFoodBank?._id === foodBank._id ? '#EDF7ED' : isRecommended ? 'rgba(76, 175, 80, 0.05)' : 'white',
+                          boxShadow: selectedFoodBank?._id === foodBank._id 
+                            ? '0 2px 8px rgba(76, 175, 80, 0.2)' 
+                            : isRecommended ? '0 1px 3px rgba(76, 175, 80, 0.2)' : '0 1px 3px rgba(0,0,0,0.05)',
+                          position: 'relative',
+                          paddingRight: '40px' // Make space for need level indicator
+                        }}
+                      >
+                        {/* Priority level indicator */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '10px',
+                          right: '10px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '10px',
-                    overflow: 'visible'
-                  }}>
-                    {foodBanks.map((foodBank) => {
+                          alignItems: 'center',
+                          gap: '2px'
+                        }}>
+                          <div style={{
+                            width: '30px',
+                            height: '30px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: getNeedLevelColor(foodBank.needLevel || 1),
+                            color: 'white',
+                            fontSize: '15px',
+                            fontWeight: 'bold',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                          }}>
+                            {foodBank.needLevel || 1}
+                          </div>
+                          <span style={{
+                            fontSize: '9px',
+                            fontWeight: '600',
+                            color: getNeedLevelColor(foodBank.needLevel || 1),
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px',
+                            lineHeight: '1'
+                          }}>
+                            {foodBank.needLevel >= 4 ? 'NEED' : ''}
+                          </span>
+                        </div>
+                        
+                        {isRecommended && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '-8px',
+                            left: '10px',
+                            backgroundColor: '#4CAF50',
+                            color: 'white',
+                            fontSize: '10px',
+                            fontWeight: 'bold',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.5px'
+                          }}>
+                            Recommended
+                          </div>
+                        )}
+
+                        <h4 style={{ 
+                          margin: '0 0 8px 0', 
+                          fontSize: '1.1rem', 
+                          fontWeight: '600', 
+                          color: '#333',
+                          paddingRight: '18px'
+                        }}>{foodBank.name}</h4>
+                        
+                        <p className="foodbank-address" style={{ 
+                          margin: '0 0 6px 0', 
+                          fontSize: '0.9rem', 
+                          color: '#555',
+                          display: 'flex',
+                          alignItems: 'flex-start'
+                        }}>
+                          <LocationIcon /> {addressDisplay}
+                        </p>
+                        
+                        {foodBank.openingHours && (
+                          <p className="foodbank-hours" style={{ 
+                            margin: '0 0 6px 0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            fontSize: '0.85rem',
+                            color: '#666'
+                          }}>
+                            <ClockIcon /> <span>{foodBank.openingHours}</span>
+                          </p>
+                        )}
+                        
+                        <p className="travel-time" style={{ 
+                          margin: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          fontSize: '0.85rem',
+                          color: '#666',
+                          fontWeight: '500'
+                        }}>
+                          <DistanceIcon />
+                          <span>
+                            {travelInfo.distance} ({travelInfo.duration})
+                          </span>
+                        </p>
+                      </li>
+                    );
+                  })
+                  : foodBanks.map((foodBank) => {
+                    // Original rendering logic for when rankings aren't available
                       const addressDisplay = typeof foodBank.address === 'object' ? 
                         `${foodBank.address.street || ''}, ${foodBank.address.city || ''}, ${foodBank.address.state || ''} ${foodBank.address.zip || ''}`.trim() : 
                         (foodBank.address || 'No address provided');
@@ -1141,8 +2046,6 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
                         </li>
                       );
                     })}
-                  </ul>
-                )}
               </div>
               
               <div className="foodbank-map-container" style={{ 
@@ -1291,7 +2194,7 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
                 minWidth: '160px'
               }}
             >
-              {loading ? 'Processing...' : 'Confirm Delivery'}
+              {loading ? 'Processing...' : selectedFoodBank ? 'Confirm Delivery' : 'Select a Food Bank'}
             </button>
           </div>
         </div>
