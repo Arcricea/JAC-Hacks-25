@@ -191,4 +191,104 @@ exports.verifyVolunteerCode = async (req, res) => {
       error: error.message
     });
   }
+};
+
+// PUT /api/users/reset-need/:userId - Reset need status for a food bank (Organizer action)
+exports.resetFoodBankNeedStatus = async (req, res) => {
+  try {
+    const { userId } = req.params; // This is the auth0Id
+
+    const updatedUser = await User.findOneAndUpdate(
+      { auth0Id: userId, accountType: 'distributor' }, // Find the food bank user
+      { $set: { needStatus: { priorityLevel: 1, customMessage: '' } } }, // Reset status
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: 'Food bank user not found or not a distributor.' });
+    }
+
+    // Exclude sensitive info like secret from the response
+    const userResponse = updatedUser.toObject();
+    delete userResponse.volunteerSecret;
+
+    res.status(200).json({ success: true, message: 'Food bank need status reset successfully', data: userResponse });
+
+  } catch (error) {
+    console.error('Error resetting food bank status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error resetting food bank status',
+      error: error.message
+    });
+  }
+};
+
+// PUT /api/users/set-need/:userId - Set need status for a food bank (Organizer action)
+exports.setFoodBankNeedStatusByOrganizer = async (req, res) => {
+  try {
+    const { userId } = req.params; // This is the food bank's auth0Id
+    const { priorityLevel, customMessage } = req.body; // Get new status from request body
+
+    // Validate input
+    if (priorityLevel === undefined || customMessage === undefined) {
+      return res.status(400).json({ success: false, message: 'priorityLevel and customMessage are required in the request body' });
+    }
+    if (typeof priorityLevel !== 'number' || priorityLevel < 1 || priorityLevel > 5) {
+      return res.status(400).json({ success: false, message: 'priorityLevel must be a number between 1 and 5' });
+    }
+
+    const updatedUser = await User.findOneAndUpdate(
+      { auth0Id: userId, accountType: 'distributor' }, // Find the food bank user
+      { $set: { needStatus: { priorityLevel, customMessage } } }, // Set the new status
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: 'Food bank user not found or not a distributor.' });
+    }
+
+    // Exclude sensitive info like secret from the response
+    const userResponse = updatedUser.toObject();
+    delete userResponse.volunteerSecret;
+
+    res.status(200).json({ success: true, message: 'Food bank need status updated successfully', data: userResponse });
+
+  } catch (error) {
+    console.error('Error setting food bank status by organizer:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error setting food bank status',
+      error: error.message
+    });
+  }
+};
+
+// DELETE /api/users/:auth0Id - Delete a user (Organizer/Admin action)
+exports.deleteUserByAuth0Id = async (req, res) => {
+  try {
+    const { auth0Id } = req.params;
+
+    // Optional: Add checks here to prevent self-deletion or deletion of other vital accounts
+
+    const deletedUser = await User.findOneAndDelete({ auth0Id: auth0Id });
+
+    if (!deletedUser) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    // TODO Optional: Add logic here to delete associated data (e.g., donations made by this user)
+    // This depends on your data model and desired behavior.
+    // Example: await Donation.deleteMany({ userId: auth0Id });
+
+    res.status(200).json({ success: true, message: 'User deleted successfully' });
+
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting user',
+      error: error.message
+    });
+  }
 }; 

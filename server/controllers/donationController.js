@@ -1,6 +1,7 @@
 const Donation = require('../models/Donation');
 const User = require('../models/User'); // Import User model
 // const AssignedTask = require('../models/AssignedTask');
+const mongoose = require('mongoose');
 
 exports.createDonation = async (req, res) => {
   try {
@@ -416,6 +417,38 @@ exports.getVolunteerCompletedDonationCount = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error fetching volunteer completed donation count',
+      error: error.message
+    });
+  }
+};
+
+exports.assignVolunteerToDonation = async (req, res) => {
+  // ... existing code ...
+};
+
+// DELETE /api/donations/:id - Delete a donation (Organizer action)
+exports.deleteDonationById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Validate the ID format (optional but recommended)
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid Donation ID format' });
+    }
+
+    const deletedDonation = await Donation.findByIdAndDelete(id);
+
+    if (!deletedDonation) {
+      return res.status(404).json({ success: false, message: 'Donation not found' });
+    }
+
+    res.status(200).json({ success: true, message: 'Donation deleted successfully' });
+
+  } catch (error) {
+    console.error('Error deleting donation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error deleting donation',
       error: error.message
     });
   }

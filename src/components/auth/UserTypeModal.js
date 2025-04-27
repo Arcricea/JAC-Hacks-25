@@ -69,6 +69,12 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
       title: 'Volunteer',
       description: 'I want to help with food collection and distribution',
       icon: '🤝' // Example icon, change if desired
+    },
+    {
+      id: 'organizer',
+      title: 'Organizer',
+      description: 'I organize food events or collections',
+      icon: '🤝' // Example icon, change if desired
     }
   ];
 
