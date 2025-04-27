@@ -24,5 +24,6 @@ router.post('/supplier/confirm-pickup/:userId', donationController.confirmSuppli
 
 // Volunteer Routes
 router.get('/volunteer/scheduled/:volunteerId', donationController.getVolunteerScheduledDonations);
+router.get('/volunteer/completed-count/:volunteerId', donationController.getVolunteerCompletedDonationCount);
 
 module.exports = router; 

@@ -6,17 +6,21 @@ import '../assets/styles/VolunteerDashboard.css'; // Add specific styles
 import { 
   getAvailableDonations, 
   assignDonationToVolunteer,
-  getVolunteerScheduledDonations
+  getVolunteerScheduledDonations,
+  getVolunteerCompletedDonationCount
 } from '../services/donationService';
 
 const VolunteerDashboard = () => {
   const { userData, setUserData } = useContext(UserContext);
   const [activeTab, setActiveTab] = useState('qrcode'); // Default tab
   const [error, setError] = useState(null);
+  const [statsError, setStatsError] = useState(null); // Separate error state for stats
   const [availableTasks, setAvailableTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [scheduledDonations, setScheduledDonations] = useState([]);
+  const [completedCount, setCompletedCount] = useState(0); // State for completed count
+  const [isLoadingStats, setIsLoadingStats] = useState(false); // Loading state for stats
 
   useEffect(() => {
     if (activeTab === 'available') {
@@ -29,6 +33,12 @@ const VolunteerDashboard = () => {
       fetchScheduledDonations();
     }
   }, [activeTab, userData]);
+
+  useEffect(() => {
+    if (userData?.auth0Id) {
+      fetchCompletedDonationCount();
+    }
+  }, [userData]);
 
   const fetchAvailableTasks = async () => {
     setIsLoading(true);
@@ -66,6 +76,26 @@ const VolunteerDashboard = () => {
     }
   };
 
+  const fetchCompletedDonationCount = async () => {
+    if (!userData?.auth0Id) return;
+    setIsLoadingStats(true);
+    setStatsError(null);
+    try {
+      const response = await getVolunteerCompletedDonationCount(userData.auth0Id);
+      if (response.success) {
+        setCompletedCount(response.data.completedCount);
+      } else {
+        setStatsError(response.message || 'Failed to load donation stats.');
+        console.error('Stats fetch error:', response.message);
+      }
+    } catch (err) {
+      setStatsError('Failed to load donation stats.');
+      console.error('Error fetching donation stats:', err);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+
   const qrCodeValue = userData?.auth0Id 
                       ? `volunteerid:${userData.auth0Id}` 
                       : 'loading';
@@ -82,6 +112,7 @@ const VolunteerDashboard = () => {
       if (response.success) {
         setAvailableTasks(prev => prev.filter(task => task._id !== donationId));
         fetchScheduledDonations();
+        fetchCompletedDonationCount();
         alert('Donation scheduled successfully!');
       } else {
         setError(response.message || 'Failed to schedule donation.');
@@ -106,6 +137,19 @@ const VolunteerDashboard = () => {
   return (
     <div className="dashboard-container">
       <h2>Volunteer Dashboard</h2>
+      
+      {/* Stats Overview Section */}
+      <div className="stats-overview">
+        <div className="stat-card">
+          <h4>Completed Pickups</h4>
+          {isLoadingStats && <p>Loading...</p>}
+          {statsError && <p className="error-message small">{statsError}</p>}
+          {!isLoadingStats && !statsError && (
+            <p className="stat-value">{completedCount}</p>
+          )}
+        </div>
+        {/* Add more stat cards here if needed */}
+      </div>
       
       <div className="dashboard-nav">
         <button 

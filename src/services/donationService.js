@@ -162,6 +162,22 @@ export const getVolunteerScheduledDonations = async (volunteerId) => {
   }
 };
 
+export const getVolunteerCompletedDonationCount = async (volunteerId) => {
+  try {
+    const response = await fetch(`${API_URL}/donations/volunteer/completed-count/${volunteerId}`);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch volunteer completed donation count');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching volunteer completed donation count:', error);
+    throw error;
+  }
+};
+
 // --- Remove unused functions below ---
 /*
 export const getVolunteerTasks = async (volunteerId) => {

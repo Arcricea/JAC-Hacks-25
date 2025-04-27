@@ -388,4 +388,35 @@ exports.getVolunteerScheduledDonations = async (req, res) => {
       error: error.message
     });
   }
+};
+
+// New function to get the count of completed donations for a volunteer
+exports.getVolunteerCompletedDonationCount = async (req, res) => {
+  try {
+    const { volunteerId } = req.params; // Expect volunteer's auth0Id
+
+    if (!volunteerId) {
+      return res.status(400).json({ success: false, message: 'Volunteer ID is required.' });
+    }
+
+    const completedCount = await Donation.countDocuments({
+      volunteerId: volunteerId,
+      status: 'completed'
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        completedCount: completedCount
+      }
+    });
+
+  } catch (error) {
+    console.error("Error fetching volunteer completed donation count:", error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching volunteer completed donation count',
+      error: error.message
+    });
+  }
 }; 
