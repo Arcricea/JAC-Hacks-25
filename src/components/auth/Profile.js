@@ -6,6 +6,9 @@ import { saveUser, updateUserAccountType } from "../../services/userService";
 import { validateAddress } from '../../services/addressService';
 import GoogleMapsScript from '../GoogleMapsScript';
 
+// Define account types available
+const accountTypes = ['individual', 'business', 'distributor', 'volunteer', 'organizer'];
+
 const Profile = () => {
   const { user, isAuthenticated, isLoading } = useAuth0();
   const { userData, setUserData } = useContext(UserContext);
@@ -26,6 +29,7 @@ const Profile = () => {
   const autocompleteInputRef = useRef(null);
   const autocompleteRef = useRef(null);
   const [addressSaveStatus, setAddressSaveStatus] = useState({ message: '', type: '' });
+  const [selectedAccountType, setSelectedAccountType] = useState(''); // New state for dropdown
 
   // Set nickname from userData when it becomes available
   useEffect(() => {
@@ -79,6 +83,16 @@ const Profile = () => {
     }
   }, [isEditingAddress, isGoogleLoaded]);
 
+  // Initialize selectedAccountType when userData loads
+  useEffect(() => {
+    if (userData?.accountType) {
+      setSelectedAccountType(userData.accountType);
+    } else if (accountTypes.length > 0) {
+      // Default to the first type if user has no type yet
+      setSelectedAccountType(accountTypes[0]); 
+    }
+  }, [userData]);
+
   const handleGoogleMapsLoad = () => {
     setIsGoogleLoaded(true);
   };
@@ -127,43 +141,55 @@ const Profile = () => {
     }
   };
 
-  const handleBecomeVolunteer = async () => {
+  // Modified function to handle changing to ANY account type
+  const handleChangeAccountType = async () => {
     if (!userData?.auth0Id) {
       setAccountTypeError("User profile not properly loaded. Please try again later.");
       return;
     }
+    if (!selectedAccountType) {
+      setAccountTypeError("Please select an account type.");
+      return;
+    }
+    if (selectedAccountType === userData.accountType) {
+        setAccountTypeError("You already have this account type.");
+        return;
+    }
 
     setIsChangingAccountType(true);
     setAccountTypeError("");
+    setAccountTypeSuccess(""); // Clear previous success message
 
     try {
-      // Update account type to volunteer
+      // Update account type to the selected type
       const response = await saveUser({
         auth0Id: userData.auth0Id,
         username: userData.username,
-        accountType: 'volunteer'
+        accountType: selectedAccountType // Use the selected type
       });
 
       if (response.success) {
+        const newType = response.data.accountType || selectedAccountType; // Use response data if available
+
         // Update local state
         setUserData(prev => ({
           ...prev,
-          accountType: 'volunteer'
+          accountType: newType
         }));
 
         // Update localStorage
-        localStorage.setItem(`user_type_${user.sub}`, 'volunteer');
+        localStorage.setItem(`user_type_${user.sub}`, newType);
         localStorage.setItem(`user_type_set_${user.sub}`, 'true');
 
         // Show success message
-        setAccountTypeSuccess("You are now registered as a volunteer! Go to the dashboard to see your volunteer QR code.");
+        setAccountTypeSuccess(`Account type successfully changed to ${formatAccountType(newType)}! Reloading...`);
         setTimeout(() => {
           setAccountTypeSuccess("");
           // Reload the page to ensure all data is refreshed
           window.location.reload();
-        }, 3000);
+        }, 2000); // Shorter timeout
       } else {
-        setAccountTypeError("Failed to update account type. Please try again.");
+        setAccountTypeError(`Failed to update account type: ${response.message || 'Please try again.'}`);
       }
     } catch (err) {
       setAccountTypeError("An error occurred. Please try again later.");
@@ -347,12 +373,41 @@ const Profile = () => {
             <h3>Account Type</h3>
             <p>{userData?.accountType ? formatAccountType(userData.accountType) : "Not set"}</p>
             
-            {userData?.accountType !== 'volunteer' && (
+            {/* Debug: Allow changing to any account type */}
+            <div className="change-account-type-debug">
+              <p className="debug-info"><strong>Debug:</strong> Change Account Type</p>
+              <div className="account-type-controls">
+                <select 
+                  value={selectedAccountType}
+                  onChange={(e) => setSelectedAccountType(e.target.value)}
+                  disabled={isChangingAccountType}
+                  className="account-type-select"
+                >
+                  {accountTypes.map(type => (
+                    <option key={type} value={type}>
+                      {formatAccountType(type)}
+                    </option>
+                  ))}
+                </select>
+                <button 
+                  className="change-type-btn"
+                  onClick={handleChangeAccountType} // Use the new handler
+                  disabled={isChangingAccountType || selectedAccountType === userData?.accountType}
+                >
+                  {isChangingAccountType ? "Processing..." : "Change Type"}
+                </button>
+              </div>
+              {accountTypeError && <p className="error-message">{accountTypeError}</p>}
+              {accountTypeSuccess && <p className="success-message">{accountTypeSuccess}</p>}
+            </div>
+            
+            {/* Original Volunteer Option - Kept for reference or potential future use, maybe commented out */}
+            {/* {userData?.accountType !== 'volunteer' && (
               <div className="volunteer-option">
                 <p className="volunteer-info">Want to help distribute food and earn community service hours?</p>
                 <button 
                   className="become-volunteer-btn"
-                  onClick={handleBecomeVolunteer}
+                  onClick={handleBecomeVolunteer} // Keep original handler if needed elsewhere or rename it
                   disabled={isChangingAccountType}
                 >
                   {isChangingAccountType ? "Processing..." : "Become a Volunteer"}
@@ -360,7 +415,7 @@ const Profile = () => {
                 {accountTypeError && <p className="error-message">{accountTypeError}</p>}
                 {accountTypeSuccess && <p className="success-message">{accountTypeSuccess}</p>}
               </div>
-            )}
+            )} */}
           </div>
           
           <div className="profile-section">
@@ -467,7 +522,7 @@ function formatAccountType(type) {
     volunteer: "Volunteer",
     organizer: "Event Organizer"
   };
-  return types[type] || type;
+  return types[type] || type; // Return the formatted type or the original key
 }
 
 export default Profile; 
