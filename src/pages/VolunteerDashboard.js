@@ -13,7 +13,7 @@ import {
   cancelVolunteerAssignment,
   getVolunteerCompletedDonations
 } from '../services/donationService';
-import { markDonationPickedUp } from '../services/foodBankService';
+import { markDonationPickedUp, markDonationDelivered } from '../services/foodBankService';
 
 const VolunteerDashboard = () => {
   const { userData, setUserData } = useContext(UserContext);
@@ -321,6 +321,48 @@ const VolunteerDashboard = () => {
     }
   };
 
+  const handleDirectMarkAsDelivered = async (task) => {
+    if (!userData?.auth0Id) {
+      setError('Please log in to mark as delivered');
+      return;
+    }
+
+    // Confirm the action
+    if (!window.confirm(`Are you sure you want to mark "${task.itemName}" as delivered?`)) {
+      return;
+    }
+
+    setIsPickingUp(true); // Reuse the loading state
+    setError(null);
+
+    try {
+      // Use a default food bank ID since it's a direct action
+      const response = await markDonationDelivered(
+        task._id,
+        userData.auth0Id,
+        'default_food_bank_id'
+      );
+      
+      if (response.success) {
+        // Update the UI by removing this task from scheduled donations
+        setScheduledDonations(prev => prev.filter(d => d._id !== task._id));
+        
+        // Refresh the completed donations and count
+        fetchCompletedDonationCount();
+        fetchCompletedDonations();
+        
+        alert('Delivery confirmed successfully!');
+      } else {
+        throw new Error(response.message || 'Failed to mark as delivered');
+      }
+    } catch (err) {
+      console.error('Error marking donation as delivered:', err);
+      setError(err.message || 'Failed to mark as delivered. Please try again.');
+    } finally {
+      setIsPickingUp(false);
+    }
+  };
+
   return (
     <div className="dashboard-container">
       <h2>Volunteer Dashboard</h2>
@@ -445,12 +487,10 @@ const VolunteerDashboard = () => {
                             {task.status === 'picked_up' && (
                               <button 
                                 className="delivery-btn"
-                                onClick={() => {
-                                  setSelectedPickup(task);
-                                  setIsFoodBankModalOpen(true);
-                                }}
+                                onClick={() => handleDirectMarkAsDelivered(task)}
+                                disabled={isPickingUp}
                               >
-                                Mark as Delivered
+                                {isPickingUp ? 'Processing...' : 'Mark as Delivered'}
                               </button>
                             )}
                           </div>
