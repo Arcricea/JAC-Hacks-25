@@ -325,6 +325,11 @@
   background-color: #9C27B0;
 }
 
+.status-badge.awaiting_actions {
+  background-color: #FF9800;
+  color: white;
+}
+
 .status-badge.delivered {
   background-color: #4CAF50;
 }
@@ -372,6 +377,27 @@
 
 .delivery-btn:hover {
   background-color: #388E3C;
+}
+
+.food-bank-btn {
+  padding: 8px 15px;
+  background-color: #FF9800;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  margin: 0 5px;
+}
+
+.food-bank-btn:hover {
+  background-color: #F57C00;
+}
+
+.food-bank-btn:disabled {
+  background-color: #FFD180;
+  cursor: not-allowed;
 }
 
 .volunteer-id-card {
