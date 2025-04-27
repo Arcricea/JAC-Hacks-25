@@ -5,10 +5,28 @@ const mongoose = require('mongoose');
 
 exports.createDonation = async (req, res) => {
   try {
-    const { itemName, category, quantity, expirationDate, pickupInfo, imageUrl, userId } = req.body;
+    const { itemName, category, quantity, expirationDate, pickupInfo, imageUrl } = req.body;
+    let targetUserId = req.body.userId; // Get target user from body (potential admin action)
+    const requestingUser = req.requestingUser; // Get authenticated user from middleware
 
-    // Validate required fields
-    if (!itemName || !category || !quantity || !expirationDate || !pickupInfo || !userId) {
+    // --- Authorization & User ID Assignment ---
+    if (!requestingUser) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+
+    const isAdmin = requestingUser.accountType === 'organizer';
+
+    if (!isAdmin) {
+      // If not an admin, force the userId to be the logged-in user's ID
+      targetUserId = requestingUser.auth0Id;
+    } else if (!targetUserId) {
+      // If admin, but no target userId provided in body, it's an error
+      return res.status(400).json({ success: false, message: 'Admin must specify a target userId in the request body.' });
+    }
+    // --- End Authorization ---
+
+    // Validate required fields (using determined targetUserId)
+    if (!itemName || !category || !quantity || !expirationDate || !pickupInfo || !targetUserId) {
       return res.status(400).json({
         success: false,
         message: 'Missing required fields',
@@ -18,14 +36,28 @@ exports.createDonation = async (req, res) => {
           quantity: !quantity,
           expirationDate: !expirationDate,
           pickupInfo: !pickupInfo,
-          userId: !userId
+          userId: !targetUserId // Check the determined targetUserId
         }
       });
     }
 
-    // Get the user's business address
-    const user = await User.findOne({ auth0Id: userId });
-    const businessAddress = user?.address || '4873 Westmount Ave, Westmount, Quebec H3Y 1X9';
+    // Find the target user (the one the donation belongs to)
+    const targetUser = await User.findOne({ auth0Id: targetUserId });
+    if (!targetUser) {
+         return res.status(404).json({ success: false, message: 'Target user specified for donation not found.' });
+    }
+    // Ensure only businesses or admins acting as businesses can create donations (optional strict check)
+    // if (!isAdmin && targetUser.accountType !== 'business') {
+    //   return res.status(403).json({ success: false, message: 'Only business accounts can create donations directly.' });
+    // }
+    // if (isAdmin && targetUser.accountType !== 'business') {
+    //   console.warn(`Admin (${requestingUser.auth0Id}) creating donation for non-business user (${targetUserId})`);
+    //   // Decide if this should be allowed or return an error
+    // }
+
+
+    // Use target user's address or default
+    const businessAddress = targetUser.address || 'Address not available'; // Adjusted default
 
     // Calculate estimated value
     let calculatedValue = 0;
@@ -38,7 +70,7 @@ exports.createDonation = async (req, res) => {
     }
 
     const donation = new Donation({
-      userId,
+      userId: targetUserId, // Use the determined target user ID
       itemName,
       category,
       quantity,
@@ -190,31 +222,36 @@ exports.getDonationReceipts = async (req, res) => {
 // New function to get supplier overview data
 exports.getSupplierOverview = async (req, res) => {
   try {
-    const { userId } = req.params; // Get userId (auth0Id) from URL parameters
+    const { userId } = req.params; // ID from URL (could be admin's or supplier's)
+    const { requestingUser } = req; // User making the request (from middleware)
 
-    // Validate user exists (optional, but good practice)
-    const donor = await User.findOne({ auth0Id: userId, accountType: 'business' });
-    if (!donor) {
-      return res.status(404).json({ success: false, message: 'Supplier user not found.' });
+    let targetUserId = userId; // By default, use the ID from the URL
+    let isRequestFromAdmin = requestingUser?.accountType === 'organizer';
+
+    // If admin is making the request, they are querying data relative to *their own* actions
+    if (isRequestFromAdmin) {
+      targetUserId = requestingUser.auth0Id; // Use admin's ID for querying donations
+    } else {
+      // If not admin, ensure the requesting user matches the URL ID and is a business
+      const donor = await User.findOne({ auth0Id: userId, accountType: 'business' });
+      if (!donor) {
+        return res.status(404).json({ success: false, message: 'Supplier user not found or ID mismatch.' });
+      }
     }
 
-    // Get total number of donations made by this user
-    const totalDonationsCount = await Donation.countDocuments({ userId: userId });
-
-    // Get number of donations currently scheduled for pickup
-    const upcomingPickupsCount = await Donation.countDocuments({ userId: userId, status: 'scheduled' });
-
-    // Get the 5 most recent donations (regardless of status)
-    const recentDonations = await Donation.find({ userId: userId })
+    // --- Fetch data using targetUserId --- 
+    const totalDonationsCount = await Donation.countDocuments({ userId: targetUserId });
+    const upcomingPickupsCount = await Donation.countDocuments({ userId: targetUserId, status: 'scheduled' });
+    const recentDonations = await Donation.find({ userId: targetUserId })
       .sort({ createdAt: -1 })
       .limit(5)
-      .select('itemName quantity createdAt status'); // Select only needed fields
+      .select('itemName quantity createdAt status'); 
 
-    // Placeholder for impact stats - replace with real calculation later
+    // Placeholder for impact stats - base on targetUserId's donations
     const impactStats = {
-      mealsSaved: totalDonationsCount * 3, // Example placeholder calculation
-      co2Prevented: Math.round(totalDonationsCount * 1.5), // Example placeholder
-      wasteReduced: totalDonationsCount * 2, // Example placeholder
+      mealsSaved: totalDonationsCount * 3,
+      co2Prevented: Math.round(totalDonationsCount * 1.5),
+      wasteReduced: totalDonationsCount * 2,
     };
 
     const overviewData = {
@@ -225,7 +262,7 @@ exports.getSupplierOverview = async (req, res) => {
         name: d.itemName,
         quantity: d.quantity,
         date: d.createdAt,
-        status: d.status.charAt(0).toUpperCase() + d.status.slice(1) // Capitalize status
+        status: d.status.charAt(0).toUpperCase() + d.status.slice(1)
       })),
       impactStats: impactStats
     };
@@ -235,7 +272,7 @@ exports.getSupplierOverview = async (req, res) => {
       data: overviewData
     });
 
-  } catch (error) {
+  } catch (error) { // <<< Ensure catch block wraps the logic >>>
     console.error('Error fetching supplier overview:', error);
     res.status(500).json({
       success: false,
@@ -248,15 +285,28 @@ exports.getSupplierOverview = async (req, res) => {
 // New function to get a specific supplier's available/scheduled donations
 exports.getSupplierListedDonations = async (req, res) => {
   try {
-    const { userId } = req.params; // Get userId (auth0Id) from URL parameters
+    const { userId } = req.params; // ID from URL
+    const { requestingUser } = req; // User making the request
+    
+    let targetUserId = userId;
+    let isRequestFromAdmin = requestingUser?.accountType === 'organizer';
 
-    // Find donations by this user that are either available or scheduled
+    if (isRequestFromAdmin) {
+      targetUserId = requestingUser.auth0Id; // Admin views their own added donations
+    } else {
+      // Optional: Verify non-admin is requesting their own data
+      if (userId !== requestingUser?.auth0Id) {
+         return res.status(403).json({ success: false, message: 'Forbidden: Cannot fetch donations for another user.' });
+      }
+    }
+
+    // Find donations by targetUserId that are available or scheduled
     const donations = await Donation.find({
-      userId: userId,
-      status: { $in: ['available', 'scheduled'] } // Filter by status
+      userId: targetUserId, // Use targetUserId here
+      status: { $in: ['available', 'scheduled'] } 
     })
-    .sort({ createdAt: -1 }) // Show most recent first
-    .select('itemName quantity expirationDate status'); // Select relevant fields
+    .sort({ createdAt: -1 }) 
+    .select('itemName quantity expirationDate status'); 
 
     res.status(200).json({
       success: true,
@@ -449,6 +499,16 @@ exports.assignVolunteerToDonation = async (req, res) => {
 exports.deleteDonationById = async (req, res) => {
   try {
     const { id } = req.params;
+    const requestingUser = req.requestingUser; // Get authenticated user from middleware
+
+    // --- Authorization Check ---
+    if (!requestingUser) {
+      return res.status(401).json({ success: false, message: 'Authentication required.' });
+    }
+    if (requestingUser.accountType !== 'organizer') {
+      return res.status(403).json({ success: false, message: 'Forbidden: Only organizers can delete donations.' });
+    }
+    // --- End Authorization Check ---
 
     // Validate the ID format (optional but recommended)
     if (!mongoose.Types.ObjectId.isValid(id)) {

@@ -12,7 +12,7 @@ const isOrganizer = async (req, res, next) => {
   }
 
   try {
-    const requestingUser = await User.findOne({ auth0Id: requestingUserId });
+    const requestingUser = await User.findOne({ auth0Id: requestingUserId }).lean();
 
     if (!requestingUser) {
       return res.status(403).json({ 
@@ -27,6 +27,8 @@ const isOrganizer = async (req, res, next) => {
         message: 'Forbidden: Action requires organizer privileges.' 
       });
     }
+
+    req.requestingUser = requestingUser;
 
     // If checks pass, proceed to the route handler
     next(); 

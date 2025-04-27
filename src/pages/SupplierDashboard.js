@@ -4,7 +4,7 @@ import { createDonation, getDonationReceipt, getSupplierOverviewData, getSupplie
 import '../assets/styles/Dashboard.css';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
-const SupplierDashboard = ({ isAdminView = false, allDonations = null, allFoodBanks = null }) => {
+const SupplierDashboard = ({ previewTargetUserId }) => {
   const { userData } = useContext(UserContext);
   const [activeTab, setActiveTab] = useState('overview');
   const [formData, setFormData] = useState({
@@ -28,12 +28,12 @@ const SupplierDashboard = ({ isAdminView = false, allDonations = null, allFoodBa
   const [receiptError, setReceiptError] = useState('');
   // --- State for Receipts --- END
 
-  // --- State for Overview & Listed Items (Only used if NOT isAdminView) --- 
+  // --- State for Overview & Listed Items --- 
   const [overviewData, setOverviewData] = useState(null);
-  const [isLoadingOverview, setIsLoadingOverview] = useState(!isAdminView); // Only start loading if not admin view
+  const [isLoadingOverview, setIsLoadingOverview] = useState(true); // Default to true
   const [overviewError, setOverviewError] = useState('');
   const [supplierListedItems, setSupplierListedItems] = useState([]);
-  const [isLoadingListedItems, setIsLoadingListedItems] = useState(!isAdminView); // Only start loading if not admin view
+  const [isLoadingListedItems, setIsLoadingListedItems] = useState(true); // Default to true
   const [listedItemsError, setListedItemsError] = useState('');
 
   // State for QR Scanner / Confirmation
@@ -86,10 +86,15 @@ const SupplierDashboard = ({ isAdminView = false, allDonations = null, allFoodBa
     setIsSubmitting(true);
 
     try {
+      // Determine the user ID for whom the donation is being created
+      const donationOwnerId = previewTargetUserId || userData.auth0Id;
+      // The requestingUserId is always the logged-in user (admin in preview mode)
+      const requestingUserId = userData.auth0Id;
+
       const response = await createDonation({
         ...formData,
-        userId: userData.auth0Id
-      });
+        userId: donationOwnerId // Use the determined owner ID
+      }, requestingUserId); // Pass requester ID for header
 
       if (response.success) {
         setSubmitSuccess(true);
@@ -137,7 +142,13 @@ const SupplierDashboard = ({ isAdminView = false, allDonations = null, allFoodBa
       }
       // --- Extract volunteer ID from scanned text --- END
       
-      const response = await confirmSupplierPickup(userData.auth0Id, scannedVolunteerId); // Pass ID
+      // Determine the user ID whose pickup is being confirmed
+      const resourceUserId = previewTargetUserId || userData.auth0Id;
+      // The requestingUserId is always the logged-in user
+      const requestingUserId = userData.auth0Id;
+      
+      // Pass resource ID for URL path, requester ID for header
+      const response = await confirmSupplierPickup(resourceUserId, scannedVolunteerId, requestingUserId);
       setConfirmationResult({ 
         success: true, 
         message: response.message || 'Pickup confirmed successfully!' 
@@ -160,19 +171,20 @@ const SupplierDashboard = ({ isAdminView = false, allDonations = null, allFoodBa
     // console.warn(`Code scan error = ${error}`);
   };
 
-  // --- Fetch Overview Data (Only if NOT isAdminView) --- START
+  // --- Fetch Overview Data (Remove isAdminView check) --- START
   useEffect(() => {
     const fetchOverview = async () => {
-      // <<< Skip fetch if isAdminView >>>
-      if (isAdminView) {
-        setIsLoadingOverview(false); // Ensure loading is off
-        return; 
-      }
-      if (userData && userData.auth0Id) {
+      // Determine whose overview to fetch
+      const resourceUserId = previewTargetUserId || userData?.auth0Id;
+      // The requesting user is always the one from context
+      const requestingUserId = userData?.auth0Id;
+
+      if (resourceUserId && requestingUserId) {
         setIsLoadingOverview(true);
         setOverviewError('');
         try {
-          const response = await getSupplierOverviewData(userData.auth0Id);
+          // Pass resource ID for URL, requester ID for header
+          const response = await getSupplierOverviewData(resourceUserId, requestingUserId);
           if (response.success) {
             setOverviewData(response.data);
           } else {
@@ -187,22 +199,23 @@ const SupplierDashboard = ({ isAdminView = false, allDonations = null, allFoodBa
       }
     };
     fetchOverview();
-  }, [userData, refreshTrigger, isAdminView]); // Add isAdminView dependency
+  }, [userData, refreshTrigger]); // Remove isAdminView dependency
   // --- Fetch Overview Data --- END
 
-  // --- Fetch Supplier's Listed Items (Only if NOT isAdminView) --- START
+  // --- Fetch Supplier's Listed Items (Remove isAdminView check) --- START
   useEffect(() => {
     const fetchListedItems = async () => {
-      // <<< Skip fetch if isAdminView >>>
-      if (isAdminView) {
-        setIsLoadingListedItems(false); // Ensure loading is off
-        return;
-      }
-      if (userData && userData.auth0Id) {
+      // Determine whose items to fetch
+      const resourceUserId = previewTargetUserId || userData?.auth0Id;
+      // The requesting user is always the one from context
+      const requestingUserId = userData?.auth0Id;
+
+      if (resourceUserId && requestingUserId) { 
         setIsLoadingListedItems(true);
         setListedItemsError('');
         try {
-          const response = await getSupplierListedItems(userData.auth0Id);
+           // Pass resource ID for URL, requester ID for header
+          const response = await getSupplierListedItems(resourceUserId, requestingUserId);
           if (response.success) {
             setSupplierListedItems(response.data);
           } else {
@@ -217,7 +230,7 @@ const SupplierDashboard = ({ isAdminView = false, allDonations = null, allFoodBa
       }
     };
     fetchListedItems();
-  }, [userData, submitSuccess, refreshTrigger, isAdminView]); // Add isAdminView dependency
+  }, [userData, submitSuccess, refreshTrigger]); // Remove isAdminView dependency
   // --- Fetch Supplier's Listed Items --- END
 
   // Effect to setup scanner (keep as is, just ensure element ID matches)
@@ -265,8 +278,13 @@ const SupplierDashboard = ({ isAdminView = false, allDonations = null, allFoodBa
 
   // --- Function to Fetch Receipt --- START
   const handleFetchReceipt = async () => {
-    if (!userData || !userData.auth0Id) {
-      setReceiptError('User data not available. Please log in again.');
+    // Determine whose receipt to fetch
+    const resourceUserId = previewTargetUserId || userData?.auth0Id;
+    // The requesting user is always the one from context
+    const requestingUserId = userData?.auth0Id;
+
+    if (!resourceUserId || !requestingUserId) {
+      setReceiptError('User ID not found.');
       return;
     }
     
@@ -281,7 +299,8 @@ const SupplierDashboard = ({ isAdminView = false, allDonations = null, allFoodBa
     setReceiptData(null);
 
     try {
-      const response = await getDonationReceipt(userData.auth0Id, startDate, endDate);
+      // Pass resource ID for URL, requester ID for header
+      const response = await getDonationReceipt(resourceUserId, startDate, endDate, requestingUserId);
       if (response.success) {
         setReceiptData(response.data);
       } else {
@@ -339,9 +358,7 @@ const SupplierDashboard = ({ isAdminView = false, allDonations = null, allFoodBa
 
       {activeTab === 'overview' && (
         <div className="overview-section">
-          {isAdminView ? (
-            <p><i>Admin View: Displaying Supplier dashboard layout. Overview stats are specific to individual supplier accounts and are not shown here.</i></p>
-          ) : isLoadingOverview ? (
+          {isLoadingOverview ? (
             <p>Loading overview...</p>
           ) : overviewError ? (
             <div className="error-message">Error: {overviewError}</div>
@@ -530,64 +547,7 @@ const SupplierDashboard = ({ isAdminView = false, allDonations = null, allFoodBa
 
           {/* Display Current Listed Items */}
           <h3>Your Currently Listed Items (Available/Scheduled)</h3>
-          {isAdminView ? (
-            (() => { // Use an IIFE
-              const adminAuth0Id = userData?.auth0Id;
-              console.log("[Admin View] Filtering for Admin ID:", adminAuth0Id);
-              console.log("[Admin View] Using 'allDonations' prop:", allDonations);
-
-              if (!adminAuth0Id) {
-                return <p>Error: Admin user ID not found in context.</p>;
-              }
-              if (!allDonations) {
-                  return <p>No donation data provided from admin.</p>;
-              }
-
-              const combinedDonations = [
-                ...(allDonations.available || []),
-                ...(allDonations.scheduled || [])
-              ];
-
-              // <<< Refined Filtering Logic >>>
-              const adminAddedDonations = combinedDonations.filter(donation => {
-                let donationUserId = donation.userId; // Get the userId field
-
-                // Check if userId is populated object or just string ID
-                if (donationUserId && typeof donationUserId === 'object' && donationUserId._id) {
-                  donationUserId = donationUserId._id; // Extract the ID if it's an object
-                }
-
-                // Log the comparison for debugging
-                // console.log(`Comparing Item "${donation.itemName}" donor ID (${donationUserId}) with Admin ID (${adminAuth0Id})`);
-
-                return typeof donationUserId === 'string' && donationUserId === adminAuth0Id;
-              });
-
-              console.log("[Admin View] Donations added by Admin:", adminAddedDonations);
-
-              return adminAddedDonations.length > 0 ? (
-                <table className="data-table">
-                  <thead>
-                    <tr><th>Item Name</th><th>Quantity</th><th>Expires</th><th>Status</th><th>Original Donor (You)</th></tr>
-                  </thead>
-                  <tbody>
-                    {adminAddedDonations.map(item => (
-                      <tr key={item._id}> 
-                        <td>{item.itemName}</td>
-                        <td>{item.quantity}</td>
-                        <td>{formatDate(item.expirationDate)}</td>
-                        <td><span className={`status ${item.status?.toLowerCase()}`}>{item.status}</span></td>
-                         {/* Confirming it's the admin */}
-                        <td>{userData.username} (You)</td> 
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p>No available/scheduled donations added by you (as Admin) found.</p>
-              );
-            })() // Immediately invoke
-          ) : isLoadingListedItems ? (
+          {isLoadingListedItems ? (
             <p>Loading listed items...</p>
           ) : listedItemsError ? (
             <div className="error-message">Error: {listedItemsError}</div>
@@ -609,7 +569,7 @@ const SupplierDashboard = ({ isAdminView = false, allDonations = null, allFoodBa
                     <td>{item.quantity}</td>
                       <td>{formatDate(item.expiry)}</td>
                       <td>
-                        <span className={`status ${item.status.toLowerCase()}`}>{item.status}</span>
+                        <span className={`status ${item.status?.toLowerCase()}`}>{item.status}</span>
                       </td>
                     <td>
                         {/* Add actions like Edit/Cancel later if needed */}

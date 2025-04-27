@@ -5,91 +5,150 @@ const User = require('../models/User');
 // Create or update a user
 exports.saveUser = async (req, res) => {
   try {
-    const { auth0Id, username, accountType, needStatus, address, email, phone, openingHours, businessName, businessAddress, organizerPassword } = req.body;
+    // Get auth0Id from payload, other fields are optional for update
+    const { auth0Id, username, accountType: incomingAccountType, needStatus, address, email, phone, openingHours, businessName, businessAddress, organizerPassword } = req.body;
 
-    // Validate required fields
-    if (!auth0Id || !username || !accountType) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Missing required fields: auth0Id, username, and accountType are required' 
-      });
+    if (!auth0Id) { // Only auth0Id is strictly required in the payload now
+      return res.status(400).json({ success: false, message: 'Missing required field: auth0Id' });
     }
 
-    // Check if account type is valid
-    const validTypes = ['individual', 'business', 'distributor', 'volunteer', 'organizer'];
-    if (!validTypes.includes(accountType)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Invalid account type. Must be one of: ' + validTypes.join(', ') 
-      });
-    }
-
-    // Check if the organizer password is correct
-    if (accountType === 'organizer') {
-      const requiredPassword = 'ScoobyDoo'; // The password
-      if (!organizerPassword || organizerPassword !== requiredPassword) {
-        return res.status(403).json({ // 403 Forbidden
-          success: false,
-          message: 'Incorrect or missing password required for organizer account type.'
-        });
-      }
-      // If password is correct, proceed
-    }
-
-    // Find user by auth0Id or create a new one
     let user = await User.findOne({ auth0Id });
-
     const isNewUser = !user;
-    const previousAccountType = user?.accountType;
 
-    if (user) {
-      // Update existing user with all provided fields
-      Object.assign(user, {
-        username,
-        accountType,
-        ...(businessName !== undefined && { businessName }),
-        ...(businessAddress !== undefined && { businessAddress }),
-        ...(address !== undefined && { address }),
-        ...(email !== undefined && { email }),
-        ...(phone !== undefined && { phone }),
-        ...(openingHours !== undefined && { openingHours }),
-        ...(needStatus && accountType === 'distributor' && {
-          needStatus: {
-            ...user.needStatus || {},
-            ...(needStatus.priorityLevel !== undefined && { priorityLevel: needStatus.priorityLevel }),
-            ...(needStatus.customMessage !== undefined && { customMessage: needStatus.customMessage })
-          }
-        })
-      });
-    } else {
-      // Create new user with all provided fields
-      user = new User({
-        auth0Id,
-        username,
-        accountType,
-        ...(businessName !== undefined && { businessName }),
-        ...(businessAddress !== undefined && { businessAddress }),
-        ...(address !== undefined && { address }),
-        ...(email !== undefined && { email }),
-        ...(phone !== undefined && { phone }),
-        ...(openingHours !== undefined && { openingHours }),
-        ...(needStatus && accountType === 'distributor' && { needStatus })
-      });
-    }
-
-    // --- Volunteer Secret Logic ---
-    if (accountType === 'volunteer') {
-      if (!user.volunteerSecret) {
-        const secret = speakeasy.generateSecret({ length: 20 });
-        user.volunteerSecret = secret.base32;
+    if (isNewUser) {
+      // If creating a new user, username and accountType ARE required
+      if (!username || !incomingAccountType) {
+        return res.status(400).json({ success: false, message: 'Missing required fields for new user: username and accountType' });
       }
-    } else if (!isNewUser && previousAccountType === 'volunteer' && accountType !== 'volunteer') {
-      user.volunteerSecret = null;
-    }
-    // --- End Volunteer Secret Logic ---
+       // Validate new user accountType and organizer password
+       const validTypes = User.schema.path('accountType').enumValues;
+       if (!validTypes.includes(incomingAccountType)) {
+         return res.status(400).json({ success: false, message: 'Invalid account type for new user.' });
+       }
+       if (incomingAccountType === 'organizer') {
+         const requiredPassword = 'ScoobyDoo';
+         if (!organizerPassword || organizerPassword !== requiredPassword) {
+            return res.status(403).json({ success: false, message: 'Incorrect or missing password required for new organizer account.'});
+         }
+       }
+       
+       const finalAccountType = incomingAccountType; // Use provided type for new user
+       // Prepare data for NEW user creation
+       const createData = {
+          username,
+          accountType: finalAccountType,
+          ...(req.body.address !== undefined && { address: req.body.address.trim() }),
+          ...(req.body.email !== undefined && { email: req.body.email.trim() }),
+          ...(req.body.phone !== undefined && { phone: req.body.phone.trim() }),
+          ...(req.body.openingHours !== undefined && finalAccountType === 'distributor' && { openingHours: req.body.openingHours.trim() }),
+          ...(req.body.businessName !== undefined && (finalAccountType === 'business' || finalAccountType === 'distributor') && { businessName: req.body.businessName.trim() }),
+          ...(req.body.businessAddress !== undefined && (finalAccountType === 'business' || finalAccountType === 'distributor') && { businessAddress: req.body.businessAddress.trim() }),
+          ...(req.body.needStatus && finalAccountType === 'distributor' && { needStatus: req.body.needStatus })
+          // Add other fields as needed for creation
+       };
+       user = new User({ auth0Id, ...createData });
+       // Handle volunteer secret generation for new volunteer user
+       if (finalAccountType === 'volunteer') {
+         const secret = speakeasy.generateSecret({ length: 20 });
+         user.volunteerSecret = secret.base32;
+       }
+       
+    } else {
+      // If updating existing user:
+      const previousAccountType = user.accountType; // Store before potential update
+      let finalAccountType = user.accountType; // Start with existing type
+      
+      // **CRITICAL: Prevent changing an admin/organizer type via this general save route.**
+      if (user.accountType === 'organizer' && incomingAccountType && incomingAccountType !== 'organizer') {
+         console.warn(`Attempt blocked to change organizer (${auth0Id}) type via saveUser`);
+         // Don't update finalAccountType if it's an organizer being changed
+      } else if (incomingAccountType && incomingAccountType !== user.accountType) {
+         // Allow changing type if not organizer (and validate incoming type)
+         const validTypes = User.schema.path('accountType').enumValues;
+          if (!validTypes.includes(incomingAccountType)) {
+              return res.status(400).json({ success: false, message: 'Invalid account type provided for update.' });
+          }
+          // Handle organizer password check if changing TO organizer
+          if (incomingAccountType === 'organizer') { 
+             const requiredPassword = 'ScoobyDoo';
+             if (!req.body.organizerPassword || req.body.organizerPassword !== requiredPassword) {
+                return res.status(403).json({ success: false, message: 'Incorrect or missing password required to change account type to organizer.'});
+             }
+          }
+          finalAccountType = incomingAccountType; // Use the new valid type
+      }
+      
+      // Prepare update data - only include fields present in the request body
+      const updateData = {
+        ...(finalAccountType !== user.accountType && { accountType: finalAccountType }), // Only include if changed
+        ...(username && { username }), // Only update username if provided
+        ...(req.body.address !== undefined && { address: req.body.address.trim() }),
+        ...(req.body.email !== undefined && { email: req.body.email.trim() }),
+        ...(req.body.phone !== undefined && { phone: req.body.phone.trim() }),
+        // Apply role-specific fields if type is distributor OR organizer
+        ...(req.body.openingHours !== undefined && (finalAccountType === 'distributor' || finalAccountType === 'organizer') && { openingHours: req.body.openingHours.trim() }),
+        ...(req.body.businessName !== undefined && (finalAccountType === 'business' || finalAccountType === 'distributor' || finalAccountType === 'organizer') && { businessName: req.body.businessName.trim() }), // Org might have a name
+        ...(req.body.businessAddress !== undefined && (finalAccountType === 'business' || finalAccountType === 'distributor' || finalAccountType === 'organizer') && { businessAddress: req.body.businessAddress.trim() }), // Org might have address
+        ...(req.body.needStatus && (finalAccountType === 'distributor' || finalAccountType === 'organizer') && {
+           needStatus: {
+             ...(user.needStatus?.toObject() || { priorityLevel: 1, customMessage: '' }), 
+             ...(req.body.needStatus.priorityLevel !== undefined && { priorityLevel: req.body.needStatus.priorityLevel }),
+             ...(req.body.needStatus.customMessage !== undefined && { customMessage: req.body.needStatus.customMessage })
+           }
+         })
+      };
 
-    // Save the user
-    await user.save();
+      // Remove undefined or unchanged fields before assigning? No, Object.assign overwrites.
+      // Remove fields that are not meant to be updated (e.g., accountType if organizer)
+      if (user.accountType === 'organizer' && updateData.accountType !== 'organizer'){
+        delete updateData.accountType;
+      }
+
+      Object.assign(user, updateData);
+
+      // Handle volunteer secret logic based on finalAccountType and previous type
+      if (finalAccountType === 'volunteer' && !user.volunteerSecret) { 
+         const secret = speakeasy.generateSecret({ length: 20 });
+         user.volunteerSecret = secret.base32;
+      }
+      else if (previousAccountType === 'volunteer' && finalAccountType !== 'volunteer') { 
+        user.volunteerSecret = null; 
+      }
+    }
+
+    // Save the user with specific error handling for save operation
+    try {
+      await user.save();
+    } catch (saveError) {
+      // Log the detailed error
+      console.error('Error during user.save():', saveError);
+
+      // Check for Mongoose validation errors
+      if (saveError.name === 'ValidationError') {
+        // Extract meaningful messages from the validation error
+        const messages = Object.values(saveError.errors).map(el => el.message);
+        return res.status(400).json({
+          success: false,
+          message: `Validation failed: ${messages.join(', ')}`,
+          errors: saveError.errors
+        });
+      } 
+      // Check for duplicate key errors (e.g., username already exists)
+      else if (saveError.code === 11000) {
+         return res.status(409).json({ // 409 Conflict
+           success: false,
+           message: `Save failed: A user with that ${Object.keys(saveError.keyValue).join(', ')} already exists.`,
+           keyValue: saveError.keyValue
+         });
+      }
+      
+      // For other types of errors during save, return a generic 500
+      return res.status(500).json({
+        success: false,
+        message: 'Server error occurred while saving user data.',
+        error: saveError.message
+      });
+    }
     
     // Exclude sensitive info from the response
     const userResponse = user.toObject();
@@ -100,19 +159,11 @@ exports.saveUser = async (req, res) => {
       data: userResponse
     });
   } catch (error) {
-    console.error('Save user error:', error); // Add this for debugging
-    
-    // Handle username uniqueness error
-    if (error.code === 11000 && error.keyPattern && error.keyPattern.username) {
-      return res.status(400).json({
-        success: false,
-        message: 'Username is already taken'
-      });
-    }
-    
+    // Catch errors from findOne or other operations before save
+    console.error('Error in saveUser controller (before save attempt):', error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: 'Server error processing user data request.',
       error: error.message
     });
   }
