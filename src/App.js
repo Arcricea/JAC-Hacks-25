@@ -148,8 +148,8 @@ function App() {
               <Route 
                 path="/dashboard" 
                 element={
-                  userData?.accountType === 'supplier' ? <SupplierDashboard /> :
-                  userData?.accountType === 'foodbank' ? <FoodBankDashboard /> :
+                  userData?.accountType === 'business' || userData?.accountType === 'supplier' ? <SupplierDashboard /> :
+                  userData?.accountType === 'distributor' || userData?.accountType === 'foodbank' ? <FoodBankDashboard /> :
                   userData?.accountType === 'individual' ? <IndividualDashboard /> :
                   <Dashboard /> // Fallback to demo dashboard if no type is set
                 } 
