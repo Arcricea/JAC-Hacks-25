@@ -4,12 +4,15 @@ import * as OTPAuth from 'otpauth'; // Import otpauth
 import { UserContext } from '../App';
 import '../assets/styles/Dashboard.css'; // Reuse existing dashboard styles for now
 import '../assets/styles/VolunteerDashboard.css'; // Add specific styles
+import { saveUser } from '../services/userService'; // Import saveUser service
 
 const VolunteerDashboard = () => {
-  const { userData } = useContext(UserContext);
+  const { userData, setUserData } = useContext(UserContext);
   const [activeTab, setActiveTab] = useState('qrcode'); // Default tab
   const [currentCode, setCurrentCode] = useState('------');
   const [timeRemaining, setTimeRemaining] = useState(30); // TOTP period (usually 30s)
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState(null);
   const intervalRef = useRef(null);
   const totpRef = useRef(null);
 
@@ -72,6 +75,41 @@ const VolunteerDashboard = () => {
   const qrCodeValue = (userData?.username && currentCode && currentCode !== '------' && currentCode !== 'Error') 
                       ? `${userData.username}:${currentCode}` 
                       : 'loading'; // Fallback value
+
+  // Function to generate/regenerate volunteer secret
+  const generateVolunteerSecret = async () => {
+    if (!userData || !userData.auth0Id || !userData.username) {
+      setError('User profile incomplete. Please complete your profile first.');
+      return;
+    }
+
+    setIsGenerating(true);
+    setError(null);
+
+    try {
+      // Save user with volunteer account type which will trigger secret generation on the server
+      const response = await saveUser({
+        auth0Id: userData.auth0Id,
+        username: userData.username,
+        accountType: 'volunteer'
+      });
+
+      if (response.success) {
+        // Update local state with the response data
+        // Note: The secret is not returned in the response for security reasons
+        // We need to make another request to get the full user data including the secret
+        
+        // Reload the page to trigger a new user data fetch from the server
+        window.location.reload();
+      } else {
+        setError(response.message || 'Failed to generate volunteer secret');
+      }
+    } catch (error) {
+      setError(error.message || 'An error occurred while generating volunteer secret');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   // Basic volunteer data - can be expanded later
   const volunteerData = {
@@ -140,7 +178,17 @@ const VolunteerDashboard = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="alert alert-warning">Code generation unavailable. Ensure profile is complete.</div>
+                    <div className="alert alert-warning">
+                      Code generation unavailable. Ensure profile is complete.
+                      {error && <p className="error-message">{error}</p>}
+                      <button 
+                        className="primary-btn" 
+                        onClick={generateVolunteerSecret}
+                        disabled={isGenerating}
+                      >
+                        {isGenerating ? 'Generating...' : 'Generate Volunteer Code'}
+                      </button>
+                    </div>
                   )}
               </div>
             </div> 

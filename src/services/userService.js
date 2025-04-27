@@ -42,6 +42,32 @@ export const getUserByAuth0Id = async (auth0Id) => {
   }
 };
 
+// Update user account type
+export const updateUserAccountType = async (auth0Id, accountType) => {
+  try {
+    // First get the user data
+    const userData = await getUserByAuth0Id(auth0Id);
+    
+    if (!userData.success) {
+      throw new Error('Failed to get user data');
+    }
+    
+    // Update the account type
+    const updatedUserData = {
+      ...userData.data,
+      accountType: accountType
+    };
+    
+    // Save the updated user data
+    const response = await saveUser(updatedUserData);
+    
+    return response;
+  } catch (error) {
+    console.error('Error updating user account type:', error);
+    throw error;
+  }
+};
+
 // Verify volunteer token
 export const verifyVolunteerToken = async (token) => {
   try {

@@ -2,7 +2,7 @@ import React, { useState, useContext, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import "../../assets/styles/Profile.css";
 import { UserContext } from "../../App";
-import { saveUser } from "../../services/userService";
+import { saveUser, updateUserAccountType } from "../../services/userService";
 
 const Profile = () => {
   const { user, isAuthenticated, isLoading } = useAuth0();
@@ -10,8 +10,11 @@ const Profile = () => {
   const [nickname, setNickname] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isChangingAccountType, setIsChangingAccountType] = useState(false);
   const [error, setError] = useState("");
+  const [accountTypeError, setAccountTypeError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [accountTypeSuccess, setAccountTypeSuccess] = useState("");
 
   // Set nickname from userData when it becomes available
   useEffect(() => {
@@ -61,6 +64,52 @@ const Profile = () => {
       setError("Failed to update username. Please try again.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleBecomeVolunteer = async () => {
+    if (!userData?.auth0Id) {
+      setAccountTypeError("User profile not properly loaded. Please try again later.");
+      return;
+    }
+
+    setIsChangingAccountType(true);
+    setAccountTypeError("");
+
+    try {
+      // Update account type to volunteer
+      const response = await saveUser({
+        auth0Id: userData.auth0Id,
+        username: userData.username,
+        accountType: 'volunteer'
+      });
+
+      if (response.success) {
+        // Update local state
+        setUserData(prev => ({
+          ...prev,
+          accountType: 'volunteer'
+        }));
+
+        // Update localStorage
+        localStorage.setItem(`user_type_${user.sub}`, 'volunteer');
+        localStorage.setItem(`user_type_set_${user.sub}`, 'true');
+
+        // Show success message
+        setAccountTypeSuccess("You are now registered as a volunteer! Go to the dashboard to see your volunteer QR code.");
+        setTimeout(() => {
+          setAccountTypeSuccess("");
+          // Reload the page to ensure all data is refreshed
+          window.location.reload();
+        }, 3000);
+      } else {
+        setAccountTypeError("Failed to update account type. Please try again.");
+      }
+    } catch (err) {
+      setAccountTypeError("An error occurred. Please try again later.");
+      console.error("Error changing account type:", err);
+    } finally {
+      setIsChangingAccountType(false);
     }
   };
 
@@ -121,6 +170,21 @@ const Profile = () => {
         <div className="profile-account-type">
           <h3>Account Type</h3>
           <p>{userData?.accountType ? formatAccountType(userData.accountType) : "Not set"}</p>
+          
+          {userData?.accountType !== 'volunteer' && (
+            <div className="volunteer-option">
+              <p className="volunteer-info">Want to help distribute food and earn community service hours?</p>
+              <button 
+                className="become-volunteer-btn"
+                onClick={handleBecomeVolunteer}
+                disabled={isChangingAccountType}
+              >
+                {isChangingAccountType ? "Processing..." : "Become a Volunteer"}
+              </button>
+              {accountTypeError && <p className="error-message">{accountTypeError}</p>}
+              {accountTypeSuccess && <p className="success-message">{accountTypeSuccess}</p>}
+            </div>
+          )}
         </div>
         
         <div className="profile-details">
@@ -142,7 +206,8 @@ function formatAccountType(type) {
   const types = {
     individual: "Individual User",
     business: "Business / Restaurant",
-    distributor: "Food Bank / Distributor"
+    distributor: "Food Bank / Distributor",
+    volunteer: "Volunteer"
   };
   return types[type] || type;
 }
