@@ -56,7 +56,7 @@ function loadGoogleMapsScript() {
   // script.src = `https://maps.googleapis.com/maps/api/js?key=${API_KEY}&callback=initMap&libraries=maps,marker&v=beta&loading=async`;
   // Or, if injecting the full URL server-side:
   // script.src = getMapScriptUrlFromServer(); 
-  script.src = `https://maps.googleapis.com/maps/api/js?callback=initMap&libraries=maps,marker&v=beta&loading=async`; // Key missing!
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&callback=initMap&libraries=maps,marker&v=beta&loading=async`; // Key added
   script.async = true;
   script.defer = true; // Ensure script executes after HTML parsing
   script.onerror = () => {
