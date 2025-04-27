@@ -66,6 +66,7 @@ const Navbar = () => {
           <Link to="/about" className="nav-link">About</Link>
           <Link to="/how-it-works" className="nav-link">How It Works</Link>
           <Link to="/contact" className="nav-link">Contact</Link>
+          <Link to="/forum" className="nav-link">Forum</Link>
           {isAuthenticated && <Link to="/dashboard" className="nav-link">Dashboard</Link>}
           {isAuthenticated && userData?.accountType === 'organizer' && (
             <NavLink 

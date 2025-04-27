@@ -15,8 +15,6 @@ const FoodBankDashboard = () => {
   const foodBankData = {
     receivedDonations: 0,
     upcomingDeliveries: 0,
-    peopleServed: 0,
-    currentPriority: 3,
     recentActivity: []
   };
 
@@ -321,16 +319,16 @@ const FoodBankDashboard = () => {
             Overview
           </button>
           <button 
-            className={activeTab === 'donation-history' ? 'active' : ''} 
-            onClick={() => setActiveTab('donation-history')}
-          >
-            Donation History
-          </button>
-          <button 
             className={activeTab === 'incoming' ? 'active' : ''} 
             onClick={() => setActiveTab('incoming')}
           >
             Incoming Food
+          </button>
+          <button 
+            className={activeTab === 'donation-history' ? 'active' : ''} 
+            onClick={() => setActiveTab('donation-history')}
+          >
+            Donation History
           </button>
         </div>
 
@@ -430,51 +428,6 @@ const FoodBankDashboard = () => {
                 <h3>{foodBankData.upcomingDeliveries}</h3>
                 <p>Upcoming Deliveries</p>
               </div>
-              <div className="stat-card">
-                <h3>{foodBankData.peopleServed}</h3>
-                <p>People Served</p>
-              </div>
-            </div>
-
-            {foodBankData.recentActivity.length > 0 ? (
-              <div className="recent-activity">
-                <h3>Recent Activity</h3>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Action</th>
-                      <th>Details</th>
-                      <th>Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {foodBankData.recentActivity.map(activity => (
-                      <tr key={activity.id}>
-                        <td>{activity.action}</td>
-                        <td>{activity.details}</td>
-                        <td>{activity.date}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="empty-state">
-                <div className="empty-icon">📋</div>
-                <p>Your recent activity will appear here.</p>
-                <p className="empty-subtext">When you receive donations or distribute food, it will be logged here.</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'donation-history' && (
-          <div className="donation-history-section">
-            <h3>Donation History</h3>
-            <div className="empty-state">
-              <div className="empty-icon">📋</div>
-              <p>Your donation history will appear here once you start receiving donations.</p>
-              <p className="empty-subtext">You'll be able to see which companies and individuals have donated to your food bank.</p>
             </div>
           </div>
         )}
@@ -486,6 +439,17 @@ const FoodBankDashboard = () => {
               <div className="empty-icon">🚚</div>
               <p>Information about incoming food deliveries will appear here.</p>
               <p className="empty-subtext">You'll be able to track scheduled pickups and deliveries from donors.</p>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'donation-history' && (
+          <div className="donation-history-section">
+            <h3>Donation History</h3>
+            <div className="empty-state">
+              <div className="empty-icon">📋</div>
+              <p>Your donation history will appear here once you start receiving donations.</p>
+              <p className="empty-subtext">You'll be able to see which companies and individuals have donated to your food bank.</p>
             </div>
           </div>
         )}
