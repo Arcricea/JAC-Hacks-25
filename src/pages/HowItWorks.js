@@ -4,6 +4,7 @@ import '../assets/styles/HowItWorks.css';
 import donationBox from '../assets/donation_box.webp';
 import shoppingVeges from '../assets/shopping_veges.jpg';
 import handingApple from '../assets/handing_apple2.webp';
+import AuthSignupButton from '../components/auth/AuthSignupButton';
 
 const HowItWorks = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -26,12 +27,10 @@ const HowItWorks = () => {
           <div className="hero-content">
             <h1>Making Food Rescue Easier and Faster</h1>
             <p>
-              Join our mission to reduce food waste and feed those who need it most. 
-              MealNet connects food banks with suppliers and individuals who want to help, in a system that benefits everyone! 
+              At MealNet, we connect food suppliers with excess inventory to those who need it most. 
+              Our platform makes it easy to reduce food waste and help your community.
             </p>
-            <div className="hero-buttons">
-              <Link to="/signup" className="primary-btn">Get Started Now</Link>
-            </div>
+            <AuthSignupButton className="primary-btn">Get Started Now</AuthSignupButton>
           </div>
           <div className="hero-image">
             <div className="rotating-images">
@@ -137,8 +136,8 @@ const HowItWorks = () => {
       {/* CTA Section */}
       <section className="cta-section">
         <h2>Ready to Make a Difference?</h2>
-        <p>Join MealNet today and be part of the solution to food waste and hunger</p>
-        <Link to="/signup" className="cta-button">Get Started</Link>
+        <p>Join MealNet today and be part of the solution to food waste and hunger in your community.</p>
+        <AuthSignupButton className="cta-button">Get Started</AuthSignupButton>
       </section>
     </div>
   );

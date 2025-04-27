@@ -144,4 +144,13 @@ export const markDonationDelivered = async (donationId, volunteerId, foodBankId)
     console.error('Error marking donation as delivered:', error);
     throw error;
   }
+};
+
+export const foodBankService = {
+  getAllFoodBanks,
+  getFoodBankById,
+  findNearbyFoodBanks,
+  getFoodBankRecommendations,
+  markDonationPickedUp,
+  markDonationDelivered
 }; 

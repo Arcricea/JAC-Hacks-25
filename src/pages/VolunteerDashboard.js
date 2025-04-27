@@ -183,7 +183,7 @@ const VolunteerDashboard = () => {
   const handleAcceptTask = async (donationId) => {
     if (!userData?.auth0Id) {
       setError('Please log in to accept tasks');
-      return;
+        return;
     }
 
     setIsAssigning(true);
@@ -320,7 +320,7 @@ const VolunteerDashboard = () => {
         } else {
           throw new Error(response.message || 'Failed to update donation');
         }
-      } else {
+    } else {
         throw new Error(`Cannot update donation with status: ${donation.status}`);
       }
     } catch (err) {
@@ -502,7 +502,7 @@ const VolunteerDashboard = () => {
             <div className="verification-details-container single-qr-display">
               {qrCodeValue === 'loading' && <p>Loading QR Code...</p>}
               {qrCodeValue !== 'loading' && qrCodeValue !== 'Error' && (
-                <div className="qr-code-container">
+                       <div className="qr-code-container">
                   <QRCodeSVG value={qrCodeValue} size={256} includeMargin={true} />
                   <p style={{marginTop: '1rem', fontWeight: 'bold'}}>Your ID: {userData.auth0Id}</p>
                 </div>
@@ -573,8 +573,8 @@ const VolunteerDashboard = () => {
                         </div>
                       </div>
                     ))}
-                </div>
-              ) : (
+                    </div>
+                  ) : (
                 <div className="no-tasks-message">
                   <p>You have no pickups scheduled or in progress.</p>
                   <p>Check the Available Pickups tab to find tasks!</p>
@@ -690,7 +690,7 @@ const VolunteerDashboard = () => {
                   <div className="no-tasks-message">
                     <p>No available pickups {selectedCategory ? `in ${selectedCategory} category` : ''} at the moment.</p>
                     <p>Check back later for new opportunities!</p>
-                  </div>
+            </div> 
                 )}
               </>
             )}
@@ -737,7 +737,7 @@ const VolunteerDashboard = () => {
                 <div className="no-tasks-message">
                   <p>You have no completed deliveries yet.</p>
                   <p>Deliveries will appear here after you complete them.</p>
-                </div>
+            </div>
               )
             )}
           </div>
@@ -758,10 +758,11 @@ const VolunteerDashboard = () => {
       {/* Modal for food bank suggestions */}
       {isFoodBankModalOpen && selectedPickup && userLocation && (
         <FoodBankSuggestionModal
-          isOpen={isFoodBankModalOpen}
+          show={isFoodBankModalOpen}
           onClose={handleFoodBankModalClose}
-          pickup={selectedPickup}
+          donation={selectedPickup}
           userLocation={userLocation}
+          onDeliveryConfirmed={() => handleFoodBankModalClose(true)}
         />
       )}
     </div>
