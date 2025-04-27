@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { UserContext } from '../App';
 import '../assets/styles/Dashboard.css'; // Reuse existing dashboard styles for now
 import '../assets/styles/VolunteerDashboard.css'; // Add specific styles
+import PickupDetailsModal from '../components/PickupDetailsModal';
 import { 
   getAvailableDonations, 
   assignDonationToVolunteer,
@@ -21,6 +22,8 @@ const VolunteerDashboard = () => {
   const [scheduledDonations, setScheduledDonations] = useState([]);
   const [completedCount, setCompletedCount] = useState(0); // State for completed count
   const [isLoadingStats, setIsLoadingStats] = useState(false); // Loading state for stats
+  const [selectedPickup, setSelectedPickup] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'available') {
@@ -114,6 +117,10 @@ const VolunteerDashboard = () => {
         fetchScheduledDonations();
         fetchCompletedDonationCount();
         alert('Donation scheduled successfully!');
+        // If modal is open with this pickup, close it
+        if (selectedPickup && selectedPickup._id === donationId) {
+          setIsModalOpen(false);
+        }
       } else {
         setError(response.message || 'Failed to schedule donation.');
       }
@@ -123,6 +130,24 @@ const VolunteerDashboard = () => {
     } finally {
       setIsAssigning(false);
     }
+  };
+
+  const handleViewDetails = (pickup) => {
+    setSelectedPickup(pickup);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleModalAccept = (donationId) => {
+    // Update the available tasks list
+    setAvailableTasks(prev => prev.filter(task => task._id !== donationId));
+    
+    // Refresh scheduled donations and stats
+    fetchScheduledDonations();
+    fetchCompletedDonationCount();
   };
 
   const formatDate = (dateString) => {
@@ -210,6 +235,14 @@ const VolunteerDashboard = () => {
                         <p><strong>Category:</strong> {task.category}</p>
                         <p><strong>Expires:</strong> {formatDate(task.expirationDate)}</p>
                         <p><strong>Pickup Info:</strong> {task.pickupInfo}</p>
+                        <div className="task-actions">
+                          <button 
+                            className="view-details-btn"
+                            onClick={() => handleViewDetails(task)}
+                          >
+                            View Details
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -292,7 +325,10 @@ const VolunteerDashboard = () => {
                             >
                               Accept Pickup
                             </button>
-                            <button className="view-details-btn">
+                            <button 
+                              className="view-details-btn"
+                              onClick={() => handleViewDetails(task)}
+                            >
                               View Details
                             </button>
                           </div>
@@ -311,6 +347,16 @@ const VolunteerDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Modal for viewing pickup details */}
+      {isModalOpen && selectedPickup && (
+        <PickupDetailsModal 
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          pickup={selectedPickup}
+          onAccept={handleModalAccept}
+        />
+      )}
     </div>
   );
 };
