@@ -7,7 +7,6 @@ import { UserProvider } from './contexts/UserContext';
 
 // Components
 import Navbar from './components/Navbar';
-import Footer from './components/Footer';
 import UsernameSetupModal from './components/auth/UsernameSetupModal';
 import UserTypeModal from './components/auth/UserTypeModal';
 import ChatBot from './components/ChatBot';
@@ -174,7 +173,6 @@ function App() {
                 {/* Add more routes as needed */}
               </Routes>
             </main>
-            <Footer />
             
             {/* Modals */}
             <UsernameSetupModal 
