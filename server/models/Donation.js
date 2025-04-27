@@ -40,12 +40,25 @@ const donationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['available', 'scheduled', 'completed', 'cancelled'],
+    enum: ['available', 'scheduled', 'picked_up', 'delivered', 'completed', 'cancelled'],
     default: 'available'
   },
   volunteerId: {
     type: String,
     ref: 'User',
+    default: null
+  },
+  foodBankId: {
+    type: String,
+    ref: 'User',
+    default: null
+  },
+  pickupDate: {
+    type: Date,
+    default: null
+  },
+  deliveryDate: {
+    type: Date,
     default: null
   },
   createdAt: {
