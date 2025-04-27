@@ -7,6 +7,7 @@ const addressRoutes = require('./routes/addressRoutes');
 const organizerRoutes = require('./routes/organizerRoutes');
 const foodBankRoutes = require('./routes/foodBankRoutes');
 const messageRoutes = require('./routes/messageRoutes');
+const individualRoutes = require('./routes/individualRoutes');
 
 // Import MongoDB URI from test-mongodb.js
 const { mongoURI } = require('./config/db');
@@ -31,6 +32,7 @@ app.use('/api/addresses', addressRoutes);
 app.use('/api/organizer', organizerRoutes);
 app.use('/api/foodbanks', foodBankRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/individuals', individualRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

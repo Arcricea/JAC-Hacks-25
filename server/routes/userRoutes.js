@@ -1,19 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const { isOrganizer } = require('../middleware/authMiddleware');
+const { isOrganizer, isAuthenticated } = require('../middleware/authMiddleware');
 
 // GET /api/users - Get all users (Admin/Organizer only)
 router.get('/', isOrganizer, userController.getAllUsers);
 
-// Route to save a user (create or update) - NO AUTH MIDDLEWARE (TEMP)
-router.post('/', userController.saveUser);
+// Route to save a user (create or update) - Requires authentication
+// Ensure saveUser also checks permissions internally if needed
+router.post('/', isAuthenticated, userController.saveUser);
 
-// Route to get a user by Auth0 ID - REQUIRES ORGANIZER AUTH WHEN CALLED BY ADMIN
-router.get('/:auth0Id', isOrganizer, userController.getUserByAuth0Id);
+// Route to get a user by Auth0 ID - Requires authentication 
+// Permissions (self vs organizer) handled in controller
+router.get('/:auth0Id', isAuthenticated, userController.getUserByAuth0Id);
 
 // Route to verify a volunteer code (POST request with username and code in body)
-// This might be public or require specific auth, adjust as needed
+// Public or specific auth? Assuming public/no auth for now based on original code
 router.post('/verify-volunteer', userController.verifyVolunteerCode);
 
 // PUT /api/users/reset-need/:userId - Reset a food bank's need status (Organizer only)

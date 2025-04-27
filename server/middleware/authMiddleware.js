@@ -1,5 +1,42 @@
 const User = require('../models/User');
 
+// Middleware to check if the user is authenticated (any type)
+const isAuthenticated = async (req, res, next) => {
+  const auth0Id = req.headers['x-requesting-user-id'];
+
+  if (!auth0Id) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Unauthorized: Missing user ID header (X-Requesting-User-Id).' 
+    });
+  }
+
+  try {
+    // Find the user by their Auth0 ID
+    const user = await User.findOne({ auth0Id: auth0Id });
+
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Forbidden: User not found.' 
+      });
+    }
+
+    // Attach the full Mongoose user object to the request
+    req.user = user;
+    console.log(`[Auth Middleware] User Authenticated: ${user._id} (${user.accountType})`);
+    next();
+
+  } catch (error) {
+    console.error('Error in isAuthenticated middleware:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during authentication check.',
+      error: error.message
+    });
+  }
+};
+
 const isOrganizer = async (req, res, next) => {
   // Get the ID of the user making the request from a custom header
   const requestingUserId = req.headers['x-requesting-user-id'];
@@ -47,4 +84,4 @@ const isOrganizer = async (req, res, next) => {
   }
 };
 
-module.exports = { isOrganizer }; 
+module.exports = { isOrganizer, isAuthenticated }; 

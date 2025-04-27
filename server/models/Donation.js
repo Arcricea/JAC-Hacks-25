@@ -3,12 +3,10 @@ const mongoose = require('mongoose');
 const donationSchema = new mongoose.Schema({
   userId: {
     type: String,
-    required: true,
-    ref: 'User'
+    required: true
   },
   itemName: {
     type: String,
-    required: [true, 'Item name is required']
   },
   category: {
     type: String,
@@ -17,7 +15,6 @@ const donationSchema = new mongoose.Schema({
   },
   quantity: {
     type: String,
-    required: [true, 'Quantity is required']
   },
   expirationDate: {
     type: Date,
@@ -29,8 +26,31 @@ const donationSchema = new mongoose.Schema({
   },
   businessAddress: {
     type: String,
-    default: '4873 Westmount Ave, Westmount, Quebec H3Y 1X9'
+    default: 'N/A'
   },
+  pickupAddress: {
+    street: { type: String, trim: true },
+    city:   { type: String, trim: true },
+    state:  { type: String, trim: true },
+    zip:    { type: String, trim: true },
+  },
+  pickupInstructions: {
+    type: String,
+    trim: true
+  },
+  donorType: {
+    type: String,
+    enum: ['Individual', 'Business', 'Distributor'],
+    required: true
+  },
+  description: {
+    type: String,
+    trim: true
+  },
+  items: [{
+      name: { type: String, required: true },
+      quantity: { type: String }
+  }],
   imageUrl: {
     type: String
   },
