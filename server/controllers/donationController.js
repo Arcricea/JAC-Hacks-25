@@ -71,6 +71,7 @@ exports.createDonation = async (req, res) => {
 
     const donation = new Donation({
       userId: targetUserId, // Use the determined target user ID
+      donorType: requestingUser.accountType.charAt(0).toUpperCase() + requestingUser.accountType.slice(1),
       itemName,
       category,
       quantity,
