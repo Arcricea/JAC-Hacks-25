@@ -1,7 +1,6 @@
 import React, { useState, useContext, useEffect, useRef } from 'react';
 import { UserContext } from '../App';
-import { createDonation } from '../services/donationService';
-import { verifyVolunteerCode } from '../services/userService';
+import { createDonation, getDonationReceipt, getSupplierOverviewData, getSupplierListedItems, confirmSupplierPickup } from '../services/donationService';
 import '../assets/styles/Dashboard.css';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
@@ -20,6 +19,32 @@ const SupplierDashboard = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  // --- State for Receipts --- START
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [receiptData, setReceiptData] = useState(null);
+  const [isLoadingReceipt, setIsLoadingReceipt] = useState(false);
+  const [receiptError, setReceiptError] = useState('');
+  // --- State for Receipts --- END
+
+  // --- State for Overview --- START
+  const [overviewData, setOverviewData] = useState(null);
+  const [isLoadingOverview, setIsLoadingOverview] = useState(true); // Start loading initially
+  const [overviewError, setOverviewError] = useState('');
+  // --- State for Overview --- END
+
+  // --- State for Supplier's Listed Items --- START
+  const [supplierListedItems, setSupplierListedItems] = useState([]);
+  const [isLoadingListedItems, setIsLoadingListedItems] = useState(true);
+  const [listedItemsError, setListedItemsError] = useState('');
+  // --- State for Supplier's Listed Items --- END
+
+  // State for QR Scanner / Confirmation
+  const [showScanner, setShowScanner] = useState(false);
+  const [confirmationResult, setConfirmationResult] = useState(null); // Renamed from verificationResult
+  const [isConfirming, setIsConfirming] = useState(false); // Renamed from isVerifying
+  const scannerRef = useRef(null);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -85,75 +110,95 @@ const SupplierDashboard = () => {
     }
   };
 
-  const [showScanner, setShowScanner] = useState(false);
-  const [verificationResult, setVerificationResult] = useState(null);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const scannerRef = useRef(null);
-  
-  // Demo data
-  const supplierData = {
-    donatedItems: 152,
-    upcomingPickups: 3,
-    impactStats: {
-      mealsSaved: 456,
-      co2Prevented: 213,
-      wasteReduced: 304
-    },
-    recentDonations: [
-      { id: 1, name: 'Fresh Vegetables', quantity: '10 kg', date: '2025-04-25', status: 'Picked Up' },
-      { id: 2, name: 'Bread', quantity: '15 loaves', date: '2025-04-24', status: 'Scheduled' },
-      { id: 3, name: 'Dairy Products', quantity: '8 items', date: '2025-04-23', status: 'Completed' },
-    ],
-    availableItems: [
-      { id: 1, name: 'Pasta', quantity: '20 boxes', expiry: '2025-05-10' },
-      { id: 2, name: 'Canned Soup', quantity: '15 cans', expiry: '2025-08-15' },
-    ]
+  // QR Code Scan Success Handler
+  const onScanSuccess = async (decodedText, decodedResult) => {
+    if (isConfirming) return; // Prevent multiple submissions
+
+    console.log(`Code matched = ${decodedText}`, decodedResult);
+    setShowScanner(false); // Hide scanner after successful scan
+    setIsConfirming(true);
+    setConfirmationResult(null); // Clear previous result
+
+    try {
+      if (!userData || !userData.auth0Id) {
+        throw new Error("User data not available.");
+      }
+      // Call the new function to confirm pickup
+      const response = await confirmSupplierPickup(userData.auth0Id);
+      setConfirmationResult({ 
+        success: true, 
+        message: response.message || 'Pickup confirmed successfully!' 
+      });
+      // Optionally trigger refresh of overview/listed items if needed
+
+    } catch (error) {
+      console.error("Pickup confirmation error:", error);
+      setConfirmationResult({ success: false, message: error.message || 'Failed to confirm pickup.' });
+    } finally {
+      setIsConfirming(false);
+    }
   };
 
+  // QR Code Scan Failure Handler (keep as is)
+  const onScanFailure = (error) => {
+    // console.warn(`Code scan error = ${error}`);
+  };
+
+  // --- Fetch Overview Data --- START
+  useEffect(() => {
+    const fetchOverview = async () => {
+      if (userData && userData.auth0Id) {
+        setIsLoadingOverview(true);
+        setOverviewError('');
+        try {
+          const response = await getSupplierOverviewData(userData.auth0Id);
+          if (response.success) {
+            setOverviewData(response.data);
+          } else {
+            setOverviewError(response.message || 'Failed to load overview data.');
+          }
+        } catch (error) {
+          console.error("Overview fetch error:", error);
+          setOverviewError(error.message || 'An error occurred fetching overview data.');
+        } finally {
+          setIsLoadingOverview(false);
+        }
+      }
+    };
+
+    fetchOverview();
+  }, [userData]); // Re-fetch if userData changes
+  // --- Fetch Overview Data --- END
+
+  // --- Fetch Supplier's Listed Items --- START
+  useEffect(() => {
+    const fetchListedItems = async () => {
+      if (userData && userData.auth0Id) {
+        setIsLoadingListedItems(true);
+        setListedItemsError('');
+        try {
+          const response = await getSupplierListedItems(userData.auth0Id);
+          if (response.success) {
+            setSupplierListedItems(response.data);
+          } else {
+            setListedItemsError(response.message || 'Failed to load listed items.');
+          }
+        } catch (error) {
+          console.error("Listed items fetch error:", error);
+          setListedItemsError(error.message || 'An error occurred fetching listed items.');
+        } finally {
+          setIsLoadingListedItems(false);
+        }
+      }
+    };
+
+    fetchListedItems();
+  }, [userData, submitSuccess]); // Re-fetch if userData changes or a new donation is submitted
+  // --- Fetch Supplier's Listed Items --- END
+
+  // Effect to setup scanner (keep as is, just ensure element ID matches)
   useEffect(() => {
     if (showScanner) {
-      // Clear previous result when opening scanner
-      setVerificationResult(null); 
-      
-      // Updated Scan Success Handler
-      const onScanSuccess = async (decodedText, decodedResult) => {
-        console.log(`Combined Code Scanned = ${decodedText}`);
-        setShowScanner(false); // Hide scanner UI after scan
-        
-        // Clear the scanner instance
-        if (scannerRef.current && typeof scannerRef.current.clear === 'function') {
-           scannerRef.current.clear().catch(error => {
-              if (error.name !== 'NotRunning') { console.error("Scanner clear error:", error); }
-            });
-            scannerRef.current = null;
-        }
-
-        // Parse the scanned data (expecting "username:code")
-        const parts = decodedText.split(':');
-        if (parts.length !== 2 || !parts[0] || !/^[0-9]{6}$/.test(parts[1])) {
-            setVerificationResult({ success: false, isValid: false, message: 'Invalid QR code format. Expected username:code.'});
-            return;
-        }
-        const username = parts[0];
-        const code = parts[1];
-
-        // Immediately attempt verification
-        setIsVerifying(true);
-        setVerificationResult({ message: 'Verifying...' }); 
-
-        try {
-          const result = await verifyVolunteerCode(username, code); // Use extracted parts
-          setVerificationResult(result);
-        } catch (error) {
-          console.error("Verification API call failed:", error);
-          setVerificationResult({ success: false, isValid: false, message: 'Verification failed. Please try again.' });
-        } finally {
-          setIsVerifying(false);
-        }
-      };
-
-      const onScanFailure = (error) => { /* Usually ignore */ };
-
       // Ensure the container is visible before creating scanner
       const qrReaderElement = document.getElementById("qr-reader-container");
       if(qrReaderElement) qrReaderElement.style.display = 'block';
@@ -190,8 +235,52 @@ const SupplierDashboard = () => {
 
   // Reset state to allow scanning again
   const handleScanAgain = () => {
-      setVerificationResult(null);
+      setConfirmationResult(null);
       setShowScanner(true); // Just show scanner again
+  };
+
+  // --- Function to Fetch Receipt --- START
+  const handleFetchReceipt = async () => {
+    if (!userData || !userData.auth0Id) {
+      setReceiptError('User data not available. Please log in again.');
+      return;
+    }
+    
+    // Basic validation for dates if needed (optional)
+    // if (!startDate || !endDate) {
+    //   setReceiptError('Please select both a start and end date.');
+    //   return;
+    // }
+
+    setIsLoadingReceipt(true);
+    setReceiptError('');
+    setReceiptData(null);
+
+    try {
+      const response = await getDonationReceipt(userData.auth0Id, startDate, endDate);
+      if (response.success) {
+        setReceiptData(response.data);
+      } else {
+        setReceiptError(response.message || 'Failed to fetch receipt.');
+      }
+    } catch (error) {
+      console.error("Receipt fetch error:", error);
+      setReceiptError(error.message || 'An error occurred while fetching the receipt.');
+    } finally {
+      setIsLoadingReceipt(false);
+    }
+  };
+  // --- Function to Fetch Receipt --- END
+  
+  // Helper function to format date (optional but nice)
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      // Use toLocaleDateString for better formatting
+      return new Date(dateString).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }); 
+    } catch (e) {
+      return dateString; // Fallback
+    }
   };
 
   return (
@@ -211,69 +300,80 @@ const SupplierDashboard = () => {
             Donate
           </button>
           <button 
-            className={activeTab === 'impact' ? 'active' : ''} 
-            onClick={() => setActiveTab('impact')}
+            className={activeTab === 'receipts' ? 'active' : ''} 
+            onClick={() => setActiveTab('receipts')}
           >
-            Impact
+            Donation Receipts
           </button>
           <button 
-            className={activeTab === 'verify' ? 'active' : ''} 
-            onClick={() => setActiveTab('verify')}
+            className={activeTab === 'confirm-pickup' ? 'active' : ''} 
+            onClick={() => setActiveTab('confirm-pickup')}
           >
-            Verify Volunteer
+            Confirm Pickup
           </button>
         </div>
 
       {activeTab === 'overview' && (
         <div className="overview-section">
-          <div className="stats-cards">
-            <div className="stat-card">
-              <h3>{supplierData.donatedItems}</h3>
-              <p>Items Donated</p>
-            </div>
-            <div className="stat-card">
-              <h3>{supplierData.upcomingPickups}</h3>
-              <p>Upcoming Pickups</p>
-            </div>
-            <div className="stat-card">
-              <h3>{supplierData.impactStats.mealsSaved}</h3>
-              <p>Meals Saved</p>
-            </div>
-            <div className="stat-card">
-              <h3>{supplierData.impactStats.co2Prevented} kg</h3>
-              <p>CO₂ Emissions Prevented</p>
-            </div>
-          </div>
+          {isLoadingOverview && <p>Loading overview...</p>}
+          {overviewError && <div className="error-message">Error: {overviewError}</div>}
           
-          <div className="recent-activity">
-            <h3>Recent Donations</h3>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Quantity</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {supplierData.recentDonations.map(donation => (
-                  <tr key={donation.id}>
-                    <td>{donation.name}</td>
-                    <td>{donation.quantity}</td>
-                    <td>{donation.date}</td>
-                    <td><span className={`status ${donation.status.toLowerCase().replace(' ', '-')}`}>{donation.status}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          {overviewData && !isLoadingOverview && (
+            <>
+              <div className="stats-cards">
+                <div className="stat-card">
+                  <h3>{overviewData.donatedItems !== null ? overviewData.donatedItems : 'N/A'}</h3>
+                  <p>Items Donated</p>
+                </div>
+                <div className="stat-card">
+                  <h3>{overviewData.upcomingPickups !== null ? overviewData.upcomingPickups : 'N/A'}</h3>
+                  <p>Upcoming Pickups</p>
+                </div>
+                <div className="stat-card">
+                  <h3>{overviewData.impactStats.mealsSaved !== null ? overviewData.impactStats.mealsSaved : 'N/A'}</h3>
+                  <p>Meals Saved (Est.)</p>
+                </div>
+                <div className="stat-card">
+                  <h3>{overviewData.impactStats.co2Prevented !== null ? overviewData.impactStats.co2Prevented : 'N/A'} kg</h3>
+                  <p>CO₂ Prevented (Est.)</p>
+                </div>
+              </div>
+              
+              <div className="recent-activity">
+                <h3>Recent Donations</h3>
+                {overviewData.recentDonations && overviewData.recentDonations.length > 0 ? (
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {overviewData.recentDonations.map(donation => (
+                        <tr key={donation.id}>
+                          <td>{donation.name}</td>
+                          <td>{donation.quantity}</td>
+                          <td>{formatDate(donation.date)}</td>
+                          <td><span className={`status ${donation.status.toLowerCase().replace(' ', '-')}`}>{donation.status}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p>No recent donation activity found.</p>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
       
       {activeTab === 'donate' && (
         <div className="donate-section">
-          <h3>Donate Food Items</h3>
+          <h3>List a New Donation</h3>
           {submitError && (
             <div className="error-message">
               {submitError}
@@ -317,43 +417,42 @@ const SupplierDashboard = () => {
               )}
             </div>
             
-            <div className="form-row">
-              <div className="form-group">
-                <label>Quantity *</label>
-                <input
-                  type="text"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleInputChange}
-                  placeholder="e.g., 5 kg or 10 packages"
-                />
-                {formErrors.quantity && (
-                  <span className="error-text">{formErrors.quantity}</span>
-                )}
-              </div>
-              
-              <div className="form-group">
-                <label>Expiration Date *</label>
-                <input
-                  type="date"
-                  name="expirationDate"
-                  value={formData.expirationDate}
-                  onChange={handleInputChange}
-                />
-                {formErrors.expirationDate && (
-                  <span className="error-text">{formErrors.expirationDate}</span>
-                )}
-              </div>
+            <div className="form-group">
+              <label>Quantity *</label>
+              <input
+                type="text"
+                name="quantity"
+                value={formData.quantity}
+                onChange={handleInputChange}
+                placeholder="e.g., 10 kg, 5 loaves, 3 boxes"
+              />
+              {formErrors.quantity && (
+                <span className="error-text">{formErrors.quantity}</span>
+              )}
+            </div>
+            
+            <div className="form-group">
+              <label>Expiration Date *</label>
+              <input
+                type="date"
+                name="expirationDate"
+                value={formData.expirationDate}
+                onChange={handleInputChange}
+              />
+              {formErrors.expirationDate && (
+                <span className="error-text">{formErrors.expirationDate}</span>
+              )}
             </div>
             
             <div className="form-group">
               <label>Pickup Information *</label>
               <textarea
                 name="pickupInfo"
+                rows="3"
                 value={formData.pickupInfo}
                 onChange={handleInputChange}
-                placeholder="Details about pickup availability, storage requirements, or other important information"
-              />
+                placeholder="e.g., Available Mon-Fri 9am-5pm at loading dock B"
+              ></textarea>
               {formErrors.pickupInfo && (
                 <span className="error-text">{formErrors.pickupInfo}</span>
               )}
@@ -397,184 +496,185 @@ const SupplierDashboard = () => {
               )}
             </div>
           </form>
-          
-          <div className="current-inventory">
-            <h3>Current Available Items</h3>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Quantity</th>
-                  <th>Expiry Date</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {supplierData.availableItems.map(item => (
-                  <tr key={item.id}>
-                    <td>{item.name}</td>
-                    <td>{item.quantity}</td>
-                    <td>{item.expiry}</td>
-                    <td>
-                      <button className="small-btn">Edit</button> 
-                      <button className="small-btn danger">Remove</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-      
-      {activeTab === 'impact' && (
-        <div className="impact-section">
-          <h3>Your Environmental & Social Impact</h3>
-          
-          <div className="impact-cards">
-            <div className="impact-card">
-              <div className="impact-icon">🍽️</div>
-              <h4>Meals Provided</h4>
-              <div className="impact-value">{supplierData.impactStats.mealsSaved}</div>
-              <p>Meals you've helped provide to people in need</p>
-            </div>
-            
-            <div className="impact-card">
-              <div className="impact-icon">🌱</div>
-              <h4>CO₂ Emissions Prevented</h4>
-              <div className="impact-value">{supplierData.impactStats.co2Prevented} kg</div>
-              <p>Equivalent to planting {Math.round(supplierData.impactStats.co2Prevented / 10)} trees</p>
-            </div>
-            
-            <div className="impact-card">
-              <div className="impact-icon">♻️</div>
-              <h4>Food Waste Diverted</h4>
-              <div className="impact-value">{supplierData.impactStats.wasteReduced} kg</div>
-              <p>Food waste diverted from landfills</p>
-            </div>
-          </div>
-          
-          <div className="impact-charts">
-            <div className="chart-container">
-              <h4>Your Monthly Impact</h4>
-              <div className="chart-placeholder">
-                <div className="chart-message">
-                  <div className="chart-icon">📊</div>
-                  <p>Monthly impact visualization would appear here, showing your contributions over time.</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="chart-container">
-              <h4>Community Comparison</h4>
-              <div className="chart-placeholder">
-                <div className="chart-message">
-                  <div className="chart-icon">📈</div>
-                  <p>You're in the top 15% of contributors in your area!</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="impact-testimonials">
-            <h4>Community Impact</h4>
-            <div className="testimonial">
-              <p>"Your donations have helped us serve over 200 families this month. Thank you for making a difference!"</p>
-              <div className="testimonial-source">- MealNet Community Partner</div>
-            </div>
-            
-            <div className="impact-badges">
-              <h4>Impact Badges</h4>
-              <div className="badges-container">
-                <div className="badge">
-                  <div className="badge-icon">🌟</div>
-                  <div className="badge-name">First Donation</div>
-                </div>
-                <div className="badge">
-                  <div className="badge-icon">🏆</div>
-                  <div className="badge-name">100 Meals</div>
-                </div>
-                <div className="badge">
-                  <div className="badge-icon">🌍</div>
-                  <div className="badge-name">Climate Champion</div>
-                </div>
-                <div className="badge inactive">
-                  <div className="badge-icon">💯</div>
-                  <div className="badge-name">500 Meals</div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="impact-share">
-            <h4>Share Your Impact</h4>
-            <p>Let others know about your contributions to inspire change</p>
-            <div className="share-buttons">
-              <button className="share-btn facebook">Share on Facebook</button>
-              <button className="share-btn twitter">Share on Twitter</button>
-              <button className="share-btn linkedin">Share on LinkedIn</button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {activeTab === 'verify' && (
-          <div className="verify-volunteer-section card-style"> 
-            <h3><i className="fas fa-user-check"></i> Verify Volunteer</h3>
 
-            {/* Show Scan Button or Result */} 
-            {!verificationResult ? ( 
-              <div className="scanner-area single-step">
-                 <p>Scan the volunteer's dynamic QR code directly.</p>
-                 {!showScanner && (
-                    <button 
-                      className="primary-btn scan-button large" // Added large class
-                      onClick={() => setShowScanner(true)} 
-                      disabled={isVerifying} // Disable while verifying previous scan
-                    >
-                      <i className="fas fa-qrcode"></i> Scan Volunteer Code
-                    </button>
-                 )}
-                 {/* Scanner container */} 
-                 <div id="qr-reader-container" style={{ display: showScanner ? 'block' : 'none' }}>
-                   <div id="qr-reader"></div> 
-                   <button 
-                      className="secondary-btn cancel-scan-btn" 
-                      onClick={() => setShowScanner(false)} 
-                      disabled={isVerifying}
-                    >
-                     Cancel Scan
-                    </button>
-                 </div>
-              </div>
-             ) : ( 
-               // Show the result after verification attempt
-               <div className={`verification-result ${verificationResult.isValid === true ? 'valid' : verificationResult.isValid === false ? 'invalid' : 'pending'}`}>
-                 {/* Display Verification Status Icon/Text */}
-                  <h4>
-                   {verificationResult.isValid === true 
-                     ? <><i className="fas fa-check-circle"></i> Verification Successful</>
-                     : verificationResult.isValid === false
-                     ? <><i className="fas fa-times-circle"></i> Verification Failed</>
-                     : <><i className="fas fa-spinner fa-spin"></i> Verifying...</>
-                   }
-                 </h4>
-                 <p>{verificationResult.message}</p>
-                  {verificationResult.isValid && verificationResult.volunteer && (
-                   <p><strong>Volunteer:</strong> {verificationResult.volunteer.username}</p>
-                  )}
-                  {/* Button to scan again */} 
-                  <button 
-                      className="primary-btn scan-again-btn" 
-                      onClick={handleScanAgain} 
-                      disabled={isVerifying || showScanner} 
-                    >
-                      Scan Another Volunteer
-                    </button>
+          <hr style={{ margin: '2rem 0' }}/>
+
+          {/* Display Current Listed Items */}
+          <h3>Your Currently Listed Items (Available/Scheduled)</h3>
+          {isLoadingListedItems && <p>Loading listed items...</p>}
+          {listedItemsError && <div className="error-message">Error: {listedItemsError}</div>}
+          
+          {!isLoadingListedItems && !listedItemsError && (
+             supplierListedItems.length > 0 ? (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Item Name</th>
+                    <th>Quantity</th>
+                    <th>Expires</th>
+                    <th>Status</th>
+                    <th>Actions</th> {/* Optional actions column */} 
+                  </tr>
+                </thead>
+                <tbody>
+                  {supplierListedItems.map(item => (
+                    <tr key={item.id}>
+                      <td>{item.name}</td>
+                      <td>{item.quantity}</td>
+                      <td>{formatDate(item.expiry)}</td>
+                      <td>
+                        <span className={`status ${item.status.toLowerCase()}`}>{item.status}</span>
+                      </td>
+                      <td>
+                        {/* Add actions like Edit/Cancel later if needed */}
+                        <button className="small-btn">Edit</button>
+                        <button className="small-btn danger" style={{marginLeft: '5px'}}>Cancel</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+             ) : (
+              <p>You have no items currently listed as available or scheduled for pickup.</p>
+             )
+          )}
+        </div>
+      )}
+      
+      {activeTab === 'receipts' && (
+        <div className="receipts-section">
+          <h3>Generate Donation Receipt</h3>
+          <p>Select a date range to generate a summary of your completed donations.</p>
+          
+          <div className="receipt-controls form-group">
+             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                <div style={{ flex: 1 }}>
+                    <label htmlFor="startDate">Start Date:</label>
+                    <input
+                        type="date"
+                        id="startDate"
+                        name="startDate"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                    />
                 </div>
-             )}
+                <div style={{ flex: 1 }}>
+                    <label htmlFor="endDate">End Date:</label>
+                    <input
+                        type="date"
+                        id="endDate"
+                        name="endDate"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                    />
+                </div>
+             </div>
+            <button 
+              className="primary-btn" 
+              onClick={handleFetchReceipt} 
+              disabled={isLoadingReceipt}
+            >
+              {isLoadingReceipt ? 'Generating...' : 'Generate Receipt'}
+            </button>
           </div>
-        )}
+
+          {receiptError && (
+            <div className="error-message" style={{ marginTop: '1rem' }}>
+              Error: {receiptError}
+            </div>
+          )}
+
+          {receiptData && (
+            <div className="receipt-display" style={{ marginTop: '2rem', border: '1px solid #eee', padding: '1.5rem', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
+              <h4>Donation Receipt Summary</h4>
+              
+              <div className="receipt-donor-info" style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid #ddd' }}>
+                <strong>Donor:</strong> {receiptData.donorInfo.businessName}<br />
+                <strong>Address:</strong> {receiptData.donorInfo.businessAddress}
+              </div>
+
+              <div className="receipt-summary" style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid #ddd' }}>
+                <strong>Period:</strong> {formatDate(receiptData.summary.startDate) || 'Start'} - {formatDate(receiptData.summary.endDate) || 'End'}<br />
+                <strong>Total Completed Donations:</strong> {receiptData.summary.totalDonations}<br />
+                <strong>Total Estimated Value:</strong> ${receiptData.summary.totalEstimatedValue.toFixed(2)}<br />
+                <strong>Generated On:</strong> {formatDate(receiptData.summary.generatedAt)}
+              </div>
+
+              <h5>Donation Details:</h5>
+              {receiptData.donations.length > 0 ? (
+                <table className="data-table" style={{marginBottom: '1rem'}}>
+                  <thead>
+                    <tr>
+                      <th>Date Completed</th>
+                      <th>Item</th>
+                      <th>Category</th>
+                      <th>Quantity</th>
+                      <th>Est. Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {receiptData.donations.map(donation => (
+                      <tr key={donation.id}>
+                        <td>{formatDate(donation.date)}</td>
+                        <td>{donation.itemName}</td>
+                        <td>{donation.category}</td>
+                        <td>{donation.quantity}</td>
+                        <td>${(donation.estimatedValue || 0).toFixed(2)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p>No completed donations found for this period.</p>
+              )}
+
+              <p style={{ fontSize: '0.8em', fontStyle: 'italic', color: '#666', marginTop: '1rem' }}>
+                <strong>Disclaimer:</strong> {receiptData.disclaimer}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {activeTab === 'confirm-pickup' && (
+        <div className="verify-section"> {/* Keep class name or rename if desired */} 
+          <h3>Confirm Donation Pickup</h3>
+          <p>Scan the QR code presented by the volunteer/driver to confirm they have picked up your available donations. This will mark the items as 'completed'.</p>
+
+          {!showScanner && (
+            <button 
+              className="primary-btn" 
+              onClick={() => {
+                setShowScanner(true); 
+                setConfirmationResult(null); // Clear previous result when showing scanner
+              }}
+              disabled={isConfirming}
+            >
+              Start Camera Scan
+            </button>
+          )}
+
+          {showScanner && (
+            <> 
+              {/* Ensure this div ID matches the one used in useEffect */}
+              <div id="qr-reader-supplier" style={{ width: '100%', maxWidth: '500px', margin: '1rem auto' }}></div> 
+              <button className="secondary-btn" onClick={() => setShowScanner(false)}>Cancel Scan</button>
+            </>
+          )}
+
+          {isConfirming && <p style={{marginTop: '1rem'}}>Confirming pickup...</p>}
+
+          {confirmationResult && (
+            <div 
+              className={confirmationResult.success ? 'success-message' : 'error-message'}
+              style={{marginTop: '1rem'}}
+            >
+              {confirmationResult.success ? '✅ ' : '❌ '}
+              {confirmationResult.message}
+            </div>
+          )}
+        </div>
+      )}
       </div>
     </div>
   );

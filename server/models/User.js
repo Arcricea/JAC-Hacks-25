@@ -19,6 +19,14 @@ const userSchema = new mongoose.Schema({
     enum: ['individual', 'business', 'distributor', 'volunteer'],
     default: 'individual'
   },
+  businessName: {
+    type: String,
+    trim: true
+  },
+  businessAddress: {
+    type: String,
+    trim: true
+  },
   volunteerSecret: {
     type: String,
   },
