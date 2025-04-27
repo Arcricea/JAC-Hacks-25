@@ -350,7 +350,10 @@ const OrganizerDashboard = () => {
 
       const response = await fetch(`http://localhost:5000/api/users/set-need/${targetFoodBankId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Requesting-User-Id': userData.auth0Id  
+        },
         body: JSON.stringify({ priorityLevel, customMessage }),
       });
 

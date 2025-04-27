@@ -333,7 +333,7 @@ const Profile = () => {
 
     try {
       // Send the structured addressData object
-      const response = await saveUser(payload); // Pass the constructed payload
+      const response = await saveUser(payload, userData.auth0Id); // Add auth0Id as second parameter
 
       // --- Add Logging for response --- 
       console.log('Response received from saveUser:', response);
