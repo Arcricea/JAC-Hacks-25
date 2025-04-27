@@ -1,8 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+import { verifyVolunteerToken } from '../services/userService'; // Import the service function
 import '../assets/styles/Dashboard.css';
 
 const SupplierDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [showScanner, setShowScanner] = useState(false);
+  const [scanResult, setScanResult] = useState(null); // To store the result { isValid, message, volunteer }
+  const [isVerifying, setIsVerifying] = useState(false);
   
   // Demo data
   const supplierData = {
@@ -24,6 +29,68 @@ const SupplierDashboard = () => {
     ]
   };
 
+  useEffect(() => {
+    let scanner;
+    if (showScanner) {
+      setScanResult(null); // Clear previous result when opening scanner
+      
+      // Define QR scan success callback
+      const onScanSuccess = async (decodedText, decodedResult) => {
+        console.log(`Code matched = ${decodedText}`, decodedResult);
+        setShowScanner(false); // Close scanner immediately after scan
+        setIsVerifying(true); // Show verifying message
+        setScanResult({ message: 'Verifying token... ' + decodedText.substring(0,8) + '...' });
+
+        try {
+          const verificationResult = await verifyVolunteerToken(decodedText);
+          setScanResult(verificationResult); // Store the full result object
+          console.log("Verification result:", verificationResult);
+        } catch (error) {
+          console.error("Verification API call failed:", error);
+          setScanResult({ success: false, isValid: false, message: 'Verification failed. Please try again.' });
+        } finally {
+          setIsVerifying(false);
+        }
+        
+        if (scanner) {
+            scanner.clear().catch(error => console.error("Failed to clear scanner:", error));
+        }
+      };
+
+      // Define QR scan error callback
+      const onScanFailure = (error) => {
+        // Handle scan failure, usually ignore it unless you want verbose logging
+        // console.warn(`Code scan error = ${error}`);
+      };
+
+      // Create and render the scanner
+      scanner = new Html5QrcodeScanner(
+        "qr-reader", // ID of the div element to render the scanner
+        {
+          fps: 10, // Frames per second
+          qrbox: { width: 250, height: 250 }, // Size of the scanning box
+          rememberLastUsedCamera: true,
+          supportedScanTypes: [0] // SCAN_TYPE_CAMERA
+        },
+        false // verbose
+      );
+
+      scanner.render(onScanSuccess, onScanFailure);
+    }
+
+    // Cleanup function to clear the scanner when the component unmounts or scanner is hidden
+    return () => {
+      if (scanner && typeof scanner.clear === 'function') {
+        scanner.clear().catch(error => {
+          // Handle error, e.g., if the scanner was already stopped
+          if (error.name !== 'NotRunning') { 
+             console.error("Failed to clear html5QrcodeScanner on cleanup:", error);
+          }
+        });
+      }
+    };
+  }, [showScanner]);
+
   return (
     <div className="dashboard-content">
       <div className="dashboard-nav">
@@ -44,6 +111,12 @@ const SupplierDashboard = () => {
           onClick={() => setActiveTab('impact')}
         >
           Impact
+        </button>
+        <button 
+          className={activeTab === 'verify' ? 'active' : ''} 
+          onClick={() => setActiveTab('verify')}
+        >
+          Verify Volunteer
         </button>
       </div>
 
@@ -267,6 +340,44 @@ const SupplierDashboard = () => {
               <button className="share-btn linkedin">Share on LinkedIn</button>
             </div>
           </div>
+        </div>
+      )}
+      
+      {activeTab === 'verify' && (
+        <div className="verify-volunteer-section">
+          <h3>Verify Volunteer QR Code</h3>
+          
+          {!showScanner && (
+            <button 
+              className="primary-btn" 
+              onClick={() => setShowScanner(true)} 
+              disabled={isVerifying}
+            >
+              {isVerifying ? 'Verifying...' : 'Scan Volunteer QR Code'}
+            </button>
+          )}
+
+          {showScanner && <div id="qr-reader" style={{ width: '100%', maxWidth: '500px', margin: '20px auto' }}></div>}
+          
+          {scanResult && (
+            <div className={`verification-result ${scanResult.isValid ? 'valid' : 'invalid'}`}>
+              <h4>Verification Result:</h4>
+              <p>{scanResult.message}</p>
+              {scanResult.isValid && scanResult.volunteer && (
+                <p>Volunteer: {scanResult.volunteer.username}</p>
+              )}
+            </div>
+          )}
+          
+          {showScanner && (
+             <button 
+              className="secondary-btn" 
+              style={{marginTop: '15px'}}
+              onClick={() => setShowScanner(false)} 
+            >
+             Cancel Scan
+            </button>
+          )}
         </div>
       )}
     </div>
