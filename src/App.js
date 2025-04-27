@@ -36,48 +36,44 @@ function App() {
   const [isCheckingUser, setIsCheckingUser] = useState(false);
   // Add userData state to store and share user information
   const [userData, setUserData] = useState(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
   
   useEffect(() => {
-    // Only run this check when the user is authenticated and user object is available
-    if (isAuthenticated && user?.sub && !isLoading && !isCheckingUser) {
-      setIsCheckingUser(true);
+    if (isAuthenticated && user) {
+      setIsAuthLoading(true);
       
-      // First, check the database for user data
-      getUserByAuth0Id(user.sub)
-        .then(response => {
-          if (response.success && response.data) {
-            // User exists in database, update localStorage and don't show modals
-            const dbUserData = response.data;
-            
-            // Store user data in state for immediate access across the app
-            setUserData(dbUserData);
-            
-            // Also update localStorage
-            localStorage.setItem(`user_nickname_${user.sub}`, dbUserData.username);
-            localStorage.setItem(`username_set_${user.sub}`, 'true');
-            localStorage.setItem(`user_type_${user.sub}`, dbUserData.accountType);
-            localStorage.setItem(`user_type_set_${user.sub}`, 'true');
-            
-            // Don't show the modals since user is already set up
-            setShowUsernameModal(false);
-            setShowUserTypeModal(false);
-          } else {
-            // Should not happen - API should return 404 if user not found
+      // Try to get user from the database first
+      import('./services/userService').then(({ getUserByAuth0Id }) => {
+        getUserByAuth0Id(user.sub)
+          .then(response => {
+            if (response.success && response.data) {
+              // User exists in database, set user data
+              setUserData(response.data);
+              
+              // Update localStorage with most current data
+              localStorage.setItem(`username_set_${user.sub}`, 'true');
+              localStorage.setItem(`user_nickname_${user.sub}`, response.data.username);
+              localStorage.setItem(`user_type_set_${user.sub}`, 'true');
+              localStorage.setItem(`user_type_${user.sub}`, response.data.accountType);
+              
+              setIsAuthLoading(false);
+            } else {
+              // User not found in database, check localStorage
+              checkLocalStorage();
+              setIsAuthLoading(false);
+            }
+          })
+          .catch(error => {
+            console.error("Error fetching user data:", error);
+            // Fallback to localStorage if database fetch fails
             checkLocalStorage();
-          }
-        })
-        .catch(error => {
-          // User doesn't exist in database, check localStorage as fallback
-          checkLocalStorage();
-        })
-        .finally(() => {
-          setIsCheckingUser(false);
-        });
-    } else if (!isAuthenticated) {
-      // Clear userData when not authenticated
-      setUserData(null);
+            setIsAuthLoading(false);
+          });
+      });
+    } else {
+      setIsAuthLoading(false);
     }
-  }, [isAuthenticated, user, isLoading]);
+  }, [isAuthenticated, user]);
   
   // Function to check localStorage if database check fails
   const checkLocalStorage = () => {
@@ -104,6 +100,25 @@ function App() {
           auth0Id: user.sub,
           username,
           accountType
+        });
+        
+        // Attempt to save to database in background to ensure consistency
+        // This helps if the user's localStorage data exists but database save failed previously
+        import('./services/userService').then(({ saveUser }) => {
+          saveUser({
+            auth0Id: user.sub,
+            username,
+            accountType,
+            email: user.email || ''
+          }).then(response => {
+            if (response.success && response.data) {
+              // Update with the complete data from the server
+              setUserData(response.data);
+            }
+          }).catch(err => {
+            console.error('Background database save failed:', err);
+            // Continue with localStorage data even if save fails
+          });
         });
       }
     }

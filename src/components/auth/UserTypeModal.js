@@ -117,22 +117,55 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
         auth0Id: user.sub,
         username,
         accountType: selectedType,
+        ...(user.email && { email: user.email }),
         ...(selectedType === 'organizer' && { organizerPassword: organizerPassword })
       });
       
       // Update the global userData state with the returned user data
       if (response.success && response.data) {
         setUserData(response.data);
+        
+        // Save to localStorage as a backup/for quick access
+        localStorage.setItem(`user_type_${user.sub}`, selectedType);
+        localStorage.setItem(`user_type_set_${user.sub}`, 'true');
+        
+        // Notify parent that user type has been set
+        onComplete(selectedType);
+      } else {
+        throw new Error('Failed to save user data to database.');
+      }
+    } catch (err) {
+      console.error('Error saving user type:', err);
+      setError(err.message || 'Failed to save selection. Please try again.');
+      
+      // For organizer type with password issues, don't proceed
+      if (selectedType === 'organizer' && err.message && 
+          (err.message.includes('password') || err.message.includes('organizer'))) {
+        setIsSubmitting(false);
+        return;
       }
       
-      // Still save to localStorage as a backup/for quick access
+      // For other errors, still save locally so the user isn't stuck
       localStorage.setItem(`user_type_${user.sub}`, selectedType);
       localStorage.setItem(`user_type_set_${user.sub}`, 'true');
       
-      // Notify parent that user type has been set
+      // Update local userData state
+      setUserData(prev => ({
+        ...prev,
+        accountType: selectedType
+      }));
+      
+      // Make another attempt to save in the background
+      setTimeout(() => {
+        saveUser({
+          auth0Id: user.sub,
+          accountType: selectedType,
+          ...(user.email && { email: user.email })
+        }).catch(e => console.error('Background save failed:', e));
+      }, 2000);
+      
+      // Continue to next step
       onComplete(selectedType);
-    } catch (err) {
-      setError(err.message || 'Failed to save selection. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

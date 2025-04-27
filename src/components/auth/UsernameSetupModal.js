@@ -69,38 +69,49 @@ const UsernameSetupModal = ({ isOpen, onComplete }) => {
       localStorage.setItem(`user_nickname_${user.sub}`, username);
       localStorage.setItem(`username_set_${user.sub}`, 'true');
       
-      // Set initial userData state with just the username
-      setUserData({
+      // Save user to database with temporary account type (will be updated in UserTypeModal)
+      // This ensures the user is created in the database even if they don't complete the account type step
+      const response = await saveUser({
         auth0Id: user.sub,
         username,
-        accountType: 'individual' // Default, will be properly set in UserTypeModal
+        accountType: 'individual', // Default temporary type
+        email: user.email || '' // Include email from Auth0 if available
       });
       
-      // Check if user already exists and has an account type
-      try {
-        const userData = await getUserByAuth0Id(user.sub);
-        if (userData.success && userData.data) {
-          // If user exists, update with new username
-          const response = await saveUser({
-            auth0Id: user.sub,
-            username,
-            accountType: userData.data.accountType
-          });
-          
-          // Update userData with server response
-          if (response.success && response.data) {
-            setUserData(response.data);
-          }
-        }
-      } catch (error) {
-        // User doesn't exist yet, which is fine
-        // Will be created when account type is selected
+      // Update userData with server response
+      if (response.success && response.data) {
+        setUserData(response.data);
+      } else {
+        // If server save failed, still continue with localStorage data
+        setUserData({
+          auth0Id: user.sub,
+          username,
+          accountType: 'individual' // Default, will be properly set in UserTypeModal
+        });
       }
       
       // Notify parent that username has been set
       onComplete(username);
     } catch (err) {
-      setError(err.message || 'Failed to save username. Please try again.');
+      console.error('Error saving user:', err);
+      
+      // If server save failed due to duplicate username, show error
+      if (err.message && err.message.includes('already exists')) {
+        setError(err.message || 'Username already taken. Please try another one.');
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // For other errors, still continue with localStorage only as fallback
+      // This allows the flow to continue even if the database save fails
+      setUserData({
+        auth0Id: user.sub,
+        username,
+        accountType: 'individual'
+      });
+      
+      // Notify parent that username has been set
+      onComplete(username);
     } finally {
       setIsSubmitting(false);
     }
