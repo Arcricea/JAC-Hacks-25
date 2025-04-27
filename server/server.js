@@ -25,7 +25,7 @@ const corsOptions = {
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
 
-// Middleware
+// Middlewareu
 app.use(cors(corsOptions));
 app.use(express.json());
 
