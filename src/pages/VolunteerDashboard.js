@@ -5,7 +5,12 @@ import { UserContext } from '../App';
 import '../assets/styles/Dashboard.css'; // Reuse existing dashboard styles for now
 import '../assets/styles/VolunteerDashboard.css'; // Add specific styles
 import { saveUser } from '../services/userService'; // Import saveUser service
-import { getAvailableDonations } from '../services/donationService';
+import { 
+  getAvailableDonations, 
+  assignDonationToVolunteer, 
+  getVolunteerTasks,
+  updateTaskStatus 
+} from '../services/donationService';
 
 const VolunteerDashboard = () => {
   const { userData, setUserData } = useContext(UserContext);
@@ -18,6 +23,9 @@ const VolunteerDashboard = () => {
   const totpRef = useRef(null);
   const [availableTasks, setAvailableTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [myTasks, setMyTasks] = useState([]);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   useEffect(() => {
     // Clear previous interval on component unmount or when secret changes
@@ -80,6 +88,12 @@ const VolunteerDashboard = () => {
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    if (activeTab === 'tasks' && userData?.auth0Id) {
+      fetchMyTasks();
+    }
+  }, [activeTab, userData]);
+
   const fetchAvailableTasks = async () => {
     setIsLoading(true);
     setError(null);
@@ -93,6 +107,17 @@ const VolunteerDashboard = () => {
       console.error('Error fetching tasks:', err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchMyTasks = async () => {
+    try {
+      const response = await getVolunteerTasks(userData.auth0Id);
+      if (response.success) {
+        setMyTasks(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching my tasks:', err);
     }
   };
 
@@ -142,6 +167,56 @@ const VolunteerDashboard = () => {
       setError(error.message || 'An error occurred while generating volunteer secret');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleAcceptTask = async (taskId) => {
+    if (!userData?.auth0Id) {
+      setError('Please log in to accept tasks');
+      return;
+    }
+
+    setIsAssigning(true);
+    try {
+      const response = await assignDonationToVolunteer(taskId, userData.auth0Id);
+      if (response.success) {
+        // Remove the task from available tasks
+        setAvailableTasks(prev => prev.filter(task => task._id !== taskId));
+        // Refresh my tasks
+        await fetchMyTasks();
+        // Show success message
+        alert('Task accepted successfully!');
+      }
+    } catch (err) {
+      setError('Failed to accept task. Please try again.');
+      console.error('Error accepting task:', err);
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleUpdateTaskStatus = async (taskId, newStatus) => {
+    if (!userData?.auth0Id) {
+      setError('Please log in to update tasks');
+      return;
+    }
+
+    setIsUpdatingStatus(true);
+    try {
+      const response = await updateTaskStatus(taskId, newStatus);
+      if (response.success) {
+        // Update the task in the local state
+        setMyTasks(prev => prev.map(task => 
+          task._id === taskId ? { ...task, status: newStatus } : task
+        ));
+        // Show success message
+        alert(`Task marked as ${newStatus.replace('_', ' ')}!`);
+      }
+    } catch (err) {
+      setError('Failed to update task status. Please try again.');
+      console.error('Error updating task status:', err);
+    } finally {
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -271,35 +346,49 @@ const VolunteerDashboard = () => {
         )}
 
         {activeTab === 'tasks' && (
-          <div className="tasks-section card-style">
-            <h3><i className="fas fa-tasks"></i> Upcoming Shifts</h3>
-             <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Location</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {volunteerData.upcomingShifts.map(shift => (
-                  <tr key={shift.id}>
-                    <td>{shift.location}</td>
-                    <td>{shift.date}</td>
-                    <td>{shift.time}</td>
-                    <td><button className="secondary-btn">View Details</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            
-            <div className="stats-overview">
-                 <div className="stat-card">
-                    <h4>Tasks Completed</h4>
-                    <p className="stat-value">{volunteerData.tasksCompleted}</p>
+          <div className="tasks-section">
+            <h3>My Assigned Deliveries</h3>
+            <div className="assigned-tasks-grid">
+              {myTasks.map(task => (
+                <div key={task._id} className="task-card">
+                  <div className="task-card-header">
+                    <h4>{task.itemName}</h4>
+                    <span className={`status-badge ${task.status}`}>
+                      {task.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                  
+                  <div className="task-card-body">
+                    <p><strong>Category:</strong> {task.category}</p>
+                    <p><strong>Quantity:</strong> {task.quantity}</p>
+                    <p><strong>Pickup Info:</strong> {task.pickupInfo}</p>
+                    <p><strong>Expires:</strong> {formatDate(task.expirationDate)}</p>
+                    <p><strong>Assigned:</strong> {formatDate(task.assignedAt)}</p>
+                  </div>
+
+                  <div className="task-card-footer">
+                    {task.status !== 'completed' && (
+                      <button 
+                        className="primary-btn"
+                        onClick={() => handleUpdateTaskStatus(task._id, 'completed')}
+                        disabled={isUpdatingStatus}
+                      >
+                        {isUpdatingStatus ? 'Updating...' : 'Mark as Completed'}
+                      </button>
+                    )}
+                    {task.status === 'completed' && (
+                      <span className="completed-message">✓ Delivery Completed</span>
+                    )}
+                  </div>
                 </div>
-                {/* Add more stats */}
+              ))}
+
+              {myTasks.length === 0 && (
+                <div className="no-tasks-message">
+                  <p>You haven't accepted any deliveries yet.</p>
+                  <p>Check the Available Deliveries tab to find tasks!</p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -368,7 +457,13 @@ const VolunteerDashboard = () => {
                       </div>
 
                       <div className="task-card-footer">
-                        <button className="primary-btn">Accept Delivery</button>
+                        <button 
+                          className="primary-btn"
+                          onClick={() => handleAcceptTask(task._id)}
+                          disabled={isAssigning}
+                        >
+                          {isAssigning ? 'Accepting...' : 'Accept Delivery'}
+                        </button>
                         <button className="secondary-btn">View Details</button>
                       </div>
                     </div>

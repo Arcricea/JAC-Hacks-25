@@ -1,5 +1,6 @@
 const Donation = require('../models/Donation');
 const User = require('../models/User'); // Import User model
+const AssignedTask = require('../models/AssignedTask');
 
 exports.createDonation = async (req, res) => {
   try {
@@ -294,6 +295,102 @@ exports.confirmSupplierPickup = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error confirming supplier pickup',
+      error: error.message
+    });
+  }
+};
+
+exports.assignDonationToVolunteer = async (req, res) => {
+  try {
+    const { donationId } = req.params;
+    const { volunteerId } = req.body;
+
+    // Find the donation
+    const donation = await Donation.findById(donationId);
+    if (!donation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Donation not found'
+      });
+    }
+
+    // Create new assigned task
+    const assignedTask = new AssignedTask({
+      volunteerId,
+      donationId: donation._id,
+      itemName: donation.itemName,
+      category: donation.category,
+      quantity: donation.quantity,
+      pickupInfo: donation.pickupInfo,
+      expirationDate: donation.expirationDate
+    });
+
+    // Save the assigned task
+    await assignedTask.save();
+
+    // Remove the donation from available donations
+    await Donation.findByIdAndDelete(donationId);
+
+    res.status(200).json({
+      success: true,
+      data: assignedTask
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error assigning task',
+      error: error.message
+    });
+  }
+};
+
+exports.getVolunteerTasks = async (req, res) => {
+  try {
+    const { volunteerId } = req.params;
+    
+    const tasks = await AssignedTask.find({ volunteerId })
+      .sort({ assignedAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: tasks
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching volunteer tasks',
+      error: error.message
+    });
+  }
+};
+
+// Add this function to the existing controller
+exports.updateTaskStatus = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { status } = req.body;
+
+    const task = await AssignedTask.findByIdAndUpdate(
+      taskId,
+      { status },
+      { new: true }
+    );
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: task
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error updating task status',
       error: error.message
     });
   }

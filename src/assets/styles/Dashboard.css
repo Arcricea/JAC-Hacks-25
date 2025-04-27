@@ -1013,11 +1013,13 @@
   padding: 1rem;
   border-top: 1px solid #eee;
   display: flex;
-  gap: 0.5rem;
+  justify-content: center;
+  align-items: center;
 }
 
-.task-card-footer button {
-  flex: 1;
+.task-card-footer button:disabled {
+  background-color: #9e9e9e;
+  cursor: not-allowed;
 }
 
 /* Responsive adjustments */
@@ -1105,4 +1107,67 @@
 .material-icons {
   font-size: 1.2rem;
   color: #2e7d32;
+}
+
+/* Add these styles */
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  text-transform: capitalize;
+}
+
+.status-badge.assigned {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.status-badge.in_progress {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.status-badge.completed {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-badge.cancelled {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.assigned-tasks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+/* Update existing styles */
+.primary-btn:disabled {
+  background-color: #9e9e9e;
+  cursor: not-allowed;
+}
+
+/* Add these styles */
+.completed-message {
+  color: #2e7d32;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
+
+.task-card-footer {
+  padding: 1rem;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.task-card-footer button:disabled {
+  background-color: #9e9e9e;
+  cursor: not-allowed;
 } 

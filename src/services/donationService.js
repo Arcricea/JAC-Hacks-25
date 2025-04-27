@@ -118,4 +118,66 @@ export const confirmSupplierPickup = async (userId) => {
     console.error('Error confirming supplier pickup:', error);
     throw error;
   }
+};
+
+export const assignDonationToVolunteer = async (donationId, volunteerId) => {
+  try {
+    const response = await fetch(`${API_URL}/donations/${donationId}/assign`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ volunteerId }),
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to assign donation');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error assigning donation:', error);
+    throw error;
+  }
+};
+
+export const getVolunteerTasks = async (volunteerId) => {
+  try {
+    const response = await fetch(`${API_URL}/donations/volunteer/${volunteerId}/tasks`);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch volunteer tasks');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching volunteer tasks:', error);
+    throw error;
+  }
+};
+
+export const updateTaskStatus = async (taskId, status) => {
+  try {
+    const response = await fetch(`${API_URL}/donations/tasks/${taskId}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to update task status');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error updating task status:', error);
+    throw error;
+  }
 }; 
