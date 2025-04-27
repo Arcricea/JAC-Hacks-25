@@ -11,8 +11,17 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
+  const [organizerPassword, setOrganizerPassword] = useState('');
 
-  // Check if user already exists in database with account type when modal opens
+  useEffect(() => {
+    if (selectedType !== 'organizer') {
+      setOrganizerPassword('');
+      if (error && error.toLowerCase().includes('password')) {
+          setError('');
+      }
+    }
+  }, [selectedType, error]);
+
   useEffect(() => {
     if (isOpen && user?.sub) {
       setInitialLoading(true);
@@ -89,6 +98,12 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
 
     setIsSubmitting(true);
     
+    if (selectedType === 'organizer' && !organizerPassword) {
+        setError('Password is required to create an organizer account.');
+        setIsSubmitting(false);
+        return;
+    }
+
     try {
       // Get the username from localStorage (set in UsernameSetupModal)
       const username = localStorage.getItem(`user_nickname_${user.sub}`);
@@ -101,7 +116,8 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
       const response = await saveUser({
         auth0Id: user.sub,
         username,
-        accountType: selectedType
+        accountType: selectedType,
+        ...(selectedType === 'organizer' && { organizerPassword: organizerPassword })
       });
       
       // Update the global userData state with the returned user data
@@ -165,6 +181,25 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
                 </div>
               ))}
             </div>
+            
+            {selectedType === 'organizer' && (
+              <div className="usertype-password-input">
+                <label htmlFor="organizerPassword">Organizer Password:</label>
+                <input
+                  type="password"
+                  id="organizerPassword"
+                  value={organizerPassword}
+                  onChange={(e) => {
+                    setOrganizerPassword(e.target.value);
+                    if (error && error.toLowerCase().includes('password')) {
+                        setError('');
+                    }
+                  }}
+                  required
+                  placeholder="Enter the required password"
+                />
+              </div>
+            )}
             
             {error && <p className="usertype-error">{error}</p>}
             

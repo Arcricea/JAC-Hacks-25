@@ -5,7 +5,7 @@ const User = require('../models/User');
 // Create or update a user
 exports.saveUser = async (req, res) => {
   try {
-    const { auth0Id, username, accountType, needStatus, address } = req.body;
+    const { auth0Id, username, accountType, needStatus, address, businessName, businessAddress, organizerPassword } = req.body;
 
     // Validate required fields
     if (!auth0Id || !username || !accountType) {
@@ -16,12 +16,24 @@ exports.saveUser = async (req, res) => {
     }
 
     // Check if account type is valid
-    const validTypes = ['individual', 'business', 'distributor', 'volunteer'];
+    const validTypes = ['individual', 'business', 'distributor', 'volunteer', 'organizer'];
     if (!validTypes.includes(accountType)) {
       return res.status(400).json({ 
         success: false, 
         message: 'Invalid account type. Must be one of: ' + validTypes.join(', ') 
       });
+    }
+
+    // Check if the organizer password is correct
+    if (accountType === 'organizer') {
+      const requiredPassword = 'ScoobyDoo'; // The password
+      if (!organizerPassword || organizerPassword !== requiredPassword) {
+        return res.status(403).json({ // 403 Forbidden
+          success: false,
+          message: 'Incorrect or missing password required for organizer account type.'
+        });
+      }
+      // If password is correct, proceed
     }
 
     // Find user by auth0Id or create a new one
@@ -35,6 +47,8 @@ exports.saveUser = async (req, res) => {
       Object.assign(user, {
         username,
         accountType,
+        ...(businessName !== undefined && { businessName }),
+        ...(businessAddress !== undefined && { businessAddress }),
         ...(address !== undefined && { address }),
         ...(needStatus && accountType === 'distributor' && {
           needStatus: {
@@ -50,6 +64,8 @@ exports.saveUser = async (req, res) => {
         auth0Id,
         username,
         accountType,
+        ...(businessName !== undefined && { businessName }),
+        ...(businessAddress !== undefined && { businessAddress }),
         ...(address !== undefined && { address }),
         ...(needStatus && accountType === 'distributor' && { needStatus })
       });
@@ -266,6 +282,135 @@ exports.setFoodBankNeedStatusByOrganizer = async (req, res) => {
   }
 };
 
+// PUT /api/users/reset-requests/:auth0Id - Reset need status for a food bank (Organizer action)
+exports.resetUserRequests = async (req, res) => {
+  try {
+    const { auth0Id } = req.params;
+
+    const updatedUser = await User.findOneAndUpdate(
+      { auth0Id: auth0Id, accountType: 'distributor' }, // Ensure it's a food bank
+      { 
+        $set: { 
+          needStatus: { 
+            priorityLevel: 1, // Set to 'Do not need'
+            customMessage: ''   // Clear custom message
+          } 
+        }
+      },
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ success: false, message: 'Food bank user not found or is not a distributor.' });
+    }
+
+    // Exclude sensitive info from the response
+    const userResponse = updatedUser.toObject();
+    delete userResponse.volunteerSecret;
+
+    res.status(200).json({ success: true, message: 'Food bank requests reset successfully', data: userResponse });
+
+  } catch (error) {
+    console.error('Error resetting food bank requests:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error resetting food bank requests',
+      error: error.message
+    });
+  }
+};
+
+// PUT /api/users/change-type/:auth0Id - Change a user's account type (Admin/Organizer action)
+exports.changeUserAccountType = async (req, res) => {
+  try {
+    const { auth0Id } = req.params;
+    const { newAccountType } = req.body;
+
+    // TODO: Add middleware to ensure only admins/organizers can access this
+
+    // Validate the new account type
+    const validTypes = User.schema.path('accountType').enumValues;
+    if (!newAccountType || !validTypes.includes(newAccountType)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid account type. Must be one of: ${validTypes.join(', ')}`
+      });
+    }
+
+    const user = await User.findOne({ auth0Id });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const previousAccountType = user.accountType;
+    const currentUsername = user.username;
+
+    // <<< START USERNAME GENERATION LOGIC >>>
+    const typeSuffixes = {
+      individual: '_I',
+      business: '_B',
+      distributor: '_D',
+      volunteer: '_V',
+      organizer: '_O' 
+    };
+    const newSuffix = typeSuffixes[newAccountType];
+
+    // Attempt to find and strip existing suffix to get base name
+    let baseUsername = currentUsername;
+    const knownSuffixes = Object.values(typeSuffixes);
+    for (const suffix of knownSuffixes) {
+      if (currentUsername.endsWith(suffix)) {
+        baseUsername = currentUsername.slice(0, -suffix.length);
+        break; // Stop after finding the first match
+      }
+    }
+
+    const newUsername = `${baseUsername}${newSuffix}`;
+    // <<< END USERNAME GENERATION LOGIC >>>
+
+    // Update the account type and username
+    user.accountType = newAccountType;
+    user.username = newUsername; 
+
+    // Handle side effects: Remove volunteer secret if no longer a volunteer
+    if (previousAccountType === 'volunteer' && newAccountType !== 'volunteer') {
+      user.volunteerSecret = undefined; // Remove the secret
+    }
+
+    // <<< Wrap save in try/catch for username uniqueness >>>
+    try {
+      await user.save();
+    } catch (saveError) {
+      // Check if it's the unique constraint violation for username
+      if (saveError.code === 11000 && saveError.keyPattern && saveError.keyPattern.username) {
+        return res.status(409).json({ // 409 Conflict
+          success: false,
+          message: `Failed to update: The generated username '${newUsername}' already exists. Please change the original username first.`
+        });
+      }
+      // Re-throw other save errors
+      throw saveError;
+    }
+    // <<< End uniqueness handling >>>
+
+    // Exclude sensitive info from the response
+    const userResponse = user.toObject();
+    delete userResponse.volunteerSecret;
+
+    res.status(200).json({ success: true, message: 'User account type and username updated successfully', data: userResponse });
+
+  } catch (error) {
+    // Catch errors from findOne or non-unique save errors
+    console.error('Error changing user account type:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error changing account type',
+      error: error.message
+    });
+  }
+};
+
 // DELETE /api/users/:auth0Id - Delete a user (Organizer/Admin action)
 exports.deleteUserByAuth0Id = async (req, res) => {
   try {
@@ -290,6 +435,24 @@ exports.deleteUserByAuth0Id = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error deleting user',
+      error: error.message
+    });
+  }
+};
+
+// GET /api/users - Get all users (Admin/Organizer action)
+exports.getAllUsers = async (req, res) => {
+  try {
+    // TODO: Add middleware to ensure only admins/organizers can access this
+    const users = await User.find({}).select('-volunteerSecret'); // Exclude volunteerSecret
+
+    res.status(200).json({ success: true, data: users });
+
+  } catch (error) {
+    console.error('Error fetching all users:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching users',
       error: error.message
     });
   }

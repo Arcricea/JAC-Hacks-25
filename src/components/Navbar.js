@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import '../assets/styles/Navbar.css';
 import AuthenticationButton from './auth/AuthenticationButton';
@@ -67,6 +67,14 @@ const Navbar = () => {
           <Link to="/how-it-works" className="nav-link">How It Works</Link>
           <Link to="/contact" className="nav-link">Contact</Link>
           {isAuthenticated && <Link to="/dashboard" className="nav-link">Dashboard</Link>}
+          {isAuthenticated && userData?.accountType === 'organizer' && (
+            <NavLink 
+              to="/admin" 
+              className={({ isActive }) => "nav-link" + (isActive ? " active" : "")}
+            >
+              Admin
+            </NavLink>
+          )}
         </div>
         
         <div className="auth-buttons">
