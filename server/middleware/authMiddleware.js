@@ -16,10 +16,12 @@ const isAuthenticated = async (req, res, next) => {
     const user = await User.findOne({ auth0Id: auth0Id });
 
     if (!user) {
-      return res.status(404).json({ 
-        success: false, 
-        message: 'Forbidden: User not found.' 
-      });
+      // If user not found, pass the auth0Id to the next handler.
+      // The route handler (e.g., saveUser) is responsible for creation.
+      // For other routes, this might still be an issue, but for POST /users it's expected.
+      console.log(`[Auth Middleware] User not found for auth0Id: ${auth0Id}, passing ID to controller.`);
+      req.auth0Id = auth0Id; // Attach the ID for the controller to use
+      return next(); // Proceed to the controller
     }
 
     // Attach the full Mongoose user object to the request
