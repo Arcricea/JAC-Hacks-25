@@ -299,3 +299,39 @@ export const updateTaskStatus = async (taskId, status) => {
   }
 };
 */ 
+
+export const donationService = {
+  createDonation,
+  getSupplierListedItems,
+  getSupplierOverviewData,
+  getAvailableDonations,
+  assignDonationToVolunteer,
+  cancelVolunteerAssignment,
+  confirmSupplierPickup,
+  getVolunteerScheduledDonations,
+  getVolunteerCompletedDonations,
+  getVolunteerCompletedDonationCount,
+  getDonationReceipt,
+  markDonationDelivered: async (donationId, foodBankId) => {
+    try {
+      const response = await fetch(`${API_URL}/donations/${donationId}/delivered`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ foodBankId }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to mark donation as delivered');
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error marking donation as delivered:', error);
+      throw error;
+    }
+  }
+}; 
