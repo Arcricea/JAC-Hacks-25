@@ -178,6 +178,38 @@ export const getVolunteerCompletedDonationCount = async (volunteerId) => {
   }
 };
 
+// Cancel a donation assignment for a volunteer
+export const cancelVolunteerAssignment = async (donationId, volunteerId) => {
+  try {
+    const response = await fetch(`${API_URL}/donations/${donationId}/cancel-assignment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ volunteerId }),
+    });
+
+    if (!response.ok) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to cancel pickup');
+      } else {
+        // Handle non-JSON responses (like HTML error pages)
+        const text = await response.text();
+        console.error('Server returned non-JSON response:', text);
+        throw new Error('Server returned an invalid response. Please try again later.');
+      }
+    }
+    
+    const data = await response.json();
+    return { success: true, data: data.data };
+  } catch (error) {
+    console.error('Error cancelling pickup:', error);
+    return { success: false, message: error.message || 'Failed to cancel pickup' };
+  }
+};
+
 // --- Remove unused functions below ---
 /*
 export const getVolunteerTasks = async (volunteerId) => {

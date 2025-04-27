@@ -2,14 +2,15 @@ import React, { useEffect, useState, useContext } from 'react';
 import '../assets/styles/PickupDetailsModal.css';
 import GoogleMapsScript from './GoogleMapsScript';
 import { UserContext } from '../App';
-import { assignDonationToVolunteer } from '../services/donationService';
+import { assignDonationToVolunteer, cancelVolunteerAssignment } from '../services/donationService';
 
-const PickupDetailsModal = ({ isOpen, onClose, pickup, onAccept }) => {
+const PickupDetailsModal = ({ isOpen, onClose, pickup, onAccept, onCancel }) => {
   const { userData } = useContext(UserContext);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
   const [mapError, setMapError] = useState(null);
   const [coordinates, setCoordinates] = useState(null);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [error, setError] = useState(null);
 
   const handleGoogleMapsLoad = () => {
@@ -17,10 +18,10 @@ const PickupDetailsModal = ({ isOpen, onClose, pickup, onAccept }) => {
   };
 
   useEffect(() => {
-    if (isOpen && isMapLoaded && pickup && pickup.pickupInfo) {
+    if (isOpen && isMapLoaded && pickup && pickup.businessAddress) {
       // Try to geocode the address
       const geocoder = new window.google.maps.Geocoder();
-      geocoder.geocode({ address: pickup.pickupInfo }, (results, status) => {
+      geocoder.geocode({ address: pickup.businessAddress }, (results, status) => {
         if (status === 'OK' && results[0]) {
           setCoordinates({
             lat: results[0].geometry.location.lat(),
@@ -53,7 +54,7 @@ const PickupDetailsModal = ({ isOpen, onClose, pickup, onAccept }) => {
         new window.google.maps.Marker({
           position: { lat, lng },
           map,
-          title: pickup?.businessName || pickup?.donorName || 'Extra Information'
+          title: `${pickup?.businessName || pickup?.donorName || 'Anonymous'} Pickup Address`
         });
       }
     } catch (err) {
@@ -90,6 +91,42 @@ const PickupDetailsModal = ({ isOpen, onClose, pickup, onAccept }) => {
       console.error('Error accepting task:', err);
     } finally {
       setIsAssigning(false);
+    }
+  };
+
+  const handleCancelTask = async () => {
+    if (!userData?.auth0Id) {
+      setError('Please log in to cancel this pickup');
+      return;
+    }
+
+    // Confirm before cancelling
+    if (!window.confirm('Are you sure you want to cancel this pickup? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsCancelling(true);
+    setError(null);
+
+    try {
+      const response = await cancelVolunteerAssignment(pickup._id, userData.auth0Id);
+      if (response.success) {
+        // If parent component provided an onCancel callback, call it
+        if (onCancel) {
+          onCancel(pickup._id);
+        }
+        // Close the modal after successful cancellation
+        onClose();
+        // Show success message
+        alert('Pickup cancelled successfully.');
+      } else {
+        setError(response.message || 'Failed to cancel pickup.');
+      }
+    } catch (err) {
+      setError('Failed to cancel pickup. Please try again.');
+      console.error('Error cancelling task:', err);
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -132,6 +169,11 @@ const PickupDetailsModal = ({ isOpen, onClose, pickup, onAccept }) => {
               </div>
               
               <div className="pickup-location-info">
+                <h3>Address:</h3>
+                <p>{pickup.businessAddress || 'No address provided'}</p>
+              </div>
+              
+              <div className="pickup-location-info">
                 <h3>Extra Information:</h3>
                 <p>{pickup.pickupInfo}</p>
                 {coordinates && <p className="formatted-address">{coordinates.formattedAddress}</p>}
@@ -153,7 +195,18 @@ const PickupDetailsModal = ({ isOpen, onClose, pickup, onAccept }) => {
           </div>
           
           <div className="modal-footer">
-            <button onClick={onClose} className="cancel-btn">Close</button>
+            <button onClick={onClose} className="close-btn-modal">Close</button>
+            
+            {pickup.status === 'assigned' && (
+              <button 
+                className="cancel-pickup-btn"
+                onClick={handleCancelTask}
+                disabled={isCancelling}
+              >
+                {isCancelling ? 'Cancelling...' : 'Cancel Pickup'}
+              </button>
+            )}
+            
             {pickup.status !== 'assigned' && (
               <button 
                 className="accept-pickup-btn"

@@ -6,6 +6,9 @@ router.post('/', donationController.createDonation);
 router.get('/available', donationController.getAvailableDonations);
 router.post('/:donationId/assign', donationController.assignDonationToVolunteer);
 
+// New route for cancelling a donation assignment
+router.post('/:donationId/cancel-assignment', donationController.cancelVolunteerAssignment);
+
 // New route for fetching donation receipts for a specific user (donor)
 // GET /api/donations/receipts/:userId?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
 router.get('/receipts/:userId', donationController.getDonationReceipts);

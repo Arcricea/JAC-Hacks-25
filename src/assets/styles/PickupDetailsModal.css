@@ -150,7 +150,26 @@
   cursor: not-allowed;
 }
 
-.cancel-btn {
+.cancel-pickup-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.cancel-pickup-btn:hover {
+  background: #c82333;
+}
+
+.cancel-pickup-btn:disabled {
+  background: #e4606d;
+  cursor: not-allowed;
+}
+
+.close-btn-modal {
   background: #e9ecef;
   color: #495057;
   border: none;
@@ -160,6 +179,6 @@
   font-weight: 500;
 }
 
-.cancel-btn:hover {
+.close-btn-modal:hover {
   background: #dee2e6;
 } 
