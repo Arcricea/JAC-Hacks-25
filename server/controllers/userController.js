@@ -5,7 +5,7 @@ const User = require('../models/User');
 // Create or update a user
 exports.saveUser = async (req, res) => {
   try {
-    const { auth0Id, username, accountType, needStatus } = req.body;
+    const { auth0Id, username, accountType, needStatus, address } = req.body;
 
     // Validate required fields
     if (!auth0Id || !username || !accountType) {
@@ -31,45 +31,45 @@ exports.saveUser = async (req, res) => {
     const previousAccountType = user?.accountType;
 
     if (user) {
-      // Update existing user
-      user.username = username;
-      user.accountType = accountType;
-      
-      // Update needStatus if provided and user is a distributor (food bank)
-      if (needStatus && (accountType === 'distributor')) {
-        user.needStatus = {
-          ...user.needStatus || {},
-          ...(needStatus.priorityLevel !== undefined && { priorityLevel: needStatus.priorityLevel }),
-          ...(needStatus.customMessage !== undefined && { customMessage: needStatus.customMessage })
-        };
-      }
+      // Update existing user with all provided fields
+      Object.assign(user, {
+        username,
+        accountType,
+        ...(address !== undefined && { address }),
+        ...(needStatus && accountType === 'distributor' && {
+          needStatus: {
+            ...user.needStatus || {},
+            ...(needStatus.priorityLevel !== undefined && { priorityLevel: needStatus.priorityLevel }),
+            ...(needStatus.customMessage !== undefined && { customMessage: needStatus.customMessage })
+          }
+        })
+      });
     } else {
-      // Create new user
+      // Create new user with all provided fields
       user = new User({
         auth0Id,
         username,
         accountType,
-        // Add needStatus if provided and user is a distributor (food bank)
+        ...(address !== undefined && { address }),
         ...(needStatus && accountType === 'distributor' && { needStatus })
       });
     }
 
     // --- Volunteer Secret Logic ---
     if (accountType === 'volunteer') {
-      // Generate secret if user is becoming a volunteer and doesn't have one
       if (!user.volunteerSecret) {
         const secret = speakeasy.generateSecret({ length: 20 });
         user.volunteerSecret = secret.base32;
       }
     } else if (!isNewUser && previousAccountType === 'volunteer' && accountType !== 'volunteer') {
-      // If changing *away* from volunteer, clear the secret
       user.volunteerSecret = null;
     }
     // --- End Volunteer Secret Logic ---
 
+    // Save the user
     await user.save();
     
-    // Exclude sensitive info like secret from the response if necessary
+    // Exclude sensitive info from the response
     const userResponse = user.toObject();
     delete userResponse.volunteerSecret;
 
@@ -78,6 +78,8 @@ exports.saveUser = async (req, res) => {
       data: userResponse
     });
   } catch (error) {
+    console.error('Save user error:', error); // Add this for debugging
+    
     // Handle username uniqueness error
     if (error.code === 11000 && error.keyPattern && error.keyPattern.username) {
       return res.status(400).json({

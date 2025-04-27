@@ -4,6 +4,9 @@
   align-items: center;
   padding: 2rem;
   min-height: 80vh;
+  max-width: 800px;
+  margin: 2rem auto;
+  padding: 0 1rem;
 }
 
 .profile-card {
@@ -210,4 +213,236 @@
   min-height: 80vh;
   font-size: 1.2rem;
   color: #2e7d32;
+}
+
+.profile-section {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.profile-section h3 {
+  margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: #2e7d32;
+}
+
+.address-form {
+  max-width: 500px;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.form-group input.error {
+  border-color: #dc3545;
+}
+
+.error-text {
+  color: #dc3545;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.validated-address {
+  margin: 15px 0;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: #f9f9f9;
+}
+
+.validated-address h4 {
+  margin: 0 0 0.5rem 0;
+  color: #2e7d32;
+}
+
+.validated-address p {
+  margin: 0;
+  color: #1b5e20;
+}
+
+.validation-status {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.validation-status.success {
+  background-color: #e6f4ea;
+  color: #1e7e34;
+}
+
+.success-message {
+  color: #1e7e34;
+  background-color: #e6f4ea;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+.error-message {
+  color: #dc3545;
+  background-color: #f8d7da;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+}
+
+.address-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.address-buttons button {
+  flex: 1;
+}
+
+.primary-btn,
+.secondary-btn,
+.cancel-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.primary-btn {
+  background: #2e7d32;
+  color: white;
+}
+
+.primary-btn:hover {
+  background: #1b5e20;
+}
+
+.secondary-btn {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.secondary-btn:hover {
+  background: #c8e6c9;
+}
+
+.cancel-btn {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.cancel-btn:hover {
+  background: #e0e0e0;
+}
+
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.address-display {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.edit-btn {
+  padding: 0.5rem 1rem;
+  background: none;
+  border: 1px solid #2e7d32;
+  color: #2e7d32;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-btn:hover {
+  background: #e8f5e9;
+}
+
+.address-input-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.address-input-wrapper input {
+  flex: 1;
+}
+
+.example-btn {
+  padding: 0.75rem 1rem;
+  background: #f0f0f0;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.example-btn:hover {
+  background: #e0e0e0;
+}
+
+.helper-text {
+  display: block;
+  color: #666;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.loading-text {
+  display: block;
+  color: #666;
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+/* Style the Google Places Autocomplete dropdown */
+.pac-container {
+  border-radius: 4px;
+  margin-top: 2px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.pac-item {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.pac-item:hover {
+  background-color: #f5f5f5;
+}
+
+.pac-item-selected {
+  background-color: #e8f5e9;
+}
+
+/* Update existing styles */
+.form-group input:disabled {
+  background-color: #f5f5f5;
+  cursor: wait;
 } 
