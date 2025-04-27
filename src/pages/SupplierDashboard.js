@@ -206,7 +206,7 @@ const SupplierDashboard = () => {
       // Prevent duplicate scanners
       if (!scannerRef.current) {
           scannerRef.current = new Html5QrcodeScanner(
-            "qr-reader", 
+            "qr-reader-supplier",
             { fps: 10, qrbox: { width: 250, height: 250 }, supportedScanTypes: [0] }, 
             false
           );
