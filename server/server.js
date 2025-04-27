@@ -45,7 +45,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/donations', donationRoutes);
-app.use('/api/address', addressRoutes);
+app.use('/api/addresses', addressRoutes);
 app.use('/api/organizer', organizerRoutes);
 app.use('/api/foodbanks', foodBankRoutes);
 
