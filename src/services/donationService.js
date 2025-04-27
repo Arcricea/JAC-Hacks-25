@@ -2,19 +2,64 @@ const API_URL = 'http://localhost:5000/api';
 
 export const createDonation = async (donationData, requestingUserId) => {
   try {
+    let headers = {
+      'Content-Type': 'application/json',
+    };
+    let body;
+    
+    // Add requesting user ID header if provided
+    if (requestingUserId) {
+      headers['X-Requesting-User-Id'] = requestingUserId;
+    }
+    
+    // Convert FormData to regular JSON object
+    if (donationData instanceof FormData) {
+      const jsonData = {};
+      for (let [key, value] of donationData.entries()) {
+        // Skip file entries for now
+        if (key !== 'image' && !(value instanceof File)) {
+          jsonData[key] = value;
+        }
+      }
+      
+      // Handle image separately if needed
+      // For now, we'll skip image upload to focus on fixing the basic donation creation
+      
+      body = JSON.stringify(jsonData);
+      console.log("Converted FormData to JSON:", jsonData);
+    } else {
+      // Handle JSON data directly
+      body = JSON.stringify(donationData);
+    }
+    
+    console.log("Sending donation request to server:", { 
+      url: `${API_URL}/donations`,
+      method: 'POST',
+      headers,
+      body
+    });
+    
     const response = await fetch(`${API_URL}/donations`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
-      },
-      body: JSON.stringify(donationData),
+      headers,
+      body,
     });
 
-    const data = await response.json();
+    // Read the response body as text first
+    const responseText = await response.text();
+    let data;
+    
+    // Try to parse as JSON
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error("Failed to parse server response as JSON:", responseText);
+      throw new Error(`Server returned invalid JSON. Status: ${response.status}`);
+    }
     
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to create donation');
+      console.error("Server error details:", data);
+      throw new Error(data.message || `Server error with status: ${response.status}`);
     }
     
     return data;
@@ -49,6 +94,10 @@ export const getDonationReceipt = async (userId, startDate, endDate, requestingU
     // Construct the URL with query parameters for dates if they exist
     let url = `${API_URL}/donations/receipts/${userId}`;
     const params = new URLSearchParams();
+    
+    // Add "all=true" parameter to get all donations, not just completed ones
+    params.append('all', 'true');
+    
     if (startDate) {
       params.append('startDate', startDate);
     }
@@ -59,6 +108,8 @@ export const getDonationReceipt = async (userId, startDate, endDate, requestingU
     if (queryString) {
       url += `?${queryString}`;
     }
+
+    console.log("Fetching donation receipts from:", url);
 
     const response = await fetch(url, {
       headers: {

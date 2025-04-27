@@ -3,10 +3,26 @@ const User = require('../models/User'); // Import User model
 // const AssignedTask = require('../models/AssignedTask');
 const mongoose = require('mongoose');
 
+// Helper function to properly format donation status for display
+const formatDonationStatus = (status) => {
+  if (!status) return 'Unknown';
+  
+  const statusMap = {
+    'available': 'Available',
+    'scheduled': 'Scheduled',
+    'picked_up': 'Picked Up',
+    'delivered': 'Delivered',
+    'completed': 'Completed',
+    'cancelled': 'Cancelled'
+  };
+  
+  return statusMap[status] || status.charAt(0).toUpperCase() + status.slice(1);
+};
+
 exports.createDonation = async (req, res) => {
   try {
-    const { itemName, category, quantity, expirationDate, pickupInfo, imageUrl } = req.body;
-    let targetUserId = req.body.userId; // Get target user from body (potential admin action)
+    const { userId, itemName, category, mealsSaved, co2Prevented } = req.body;
+    let targetUserId = userId; // Get target user from body (potential admin action)
     const requestingUser = req.requestingUser; // Get authenticated user from middleware
 
     // --- Authorization & User ID Assignment ---
@@ -26,17 +42,14 @@ exports.createDonation = async (req, res) => {
     // --- End Authorization ---
 
     // Validate required fields (using determined targetUserId)
-    if (!itemName || !category || !quantity || !expirationDate || !pickupInfo || !targetUserId) {
+    if (!itemName || !category || !targetUserId) {
       return res.status(400).json({
         success: false,
         message: 'Missing required fields',
         requiredFields: {
           itemName: !itemName,
           category: !category,
-          quantity: !quantity,
-          expirationDate: !expirationDate,
-          pickupInfo: !pickupInfo,
-          userId: !targetUserId // Check the determined targetUserId
+          userId: !targetUserId
         }
       });
     }
@@ -46,40 +59,27 @@ exports.createDonation = async (req, res) => {
     if (!targetUser) {
          return res.status(404).json({ success: false, message: 'Target user specified for donation not found.' });
     }
-    // Ensure only businesses or admins acting as businesses can create donations (optional strict check)
-    // if (!isAdmin && targetUser.accountType !== 'business') {
-    //   return res.status(403).json({ success: false, message: 'Only business accounts can create donations directly.' });
-    // }
-    // if (isAdmin && targetUser.accountType !== 'business') {
-    //   console.warn(`Admin (${requestingUser.auth0Id}) creating donation for non-business user (${targetUserId})`);
-    //   // Decide if this should be allowed or return an error
-    // }
-
 
     // Use target user's address or default
-    const businessAddress = targetUser.address || 'Address not available'; // Adjusted default
+    const businessAddress = targetUser.address || 'Address not available';
 
-    // Calculate estimated value
-    let calculatedValue = 0;
-    const quantityValue = parseFloat(quantity);
-    if (!isNaN(quantityValue)) {
-      calculatedValue = quantityValue * 1;
-    } else {
-      calculatedValue = 1;
-      console.warn(`Could not parse quantity "${quantity}" for value estimation. Defaulting to 1.`);
+    // Handle file upload if present
+    let imageUrl = req.body.imageUrl || null;
+    if (req.file) {
+      // If using multer or similar middleware for file uploads
+      imageUrl = `/uploads/${req.file.filename}`;
     }
 
     const donation = new Donation({
-      userId: targetUserId, // Use the determined target user ID
+      userId: targetUserId,
       donorType: requestingUser.accountType.charAt(0).toUpperCase() + requestingUser.accountType.slice(1),
       itemName,
       category,
-      quantity,
-      expirationDate,
-      pickupInfo,
       imageUrl,
       businessAddress,
-      estimatedValue: calculatedValue
+      // Add Gemini AI impact estimates
+      mealsSaved: mealsSaved || 0,
+      co2Prevented: co2Prevented || 0
     });
 
     await donation.save();
@@ -142,23 +142,27 @@ exports.getAvailableDonations = async (req, res) => {
 exports.getDonationReceipts = async (req, res) => {
   try {
     const { userId } = req.params; // Get userId from URL parameters
-    const { startDate, endDate } = req.query; // Get optional date range from query string
+    const { startDate, endDate, all } = req.query; // Get optional date range and "all" flag from query string
 
     // 1. Find the Donor User to get their details
-    const donor = await User.findOne({ auth0Id: userId, accountType: 'business' });
+    const donor = await User.findOne({ auth0Id: userId });
 
     if (!donor) {
       return res.status(404).json({
         success: false,
-        message: 'Business donor not found.'
+        message: 'Donor not found.'
       });
     }
 
     // 2. Build the query for donations
     const query = {
-      userId: userId, 
-      status: 'completed' // Only include completed donations
+      userId: userId
     };
+    
+    // Only filter by status if 'all' flag is not set to true
+    if (all !== 'true') {
+      query.status = 'completed'; // Only include completed donations
+    }
 
     // Add date range if provided
     if (startDate || endDate) {
@@ -174,18 +178,20 @@ exports.getDonationReceipts = async (req, res) => {
       }
     }
 
-    // 3. Fetch completed donations for the user within the date range
+    // 3. Fetch donations for the user within the date range
     const donations = await Donation.find(query)
-      .sort({ createdAt: 1 }); // Sort by date ascending
+      .sort({ createdAt: -1 }); // Sort by date descending (newest first)
 
-    // 4. Calculate total estimated value
-    const totalEstimatedValue = donations.reduce((sum, donation) => sum + (donation.estimatedValue || 0), 0);
+    // 4. Calculate total estimated value (for completed donations)
+    const totalEstimatedValue = donations
+      .filter(d => d.status === 'completed')
+      .reduce((sum, donation) => sum + (donation.estimatedValue || 0), 0);
 
     // 5. Format the receipt data
     const receiptData = {
       donorInfo: {
         businessName: donor.businessName || donor.username, // Fallback to username
-        businessAddress: donor.businessAddress || 'Address not provided'
+        businessAddress: donor.address || 'Address not provided'
       },
       donations: donations.map(d => ({
         id: d._id,
@@ -193,7 +199,10 @@ exports.getDonationReceipts = async (req, res) => {
         itemName: d.itemName,
         category: d.category,
         quantity: d.quantity,
-        estimatedValue: d.estimatedValue || 0
+        status: formatDonationStatus(d.status),
+        estimatedValue: d.estimatedValue || 0,
+        mealsSaved: d.mealsSaved || 0,
+        co2Prevented: d.co2Prevented || 0
       })),
       summary: {
         totalDonations: donations.length,
@@ -223,61 +232,64 @@ exports.getDonationReceipts = async (req, res) => {
 // New function to get supplier overview data
 exports.getSupplierOverview = async (req, res) => {
   try {
-    const { userId } = req.params; // ID from URL (could be admin's or supplier's)
-    const { requestingUser } = req; // User making the request (from middleware)
-
-    let targetUserId = userId; // By default, use the ID from the URL
-    let isRequestFromAdmin = requestingUser?.accountType === 'organizer';
-
-    // If admin is making the request, they are querying data relative to *their own* actions
-    if (isRequestFromAdmin) {
-      targetUserId = requestingUser.auth0Id; // Use admin's ID for querying donations
-    } else {
-      // If not admin, ensure the requesting user matches the URL ID and is a business
-      const donor = await User.findOne({ auth0Id: userId, accountType: 'business' });
-      if (!donor) {
-        return res.status(404).json({ success: false, message: 'Supplier user not found or ID mismatch.' });
-      }
-    }
-
-    // --- Fetch data using targetUserId --- 
-    const totalDonationsCount = await Donation.countDocuments({ userId: targetUserId });
-    const upcomingPickupsCount = await Donation.countDocuments({ userId: targetUserId, status: 'scheduled' });
-    const recentDonations = await Donation.find({ userId: targetUserId })
+    const { userId } = req.params;
+    
+    // Get donations by this user
+    const donations = await Donation.find({ userId });
+    
+    // Get recent donations with details
+    const recentDonations = await Donation.find({ userId })
       .sort({ createdAt: -1 })
-      .limit(5)
-      .select('itemName quantity createdAt status'); 
-
-    // Placeholder for impact stats - base on targetUserId's donations
-    const impactStats = {
-      mealsSaved: totalDonationsCount * 3,
-      co2Prevented: Math.round(totalDonationsCount * 1.5),
-      wasteReduced: totalDonationsCount * 2,
+      .limit(10)
+      .select('itemName quantity createdAt status category mealsSaved co2Prevented')
+      .lean();
+    
+    // Calculate number of donated items
+    const donatedItems = donations.length;
+    
+    // Count upcoming pickups (available or scheduled)
+    const upcomingPickups = donations.filter(d => 
+      d.status === 'available' || d.status === 'scheduled'
+    ).length;
+    
+    // Sum up AI-estimated impact metrics
+    const totalMealsSaved = donations.reduce((sum, donation) => 
+      sum + (donation.mealsSaved || 0), 0);
+    
+    const totalCo2Prevented = donations.reduce((sum, donation) => 
+      sum + (parseFloat(donation.co2Prevented) || 0), 0).toFixed(1);
+    
+    // Format recent donations for display
+    const formattedRecentDonations = recentDonations.map(donation => ({
+      id: donation._id,
+      name: donation.itemName,
+      quantity: donation.quantity || 'Not specified',
+      date: donation.createdAt,
+      status: formatDonationStatus(donation.status),
+      category: donation.category,
+      mealsSaved: donation.mealsSaved || 0,
+      co2Prevented: donation.co2Prevented || 0
+    }));
+    
+    // Prepare response object
+    const overview = {
+      donatedItems,
+      upcomingPickups,
+      impactStats: {
+        totalMealsSaved,
+        totalCo2Prevented
+      },
+      recentDonations: formattedRecentDonations
     };
-
-    const overviewData = {
-      donatedItems: totalDonationsCount,
-      upcomingPickups: upcomingPickupsCount,
-      recentDonations: recentDonations.map(d => ({
-        id: d._id,
-        name: d.itemName,
-        quantity: d.quantity,
-        date: d.createdAt,
-        status: d.status.charAt(0).toUpperCase() + d.status.slice(1)
-      })),
-      impactStats: impactStats
-    };
-
-    res.status(200).json({
+    
+    return res.status(200).json({
       success: true,
-      data: overviewData
+      data: overview
     });
-
-  } catch (error) { // <<< Ensure catch block wraps the logic >>>
-    console.error('Error fetching supplier overview:', error);
-    res.status(500).json({
+  } catch (error) {
+    return res.status(500).json({
       success: false,
-      message: 'Error fetching supplier overview data',
+      message: 'Error fetching supplier overview',
       error: error.message
     });
   }

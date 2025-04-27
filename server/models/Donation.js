@@ -18,11 +18,9 @@ const donationSchema = new mongoose.Schema({
   },
   expirationDate: {
     type: Date,
-    required: [true, 'Expiration date is required']
   },
   pickupInfo: {
     type: String,
-    required: [true, 'Pickup information is required']
   },
   businessAddress: {
     type: String,
@@ -55,6 +53,15 @@ const donationSchema = new mongoose.Schema({
     type: String
   },
   estimatedValue: {
+    type: Number,
+    default: 0
+  },
+  // New fields for impact estimates
+  mealsSaved: {
+    type: Number,
+    default: 0
+  },
+  co2Prevented: {
     type: Number,
     default: 0
   },
