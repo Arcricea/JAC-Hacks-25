@@ -73,4 +73,191 @@
 
 .donation-tab-content {
   margin-top: 20px;
+}
+
+/* Action Buttons Styling */
+.action-button {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  margin-left: 5px; /* Add space between buttons */
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.action-button:hover {
+  border-color: #aaa;
+}
+
+/* Specific Button Colors */
+.edit-button {
+  background-color: #f0ad4e; /* Orange */
+  border-color: #eea236;
+  color: white;
+}
+.edit-button:hover {
+  background-color: #ec971f;
+  border-color: #d58512;
+}
+
+.delete-button {
+  background-color: #d9534f; /* Red */
+  border-color: #d43f3a;
+  color: white;
+}
+.delete-button:hover {
+  background-color: #c9302c;
+  border-color: #ac2925;
+}
+
+.reset-button, /* Keeping reset button look for now, rename if needed */
+.cancel-button {
+  background-color: #f0f0f0; /* Light Grey */
+  border-color: #ccc;
+  color: #333;
+}
+.reset-button:hover,
+.cancel-button:hover {
+  background-color: #e0e0e0;
+  border-color: #bbb;
+}
+
+.save-button {
+  background-color: #5cb85c; /* Green */
+  border-color: #4cae4c;
+  color: white;
+}
+.save-button:hover {
+  background-color: #449d44;
+  border-color: #398439;
+}
+
+.add-button {
+  background-color: #337ab7; /* Blue */
+  border-color: #2e6da4;
+  color: white;
+  padding: 8px 15px;
+  font-size: 1em;
+  margin-bottom: 15px; /* Space below the button */
+}
+.add-button:hover {
+  background-color: #286090;
+  border-color: #204d74;
+}
+
+/* Inline edit/add form styles */
+.inline-edit-input {
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-right: 5px; /* Space out inputs if needed */
+}
+
+.inline-add-form {
+  border: 1px solid #eee;
+  padding: 20px;
+  margin-top: 15px;
+  margin-bottom: 20px;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+}
+
+.inline-add-form h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.form-row {
+  display: flex;
+  gap: 15px; /* Space between fields in a row */
+  margin-bottom: 10px;
+}
+
+.form-group {
+  flex: 1; /* Allow groups to grow */
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  margin-bottom: 4px;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+
+.form-group input[type="text"],
+.form-group input[type="date"],
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box; /* Include padding/border in width */
+}
+
+.form-group textarea {
+  min-height: 60px;
+}
+
+.form-actions {
+  margin-top: 15px;
+}
+
+.error-message {
+  color: #d9534f; /* Red */
+  font-size: 0.9em;
+  margin-bottom: 10px;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed; /* Stay in place */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgba(0,0,0,0.5); /* Black w/ opacity */
+  z-index: 1000; /* Sit on top */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background-color: #fefefe;
+  margin: auto;
+  padding: 30px;
+  border: 1px solid #888;
+  border-radius: 8px;
+  width: 80%;
+  max-width: 600px; /* Max width */
+  position: relative;
+  box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19);
+}
+
+.modal-form h3 {
+  margin-top: 0;
+  text-align: center;
+}
+
+.modal-close-button {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  color: #aaa;
+  font-size: 28px;
+  font-weight: bold;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.modal-close-button:hover,
+.modal-close-button:focus {
+  color: black;
+  text-decoration: none;
+  cursor: pointer;
 } 
