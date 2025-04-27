@@ -8,9 +8,7 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
   const { userData } = useContext(UserContext);
   const [activeTab, setActiveTab] = useState('overview');
   const [formData, setFormData] = useState({
-    itemName: '',
-    category: '',
-    quantity: '',
+    itemNames: '',
     expirationDate: '',
     pickupInfo: '',
     imageUrl: ''
@@ -52,7 +50,6 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
       ...prev,
       [name]: value
     }));
-    // Clear error for this field when user starts typing
     if (formErrors[name]) {
       setFormErrors(prev => ({
         ...prev,
@@ -63,9 +60,7 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
 
   const validateForm = () => {
     const errors = {};
-    if (!formData.itemName.trim()) errors.itemName = 'Item name is required';
-    if (!formData.category) errors.category = 'Category is required';
-    if (!formData.quantity.trim()) errors.quantity = 'Quantity is required';
+    if (!formData.itemNames.trim()) errors.itemNames = 'Item list is required';
     if (!formData.expirationDate) errors.expirationDate = 'Expiration date is required';
     if (!formData.pickupInfo.trim()) errors.pickupInfo = 'Pickup information is required';
     
@@ -86,27 +81,24 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
     setIsSubmitting(true);
 
     try {
-      // Determine the user ID for whom the donation is being created
       const donationOwnerId = previewTargetUserId || userData.auth0Id;
-      // The requestingUserId is always the logged-in user (admin in preview mode)
       const requestingUserId = userData.auth0Id;
 
-      const response = await createDonation({
+      const payload = {
         ...formData,
-        userId: donationOwnerId // Use the determined owner ID
-      }, requestingUserId); // Pass requester ID for header
+        userId: donationOwnerId
+      };
+      const response = await createDonation(payload, requestingUserId);
 
       if (response.success) {
         setSubmitSuccess(true);
         setFormData({
-          itemName: '',
-          category: '',
-          quantity: '',
+          itemNames: '',
           expirationDate: '',
           pickupInfo: '',
           imageUrl: ''
         });
-        // Optionally, refresh the available items list here
+        setRefreshTrigger(prev => prev + 1);
       }
     } catch (error) {
       setSubmitError(error.message || 'Failed to create donation. Please try again.');
@@ -326,403 +318,293 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
     }
   };
 
-  return (
-    <div className="dashboard-container">
-    <div className="dashboard-content">
-      <div className="dashboard-nav">
-        <button 
-          className={activeTab === 'overview' ? 'active' : ''} 
-          onClick={() => setActiveTab('overview')}
-        >
-          Overview
-        </button>
-        <button 
-          className={activeTab === 'donate' ? 'active' : ''} 
-          onClick={() => setActiveTab('donate')}
-        >
-          Donate
-        </button>
-        <button 
-            className={activeTab === 'receipts' ? 'active' : ''} 
-            onClick={() => setActiveTab('receipts')}
-          >
-            Donation Receipts
+  const renderOverview = () => (
+    <div className="overview-section">
+      {isLoadingOverview ? (
+        <p>Loading overview...</p>
+      ) : overviewError ? (
+        <div className="error-message">Error: {overviewError}</div>
+      ) : overviewData ? (
+        <>
+          <div className="stats-cards">
+            <div className="stat-card">
+              <h3>{overviewData.donatedItems ?? 'N/A'}</h3>
+              <p>Items Donated</p>
+            </div>
+            <div className="stat-card">
+              <h3>{overviewData.upcomingPickups ?? 'N/A'}</h3>
+              <p>Upcoming Pickups</p>
+            </div>
+            <div className="stat-card">
+              <h3>{overviewData.impactStats?.mealsSaved ?? 'N/A'}</h3>
+              <p>Meals Saved (Est.)</p>
+            </div>
+            <div className="stat-card">
+              <h3>{overviewData.impactStats?.co2Prevented ?? 'N/A'} kg</h3>
+              <p>CO₂ Prevented (Est.)</p>
+            </div>
+          </div>
+          
+          <div className="recent-activity">
+            <h3>Recent Donations</h3>
+            {overviewData.recentDonations && overviewData.recentDonations.length > 0 ? (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Quantity</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {overviewData.recentDonations.map(donation => (
+                    <tr key={donation.id}>
+                      <td>{donation.name}</td>
+                      <td>{donation.quantity}</td>
+                      <td>{formatDate(donation.date)}</td>
+                      <td><span className={`status ${donation.status.toLowerCase().replace(' ', '-')}`}>{donation.status}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>No recent donation activity found.</p>
+            )}
+          </div>
+        </>
+      ) : (
+        <p>No overview data available.</p>
+      )}
+    </div>
+  );
+
+  const renderDonateForm = () => (
+    <div className="donate-section">
+      <h3>List a New Donation</h3>
+      {submitError && <div className="error-message">Error: {submitError}</div>}
+      {submitSuccess && <div className="success-message">Donation listed successfully!</div>}
+      <form onSubmit={handleSubmit} className="donate-form">
+        <div className="form-group">
+          <label htmlFor="itemNames">Food Items (One per line)*</label>
+          <textarea
+            id="itemNames"
+            name="itemNames"
+            value={formData.itemNames}
+            onChange={handleInputChange}
+            rows="4"
+            placeholder="e.g.\nApples\nBananas\nLoaf of Bread"
+            required
+          />
+          {formErrors.itemNames && <span className="error-text">{formErrors.itemNames}</span>}
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="expirationDate">Expiration Date *</label>
+          <input
+            type="date"
+            id="expirationDate"
+            name="expirationDate"
+            value={formData.expirationDate}
+            onChange={handleInputChange}
+            required
+          />
+          {formErrors.expirationDate && <span className="error-text">{formErrors.expirationDate}</span>}
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="pickupInfo">Pickup Information *</label>
+          <textarea
+            id="pickupInfo"
+            name="pickupInfo"
+            value={formData.pickupInfo}
+            onChange={handleInputChange}
+            rows="3"
+            placeholder="e.g., Available M-F 9am-5pm at loading dock B"
+            required
+          />
+          {formErrors.pickupInfo && <span className="error-text">{formErrors.pickupInfo}</span>}
+        </div>
+        
+        <div className="form-group">
+          <label htmlFor="imageUrl">Image URL (Optional)</label>
+          <input
+            type="url"
+            id="imageUrl"
+            name="imageUrl"
+            value={formData.imageUrl}
+            onChange={handleInputChange}
+            placeholder="https://example.com/image.jpg"
+          />
+        </div>
+
+        <div className="form-buttons">
+          <button type="submit" className="primary-btn" disabled={isSubmitting}>
+            {isSubmitting ? 'Submitting...' : 'List Donation'}
           </button>
-          <button 
-            className={activeTab === 'confirm-pickup' ? 'active' : ''} 
-            onClick={() => setActiveTab('confirm-pickup')}
-          >
-            Confirm Pickup
+        </div>
+      </form>
+    </div>
+  );
+
+  const renderReceipts = () => (
+    <div className="receipts-section">
+      <h3>Generate Donation Receipt</h3>
+      <p>Select a date range to generate a summary of your completed donations.</p>
+      
+      <div className="receipt-controls form-group">
+         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+            <div style={{ flex: 1 }}>
+                <label htmlFor="startDate">Start Date:</label>
+                <input
+                    type="date"
+                    id="startDate"
+                    name="startDate"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                />
+            </div>
+            <div style={{ flex: 1 }}>
+                <label htmlFor="endDate">End Date:</label>
+                <input
+                    type="date"
+                    id="endDate"
+                    name="endDate"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                />
+            </div>
+          </div>
+        <button 
+          className="primary-btn" 
+          onClick={handleFetchReceipt} 
+          disabled={isLoadingReceipt}
+        >
+          {isLoadingReceipt ? 'Generating...' : 'Generate Receipt'}
         </button>
       </div>
-
-      {activeTab === 'overview' && (
-        <div className="overview-section">
-          {isLoadingOverview ? (
-            <p>Loading overview...</p>
-          ) : overviewError ? (
-            <div className="error-message">Error: {overviewError}</div>
-          ) : overviewData ? (
-            <>
-              <div className="stats-cards">
-                <div className="stat-card">
-                  <h3>{overviewData.donatedItems ?? 'N/A'}</h3>
-                  <p>Items Donated</p>
-                </div>
-                <div className="stat-card">
-                  <h3>{overviewData.upcomingPickups ?? 'N/A'}</h3>
-                  <p>Upcoming Pickups</p>
-                </div>
-                <div className="stat-card">
-                  <h3>{overviewData.impactStats?.mealsSaved ?? 'N/A'}</h3>
-                  <p>Meals Saved (Est.)</p>
-                </div>
-                <div className="stat-card">
-                  <h3>{overviewData.impactStats?.co2Prevented ?? 'N/A'} kg</h3>
-                  <p>CO₂ Prevented (Est.)</p>
-                </div>
-              </div>
-              
-              <div className="recent-activity">
-                <h3>Recent Donations</h3>
-                {overviewData.recentDonations && overviewData.recentDonations.length > 0 ? (
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Item</th>
-                        <th>Quantity</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {overviewData.recentDonations.map(donation => (
-                        <tr key={donation.id}>
-                          <td>{donation.name}</td>
-                          <td>{donation.quantity}</td>
-                          <td>{formatDate(donation.date)}</td>
-                          <td><span className={`status ${donation.status.toLowerCase().replace(' ', '-')}`}>{donation.status}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <p>No recent donation activity found.</p>
-                )}
-              </div>
-            </>
-          ) : (
-            <p>No overview data available.</p>
-          )}
+      
+      {receiptError && (
+        <div className="error-message" style={{ marginTop: '1rem' }}>
+          Error: {receiptError}
         </div>
       )}
-      
-      {activeTab === 'donate' && (
-        <div className="donate-section">
-          <h3>List a New Donation</h3>
-          {submitError && (
-            <div className="error-message">
-              {submitError}
-            </div>
-          )}
-          <form className="donate-form" onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label>Item Name *</label>
-              <input
-                type="text"
-                name="itemName"
-                value={formData.itemName}
-                onChange={handleInputChange}
-                placeholder="e.g., Fresh Produce"
-              />
-              {formErrors.itemName && (
-                <span className="error-text">{formErrors.itemName}</span>
-              )}
-            </div>
-            
-            <div className="form-group">
-              <label>Category *</label>
-              <select
-                name="category"
-                value={formData.category}
-                onChange={handleInputChange}
-              >
-                <option value="">Select a category</option>
-                <option value="produce">Fresh Produce</option>
-                <option value="bakery">Bakery</option>
-                <option value="dairy">Dairy</option>
-                <option value="meat">Meat & Seafood</option>
-                <option value="canned">Canned Goods</option>
-                <option value="dry">Dry Goods</option>
-                <option value="frozen">Frozen Foods</option>
-                <option value="prepared">Prepared Meals</option>
-                <option value="other">Other</option>
-              </select>
-              {formErrors.category && (
-                <span className="error-text">{formErrors.category}</span>
-              )}
-            </div>
-            
-              <div className="form-group">
-                <label>Quantity *</label>
-                <input
-                  type="text"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleInputChange}
-                placeholder="e.g., 10 kg, 5 loaves, 3 boxes"
-                />
-                {formErrors.quantity && (
-                  <span className="error-text">{formErrors.quantity}</span>
-                )}
-              </div>
-              
-              <div className="form-group">
-                <label>Expiration Date *</label>
-                <input
-                  type="date"
-                  name="expirationDate"
-                  value={formData.expirationDate}
-                  onChange={handleInputChange}
-                />
-                {formErrors.expirationDate && (
-                  <span className="error-text">{formErrors.expirationDate}</span>
-                )}
-            </div>
-            
-            <div className="form-group">
-              <label>Pickup Information *</label>
-              <textarea
-                name="pickupInfo"
-                rows="3"
-                value={formData.pickupInfo}
-                onChange={handleInputChange}
-                placeholder="e.g., Available Mon-Fri 9am-5pm at loading dock B"
-              ></textarea>
-              {formErrors.pickupInfo && (
-                <span className="error-text">{formErrors.pickupInfo}</span>
-              )}
-            </div>
-            
-            <div className="form-group">
-              <label>Upload Image (Optional)</label>
-              <div className="file-upload">
-                <input
-                  type="file"
-                  id="food-image"
-                  accept="image/*"
-                  onChange={(e) => {
-                    // Handle file upload here
-                    // For now, we'll just store the file name
-                    setFormData(prev => ({
-                      ...prev,
-                      imageUrl: e.target.value
-                    }));
-                  }}
-                />
-                <label htmlFor="food-image">Choose File</label>
-              </div>
-            </div>
-            
-            <div className="form-buttons-container">
-            <div className="form-buttons">
-                <button
-                  type="submit"
-                  className="primary-btn"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? 'Listing...' : 'List Donation'}
-                </button>
-              </div>
-              {submitSuccess && (
-                <div className="success-message-inline">
-                  <span className="success-icon">✓</span>
-                  Donation listed successfully!
-                </div>
-              )}
-            </div>
-          </form>
-          
-          <hr style={{ margin: '2rem 0' }}/>
 
-          {/* Display Current Listed Items */}
-          <h3>Your Currently Listed Items (Available/Scheduled)</h3>
-          {isLoadingListedItems ? (
-            <p>Loading listed items...</p>
-          ) : listedItemsError ? (
-            <div className="error-message">Error: {listedItemsError}</div>
-          ) : supplierListedItems.length > 0 ? (
-            <table className="data-table">
-              <thead>
-                <tr>
-                    <th>Item Name</th>
-                  <th>Quantity</th>
-                    <th>Expires</th>
-                    <th>Status</th>
-                    <th>Actions</th> {/* Optional actions column */} 
-                </tr>
-              </thead>
-              <tbody>
-                  {supplierListedItems.map(item => (
-                  <tr key={item.id}>
-                    <td>{item.name}</td>
-                    <td>{item.quantity}</td>
-                      <td>{formatDate(item.expiry)}</td>
-                      <td>
-                        <span className={`status ${item.status?.toLowerCase()}`}>{item.status}</span>
-                      </td>
-                    <td>
-                        {/* Add actions like Edit/Cancel later if needed */}
-                      <button className="small-btn">Edit</button> 
-                        <button className="small-btn danger" style={{marginLeft: '5px'}}>Cancel</button>
-                    </td>
+      {receiptData && (
+        <div className="receipt-display" style={{ marginTop: '2rem', border: '1px solid #eee', padding: '1.5rem', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
+          <h4>Donation Receipt Summary</h4>
+          
+          <div className="receipt-donor-info" style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid #ddd' }}>
+            <strong>Donor:</strong> {receiptData.donorInfo.businessName}<br />
+            <strong>Address:</strong> {receiptData.donorInfo.businessAddress}
+          </div>
+
+          <div className="receipt-summary" style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid #ddd' }}>
+            <strong>Period:</strong> {formatDate(receiptData.summary.startDate) || 'Start'} - {formatDate(receiptData.summary.endDate) || 'End'}<br />
+            <strong>Total Completed Donations:</strong> {receiptData.summary.totalDonations}<br />
+            <strong>Total Estimated Value:</strong> ${receiptData.summary.totalEstimatedValue.toFixed(2)}<br />
+            <strong>Generated On:</strong> {formatDate(receiptData.summary.generatedAt)}
+        </div>
+        
+            <h5>Donation Details:</h5>
+            {receiptData.donations.length > 0 ? (
+              <table className="data-table" style={{marginBottom: '1rem'}}>
+                <thead>
+                  <tr>
+                    <th>Date Completed</th>
+                    <th>Item</th>
+                    <th>Category</th>
+                    <th>Quantity</th>
+                    <th>Est. Value</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p>You have no items currently listed as available or scheduled for pickup.</p>
-          )}
-        </div>
-      )}
-      
-      {activeTab === 'receipts' && (
-        <div className="receipts-section">
-          <h3>Generate Donation Receipt</h3>
-          <p>Select a date range to generate a summary of your completed donations.</p>
-          
-          <div className="receipt-controls form-group">
-             <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-                <div style={{ flex: 1 }}>
-                    <label htmlFor="startDate">Start Date:</label>
-                    <input
-                        type="date"
-                        id="startDate"
-                        name="startDate"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                    />
-                </div>
-                <div style={{ flex: 1 }}>
-                    <label htmlFor="endDate">End Date:</label>
-                    <input
-                        type="date"
-                        id="endDate"
-                        name="endDate"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                    />
-                </div>
-              </div>
-            <button 
-              className="primary-btn" 
-              onClick={handleFetchReceipt} 
-              disabled={isLoadingReceipt}
-            >
-              {isLoadingReceipt ? 'Generating...' : 'Generate Receipt'}
-            </button>
-          </div>
-          
-          {receiptError && (
-            <div className="error-message" style={{ marginTop: '1rem' }}>
-              Error: {receiptError}
-            </div>
-          )}
-
-          {receiptData && (
-            <div className="receipt-display" style={{ marginTop: '2rem', border: '1px solid #eee', padding: '1.5rem', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
-              <h4>Donation Receipt Summary</h4>
-              
-              <div className="receipt-donor-info" style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid #ddd' }}>
-                <strong>Donor:</strong> {receiptData.donorInfo.businessName}<br />
-                <strong>Address:</strong> {receiptData.donorInfo.businessAddress}
-              </div>
-
-              <div className="receipt-summary" style={{ marginBottom: '1rem', paddingBottom: '1rem', borderBottom: '1px solid #ddd' }}>
-                <strong>Period:</strong> {formatDate(receiptData.summary.startDate) || 'Start'} - {formatDate(receiptData.summary.endDate) || 'End'}<br />
-                <strong>Total Completed Donations:</strong> {receiptData.summary.totalDonations}<br />
-                <strong>Total Estimated Value:</strong> ${receiptData.summary.totalEstimatedValue.toFixed(2)}<br />
-                <strong>Generated On:</strong> {formatDate(receiptData.summary.generatedAt)}
-          </div>
-          
-              <h5>Donation Details:</h5>
-              {receiptData.donations.length > 0 ? (
-                <table className="data-table" style={{marginBottom: '1rem'}}>
-                  <thead>
-                    <tr>
-                      <th>Date Completed</th>
-                      <th>Item</th>
-                      <th>Category</th>
-                      <th>Quantity</th>
-                      <th>Est. Value</th>
+                </thead>
+                <tbody>
+                  {receiptData.donations.map(donation => (
+                    <tr key={donation.id}>
+                      <td>{formatDate(donation.date)}</td>
+                      <td>{donation.itemName}</td>
+                      <td>{donation.category}</td>
+                      <td>{donation.quantity}</td>
+                      <td>${(donation.estimatedValue || 0).toFixed(2)}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {receiptData.donations.map(donation => (
-                      <tr key={donation.id}>
-                        <td>{formatDate(donation.date)}</td>
-                        <td>{donation.itemName}</td>
-                        <td>{donation.category}</td>
-                        <td>{donation.quantity}</td>
-                        <td>${(donation.estimatedValue || 0).toFixed(2)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p>No completed donations found for this period.</p>
-              )}
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>No completed donations found for this period.</p>
+            )}
 
-              <p style={{ fontSize: '0.8em', fontStyle: 'italic', color: '#666', marginTop: '1rem' }}>
-                <strong>Disclaimer:</strong> {receiptData.disclaimer}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-      
-      {activeTab === 'confirm-pickup' && (
-        <div className="verify-section"> {/* Keep class name or rename if desired */} 
-          <h3>Confirm Donation Pickup</h3>
-          <p>Scan the QR code presented by the volunteer/driver to confirm they have picked up your available donations. This will mark the items as 'on its way'.</p>
-
-                 {!showScanner && (
-                    <button 
-              className="primary-btn" 
-              onClick={() => {
-                setShowScanner(true); 
-                setConfirmationResult(null); // Clear previous result when showing scanner
-              }}
-              disabled={isConfirming}
-            >
-              Start Camera Scan
-                    </button>
-                 )}
-
-          {showScanner && (
-            <> 
-              {/* Ensure this div ID matches the one used in useEffect */}
-              <div id="qr-reader-supplier" style={{ width: '100%', maxWidth: '500px', margin: '1rem auto' }}></div> 
-              <button className="secondary-btn" onClick={() => setShowScanner(false)}>Cancel Scan</button>
-            </>
-          )}
-
-          {isConfirming && <p style={{marginTop: '1rem'}}>Confirming pickup...</p>}
-
-          {confirmationResult && (
-            <div 
-              className={confirmationResult.success ? 'success-message' : 'error-message'}
-              style={{marginTop: '1rem'}}
-            >
-              {confirmationResult.success ? '✅ ' : '❌ '}
-              {confirmationResult.message}
-                </div>
-             )}
+            <p style={{ fontSize: '0.8em', fontStyle: 'italic', color: '#666', marginTop: '1rem' }}>
+              <strong>Disclaimer:</strong> {receiptData.disclaimer}
+            </p>
           </div>
         )}
+      </div>
+    );
+
+  const renderConfirmPickup = () => (
+    <div className="verify-section"> {/* Keep class name or rename if desired */} 
+      <h3>Confirm Donation Pickup</h3>
+      <p>Scan the QR code presented by the volunteer/driver to confirm they have picked up your available donations. This will mark the items as 'completed'.</p>
+
+             {!showScanner && (
+                <button 
+          className="primary-btn" 
+          onClick={() => {
+            setShowScanner(true); 
+            setConfirmationResult(null); // Clear previous result when showing scanner
+          }}
+          disabled={isConfirming}
+        >
+          Start Camera Scan
+                </button>
+             )}
+
+      {showScanner && (
+        <> 
+          {/* Ensure this div ID matches the one used in useEffect */}
+          <div id="qr-reader-supplier" style={{ width: '100%', maxWidth: '500px', margin: '1rem auto' }}></div> 
+          <button className="secondary-btn" onClick={() => setShowScanner(false)}>Cancel Scan</button>
+        </>
+      )}
+
+      {isConfirming && <p style={{marginTop: '1rem'}}>Confirming pickup...</p>}
+
+      {confirmationResult && (
+        <div 
+          className={confirmationResult.success ? 'success-message' : 'error-message'}
+          style={{marginTop: '1rem'}}
+        >
+          {confirmationResult.success ? '✅ ' : '❌ '}
+          {confirmationResult.message}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="dashboard-container">
+      {previewTargetUserId ? (
+         <h2>Supplier Preview ({overviewData?.username || 'N/A'})</h2>
+      ) : (
+         <h1>{userData?.businessName || userData?.username || 'Supplier'} Dashboard</h1>
+      )}
+
+      <div className="dashboard-tabs">
+        <button onClick={() => setActiveTab('overview')} className={activeTab === 'overview' ? 'active' : ''}>Overview</button>
+        <button onClick={() => setActiveTab('donate')} className={activeTab === 'donate' ? 'active' : ''}>Donate</button>
+        <button onClick={() => setActiveTab('receipts')} className={activeTab === 'receipts' ? 'active' : ''}>Donation Receipts</button>
+        <button onClick={() => setActiveTab('confirm')} className={activeTab === 'confirm' ? 'active' : ''}>Confirm Pickup</button>
+      </div>
+
+      <div className="dashboard-content">
+        {activeTab === 'overview' && renderOverview()}
+        {activeTab === 'donate' && renderDonateForm()}
+        {activeTab === 'receipts' && renderReceipts()}
+        {activeTab === 'confirm' && renderConfirmPickup()}
       </div>
     </div>
   );
 };
 
-export default SupplierDashboard; 
+export default SupplierDashboard;
