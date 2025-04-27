@@ -8,7 +8,8 @@ import {
   getAvailableDonations, 
   assignDonationToVolunteer,
   getVolunteerScheduledDonations,
-  getVolunteerCompletedDonationCount
+  getVolunteerCompletedDonationCount,
+  cancelVolunteerAssignment
 } from '../services/donationService';
 
 const VolunteerDashboard = () => {
@@ -19,6 +20,7 @@ const VolunteerDashboard = () => {
   const [availableTasks, setAvailableTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [scheduledDonations, setScheduledDonations] = useState([]);
   const [completedCount, setCompletedCount] = useState(0); // State for completed count
   const [isLoadingStats, setIsLoadingStats] = useState(false); // Loading state for stats
@@ -132,6 +134,40 @@ const VolunteerDashboard = () => {
     }
   };
 
+  const handleCancelTask = async (donationId) => {
+    if (!userData?.auth0Id) {
+      setError('Please log in to cancel a task');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to cancel this pickup? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsCancelling(true);
+    setError(null);
+    
+    try {
+      const response = await cancelVolunteerAssignment(donationId, userData.auth0Id);
+      if (response.success) {
+        // Update UI by removing the task from scheduled donations
+        setScheduledDonations(prev => prev.filter(task => task._id !== donationId));
+        // Close the modal if it's open with this task
+        if (selectedPickup && selectedPickup._id === donationId) {
+          setIsModalOpen(false);
+        }
+        alert('Pickup cancelled successfully.');
+      } else {
+        setError(response.message || 'Failed to cancel pickup.');
+      }
+    } catch (err) {
+      setError('Failed to cancel pickup. Please try again.');
+      console.error('Error cancelling task:', err);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   const handleViewDetails = (pickup) => {
     setSelectedPickup(pickup);
     setIsModalOpen(true);
@@ -147,6 +183,14 @@ const VolunteerDashboard = () => {
     
     // Refresh scheduled donations and stats
     fetchScheduledDonations();
+    fetchCompletedDonationCount();
+  };
+
+  const handleModalCancel = (donationId) => {
+    // Update the scheduled donations list
+    setScheduledDonations(prev => prev.filter(task => task._id !== donationId));
+    
+    // Refresh stats
     fetchCompletedDonationCount();
   };
 
@@ -234,13 +278,21 @@ const VolunteerDashboard = () => {
                       <div className="task-card-body">
                         <p><strong>Category:</strong> {task.category}</p>
                         <p><strong>Expires:</strong> {formatDate(task.expirationDate)}</p>
-                        <p><strong>Pickup Info:</strong> {task.pickupInfo}</p>
+                        <p><strong>Address:</strong> {task.businessAddress || 'No address provided'}</p>
+                        <p><strong>Extra Information:</strong> {task.pickupInfo}</p>
                         <div className="task-actions">
                           <button 
                             className="view-details-btn"
                             onClick={() => handleViewDetails(task)}
                           >
                             View Details
+                          </button>
+                          <button 
+                            className="cancel-pickup-btn"
+                            onClick={() => handleCancelTask(task._id)}
+                            disabled={isCancelling}
+                          >
+                            Cancel
                           </button>
                         </div>
                       </div>
@@ -302,7 +354,12 @@ const VolunteerDashboard = () => {
                           </div>
 
                           <div className="task-section">
-                            <h4>Pickup Information:</h4>
+                            <h4>Address:</h4>
+                            <p>{task.businessAddress || 'No address provided'}</p>
+                          </div>
+
+                          <div className="task-section">
+                            <h4>Extra Information:</h4>
                             <p>{task.pickupInfo}</p>
                           </div>
 
@@ -355,6 +412,7 @@ const VolunteerDashboard = () => {
           onClose={handleCloseModal}
           pickup={selectedPickup}
           onAccept={handleModalAccept}
+          onCancel={handleModalCancel}
         />
       )}
     </div>

@@ -531,4 +531,65 @@ exports.deleteDonationById = async (req, res) => {
       error: error.message
     });
   }
+};
+
+// Handle cancelling a volunteer assignment
+exports.cancelVolunteerAssignment = async (req, res) => {
+  try {
+    const { donationId } = req.params;
+    const { volunteerId } = req.body;
+
+    // Validate inputs
+    if (!donationId || !volunteerId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Donation ID and volunteer ID are required'
+      });
+    }
+
+    // Validate donation ID format
+    if (!mongoose.Types.ObjectId.isValid(donationId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid donation ID format'
+      });
+    }
+
+    // Find the donation
+    const donation = await Donation.findById(donationId);
+    
+    if (!donation) {
+      return res.status(404).json({
+        success: false,
+        message: 'Donation not found'
+      });
+    }
+
+    // Verify that this volunteer is assigned to this donation
+    if (donation.volunteerId !== volunteerId) {
+      return res.status(403).json({
+        success: false,
+        message: 'You are not authorized to cancel this pickup - it is not assigned to you'
+      });
+    }
+
+    // Update the donation status back to available and remove the volunteer assignment
+    donation.status = 'available';
+    donation.volunteerId = null;
+    
+    await donation.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Donation assignment cancelled successfully',
+      data: donation
+    });
+  } catch (error) {
+    console.error('Error cancelling volunteer assignment:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
 }; 

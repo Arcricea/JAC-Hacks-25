@@ -492,4 +492,24 @@
 
 .no-tasks-message p:last-child {
   color: #6c757d;
+}
+
+.cancel-pickup-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.cancel-pickup-btn:hover {
+  background: #c82333;
+}
+
+.cancel-pickup-btn:disabled {
+  background: #e4606d;
+  cursor: not-allowed;
 } 
