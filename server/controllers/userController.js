@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const speakeasy = require('speakeasy');
 const User = require('../models/User');
 
 // Create or update a user
@@ -42,26 +43,28 @@ exports.saveUser = async (req, res) => {
       });
     }
 
-    // --- Volunteer Token Logic ---
+    // --- Volunteer Secret Logic ---
     if (accountType === 'volunteer') {
-      // Generate token if user is volunteer and doesn't have one
-      if (!user.volunteerToken) {
-        // Generate a unique token (16 bytes = 32 hex chars)
-        user.volunteerToken = crypto.randomBytes(16).toString('hex');
-        // Note: Extremely unlikely, but a collision could theoretically occur.
-        // A robust implementation might loop and check DB uniqueness before saving.
+      // Generate secret if user is becoming a volunteer and doesn't have one
+      if (!user.volunteerSecret) {
+        const secret = speakeasy.generateSecret({ length: 20 });
+        user.volunteerSecret = secret.base32;
       }
     } else if (!isNewUser && previousAccountType === 'volunteer' && accountType !== 'volunteer') {
-      // If changing *away* from volunteer, clear the token
-      user.volunteerToken = null;
+      // If changing *away* from volunteer, clear the secret
+      user.volunteerSecret = null;
     }
-    // --- End Volunteer Token Logic ---
+    // --- End Volunteer Secret Logic ---
 
     await user.save();
     
+    // Exclude sensitive info like secret from the response if necessary
+    const userResponse = user.toObject();
+    delete userResponse.volunteerSecret;
+
     res.status(200).json({
       success: true,
-      data: user
+      data: userResponse
     });
   } catch (error) {
     // Handle username uniqueness error
@@ -101,9 +104,17 @@ exports.getUserByAuth0Id = async (req, res) => {
       });
     }
     
+    // Return user data - include secret ONLY if they are a volunteer
+    // SECURITY NOTE: Sending the secret to the client is necessary for client-side TOTP generation
+    // Ensure your frontend handles this securely and doesn't expose it unnecessarily.
+    const userResponse = user.toObject();
+    if (user.accountType !== 'volunteer') {
+      delete userResponse.volunteerSecret;
+    }
+    
     res.status(200).json({
       success: true,
-      data: user
+      data: userResponse
     });
   } catch (error) {
     res.status(500).json({
@@ -114,55 +125,58 @@ exports.getUserByAuth0Id = async (req, res) => {
   }
 };
 
-// Verify volunteer token
-exports.verifyVolunteerToken = async (req, res) => {
+// Verify volunteer code (replaces verifyVolunteerToken)
+exports.verifyVolunteerCode = async (req, res) => {
   try {
-    const { token } = req.params;
+    const { username, code } = req.body;
     
-    if (!token) {
+    if (!username || !code) {
       return res.status(400).json({
         success: false,
-        message: 'Volunteer token is required'
+        isValid: false,
+        message: 'Username and 6-digit code are required'
       });
     }
     
-    // Find user by the volunteer token
-    const user = await User.findOne({ volunteerToken: token });
+    // Find user by username
+    const user = await User.findOne({ username: username });
     
-    if (!user) {
-      // Token doesn't match any user
+    if (!user || user.accountType !== 'volunteer' || !user.volunteerSecret) {
+      // User not found, not a volunteer, or doesn't have a secret setup
       return res.status(404).json({
         success: false,
         isValid: false,
-        message: 'Invalid or unknown volunteer token.'
+        message: 'Invalid username or volunteer setup incomplete.'
       });
     }
     
-    // Check if the found user is actually a volunteer
-    if (user.accountType !== 'volunteer') {
-      // Token belongs to a user, but they are not a volunteer
-      return res.status(403).json({
+    // Verify the code
+    const verified = speakeasy.totp.verify({
+      secret: user.volunteerSecret,
+      encoding: 'base32',
+      token: code,
+      window: 1
+    });
+    
+    if (verified) {
+      res.status(200).json({
+        success: true,
+        isValid: true,
+        message: 'Volunteer code is valid.',
+        volunteer: { username: user.username }
+      });
+    } else {
+      res.status(401).json({
         success: false,
         isValid: false,
-        message: 'Token holder is not registered as a volunteer.'
+        message: 'Invalid volunteer code.'
       });
     }
-    
-    // If token is found and user is a volunteer, return success
-    res.status(200).json({
-      success: true,
-      isValid: true,
-      message: 'Volunteer token is valid.',
-      volunteer: {
-        username: user.username
-        // Add any other volunteer details you want to return upon verification
-      }
-    });
     
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Server error during token verification.',
+      message: 'Server error during code verification.',
       error: error.message
     });
   }

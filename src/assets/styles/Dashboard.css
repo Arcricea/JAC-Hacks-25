@@ -784,4 +784,101 @@
 .share-btn:hover {
   opacity: 0.9;
   transform: translateY(-2px);
+}
+
+/* Add these styles to your existing Dashboard.css */
+.error-text {
+  color: #dc3545;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.success-message {
+  background-color: #d4edda;
+  color: #155724;
+  padding: 1rem;
+  border-radius: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.error-message {
+  background-color: #f8d7da;
+  color: #721c24;
+  padding: 1rem;
+  border-radius: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.form-group input.error,
+.form-group select.error,
+.form-group textarea.error {
+  border-color: #dc3545;
+}
+
+.form-buttons button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Update and add these styles */
+.form-buttons-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.form-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.success-message-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #28a745;
+  color: white;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  animation: fadeInSlide 0.3s ease-out;
+}
+
+.success-icon {
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Update the primary button styles to match the success message */
+.primary-btn {
+  background-color: #2e7d32;
+  color: white;
+  padding: 0.75rem 1.25rem;
+  border: none;
+  border-radius: 0.25rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.primary-btn:hover {
+  background-color: #1b5e20;
+}
+
+.primary-btn:disabled {
+  background-color: #4caf50;
+  cursor: not-allowed;
 } 

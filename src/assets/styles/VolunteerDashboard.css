@@ -1,0 +1,174 @@
+/* Styles specific to Volunteer Dashboard */
+
+.card-style {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 2rem;
+}
+
+.qr-code-section h3,
+.tasks-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #1b5e20; /* Dark green */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.qr-code-section .qr-code-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 1.5rem;
+}
+
+.qr-code-display {
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  display: inline-block; /* Fit content */
+}
+
+.qr-code-display svg {
+  display: block; /* Prevent extra space below SVG */
+}
+
+.qr-code-section .token-info {
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+/* Basic alert styling (can be expanded) */
+.alert {
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  color: #856404;
+}
+
+/* Style Font Awesome icons */
+.fas {
+  color: #2e7d32; /* Medium green */
+}
+
+/* New styles for TOTP display */
+.static-id-section,
+.dynamic-code-section {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 2rem 0;
+}
+
+.totp-display {
+  margin-top: 1rem;
+  display: inline-block;
+  padding: 1rem 2rem;
+  background-color: #e9f5e9; /* Light green background */
+  border: 1px solid #c8e6c9; /* Lighter green border */
+  border-radius: 8px;
+}
+
+.totp-code {
+  font-family: 'monospace';
+  font-size: 2.5rem; /* Larger code */
+  font-weight: bold;
+  letter-spacing: 4px; /* Space out digits */
+  color: #1b5e20; /* Dark green */
+  margin-bottom: 0.5rem;
+}
+
+.totp-timer span {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.timer-bar-container {
+  height: 6px;
+  background-color: #ccc;
+  border-radius: 3px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.timer-bar {
+  height: 100%;
+  background-color: #4caf50; /* Green timer bar */
+  border-radius: 3px;
+  transition: width 1s linear; /* Smooth transition */
+}
+
+.volunteer-id-card p {
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: #555;
+  font-size: 0.95rem;
+}
+
+.verification-details-container {
+  display: flex;
+  flex-wrap: wrap; /* Allow wrapping on smaller screens */
+  gap: 2rem; /* Space between QR and Code sections */
+  justify-content: center; /* Center items */
+  align-items: flex-start; /* Align items to the top */
+  margin-top: 1rem;
+}
+
+.static-id-section,
+.dynamic-code-section {
+  flex: 1; /* Allow sections to grow */
+  min-width: 220px; /* Minimum width before wrapping */
+  text-align: center;
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #fdfdfd;
+}
+
+.static-id-section h4,
+.dynamic-code-section h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #333;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.static-id-section .qr-code-container {
+  margin-top: 0.5rem; /* Reduced margin */
+}
+
+.static-id-section .qr-code-display {
+   margin-bottom: 0.5rem;
+}
+
+.dynamic-code-section .totp-display {
+  margin-top: 0.5rem;
+  padding: 0.8rem 1.5rem;
+}
+
+.dynamic-code-section .totp-code {
+  font-size: 2.2rem; /* Slightly smaller code */
+}
+
+.divider { /* Style for the divider if kept, but removed in JSX */
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 2rem 0;
+} 
