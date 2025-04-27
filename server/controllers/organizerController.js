@@ -5,7 +5,7 @@ exports.getOrganizerDashboardData = async (req, res) => {
   try {
     // Fetch all food banks (distributors)
     const foodBanks = await User.find({ accountType: 'distributor' })
-      .select('username needStatus businessName businessAddress') // Select relevant fields
+      .select('username needStatus businessName businessAddress auth0Id') // Select relevant fields
       .lean(); // Use lean for faster queries when not modifying docs
 
     console.log('Fetched Food Banks:', foodBanks.length); // Add log

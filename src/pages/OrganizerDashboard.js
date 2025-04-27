@@ -12,7 +12,6 @@ const OrganizerDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeDonationTab, setActiveDonationTab] = useState('available'); // 'available', 'scheduled', 'completed'
-  const [editingFoodBankId, setEditingFoodBankId] = useState(null); // Track which food bank is being edited (use its auth0Id)
 
   // State for adding new donations
   const [showAddDonationForm, setShowAddDonationForm] = useState(false);
@@ -137,10 +136,8 @@ const OrganizerDashboard = () => {
   };
 
   const handleSetFoodBankStatus = async (foodBankUserId) => {
-    if (!editingFoodBankId || foodBankUserId !== editingFoodBankId) return;
-
     // Find the edited data from the state
-    const foodBankToSave = foodBanks.find(fb => fb.auth0Id === foodBankUserId);
+    const foodBankToSave = foodBanks.find(fb => fb.auth0Id === foodBankUserId && fb.isEditing);
     if (!foodBankToSave || !foodBankToSave.editData) {
       console.error('Could not find edit data for food bank:', foodBankUserId);
       setError('An internal error occurred. Could not save changes.');
@@ -159,11 +156,13 @@ const OrganizerDashboard = () => {
 
       if (response.ok && result.success) {
         console.log('Food bank status set successfully');
+        console.log('API Success, updating state for:', foodBankUserId);
         // Refresh data by updating the food bank in state & removing editData
         setFoodBanks(prev => prev.map(fb => 
-          fb.auth0Id === foodBankUserId ? { ...fb, needStatus: result.data.needStatus, editData: undefined } : fb
+          fb.auth0Id === foodBankUserId ? { ...fb, needStatus: result.data.needStatus, editData: undefined, isEditing: false } : fb
         ));
-        setEditingFoodBankId(null); // Exit edit mode
+        console.log('Setting editingFoodBankId to null');
+        // No longer need editingFoodBankId state
       } else {
         throw new Error(result.message || 'Failed to set status');
       }
@@ -237,28 +236,27 @@ const OrganizerDashboard = () => {
 
   // --- Edit State Management --- //
   const handleEditClick = (foodBank) => {
-    setEditingFoodBankId(foodBank.auth0Id);
     // Store temporary edit data directly on the food bank object in state
+    // Set isEditing true for the clicked one, false for others
     setFoodBanks(prev => prev.map(fb => 
       fb.auth0Id === foodBank.auth0Id 
         ? { 
             ...fb, 
+            isEditing: true, // Set editing flag
             editData: { 
               priorityLevel: fb.needStatus?.priorityLevel ?? 1, // Use ?? for nullish coalescing
               customMessage: fb.needStatus?.customMessage ?? '', 
             } 
           }
-        : fb
+        : { ...fb, isEditing: false } // Ensure others are not editing
     ));
     setError(''); // Clear previous errors
   };
 
   const handleCancelEdit = () => {
-    const cancelingId = editingFoodBankId;
-    setEditingFoodBankId(null);
     // Remove temporary editData from the specific food bank object
     setFoodBanks(prev => prev.map(fb => 
-      fb.auth0Id === cancelingId ? { ...fb, editData: undefined } : fb
+      fb.isEditing ? { ...fb, editData: undefined, isEditing: false } : fb
     ));
     setError(''); 
   };
@@ -267,7 +265,8 @@ const OrganizerDashboard = () => {
     const { name, value } = e.target;
     // Update the temporary editData on the specific food bank object
     setFoodBanks(prev => prev.map(fb => 
-      fb.auth0Id === foodBankAuth0Id
+      // Only update the one currently being edited
+      fb.auth0Id === foodBankAuth0Id && fb.isEditing 
         ? {
             ...fb,
             editData: {
@@ -352,87 +351,93 @@ const OrganizerDashboard = () => {
         {foodBanks.length === 0 ? (
           <p>No food banks found.</p>
         ) : (
-          <table className="data-table organizer-foodbank-table">
-            <thead>
-              <tr>
-                <th>Food Bank Name</th>
-                <th>Priority Level</th>
-                <th>Status Message</th>
-                <th>Address</th> 
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {foodBanks.map(fb => {
-                const isEditing = editingFoodBankId === fb.auth0Id;
-                // Use editData if editing, otherwise use needStatus
-                const currentPriority = isEditing ? fb.editData?.priorityLevel : fb.needStatus?.priorityLevel;
-                const currentMessage = isEditing ? fb.editData?.customMessage : fb.needStatus?.customMessage;
-                const priorityInfo = getPriorityInfo(currentPriority);
-                
-                return (
-                  <tr key={fb.auth0Id}> 
-                    <td>{fb.username || fb.businessName || 'Unnamed Food Bank'}</td>
-                    <td>
-                      {isEditing ? (
-                        <select
-                          name="priorityLevel"
-                          value={currentPriority ?? 1} // Use currentPriority, default 1
-                          onChange={(e) => handleEditFormChange(e, fb.auth0Id)} // Pass auth0Id
-                          className="inline-edit-input"
-                        >
-                          {priorityLevels.map(p => (
-                            <option key={p.level} value={p.level}>{p.level} - {p.label}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span 
-                          className="priority-badge-inline" 
-                          style={{ backgroundColor: priorityInfo.color }}
-                        >
-                          {priorityInfo.label}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {isEditing ? (
-                        <input 
-                          type="text"
-                          name="customMessage"
-                          value={currentMessage ?? ''} // Use currentMessage, default empty string
-                          onChange={(e) => handleEditFormChange(e, fb.auth0Id)} // Pass auth0Id
-                          className="inline-edit-input"
-                          placeholder="Enter status message"
-                        />
-                      ) : (
-                        currentMessage || 'No specific message'
-                      )}
-                    </td>
-                    <td>{fb.businessAddress || 'No address listed'}</td>
-                    <td> {/* Actions Cell */}
-                      {isEditing ? (
-                        <>
-                          <button onClick={() => handleSetFoodBankStatus(fb.auth0Id)} className="action-button save-button">Save</button>
-                          <button onClick={handleCancelEdit} className="action-button cancel-button">Cancel</button>
-                        </>
-                      ) : (
-                        <>
-                          <button onClick={() => handleEditClick(fb)} className="action-button edit-button">Edit Status</button>
-                          <button 
-                            onClick={() => handleDeleteFoodBank(fb.auth0Id)} 
-                            className="action-button delete-button"
-                            title="Delete this food bank account"
+          <>
+            {console.log('Checking foodBanks state before mapping:', foodBanks)} {/* DEBUG LOG */}
+            <table className="data-table organizer-foodbank-table">
+              <thead>
+                <tr>
+                  <th>Food Bank Name</th>
+                  <th>Priority Level</th>
+                  <th>Status Message</th>
+                  <th>Address</th> 
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {foodBanks.map(fb => {
+                  const isEditing = fb.isEditing; // Use the flag directly
+                  console.log('Rendering FB:', fb.auth0Id, 'isEditing:', isEditing, 'editData:', fb.editData); // DEBUG LOG
+                  // Use editData if editing, otherwise use needStatus
+                  const currentPriority = isEditing ? fb.editData?.priorityLevel : fb.needStatus?.priorityLevel;
+                  const currentMessage = isEditing ? fb.editData?.customMessage : fb.needStatus?.customMessage;
+                  const priorityInfo = getPriorityInfo(currentPriority);
+                  
+                  return (
+                    <tr key={fb.auth0Id}> 
+                      <td>{fb.username || fb.businessName || 'Unnamed Food Bank'}</td>
+                      <td>
+                        {isEditing ? (
+                          <select
+                            name="priorityLevel"
+                            key={`${fb.auth0Id}-priority`}
+                            value={currentPriority ?? 1} // Use currentPriority, default 1
+                            onChange={(e) => handleEditFormChange(e, fb.auth0Id)} // Pass auth0Id
+                            className="inline-edit-input"
                           >
-                            Delete Food Bank
-                          </button>
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                            {priorityLevels.map(p => (
+                              <option key={p.level} value={p.level}>{p.level} - {p.label}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span 
+                            className="priority-badge-inline" 
+                            style={{ backgroundColor: priorityInfo.color }}
+                          >
+                            {priorityInfo.label}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        {isEditing ? (
+                          <input 
+                            type="text"
+                            name="customMessage"
+                            key={`${fb.auth0Id}-message`}
+                            value={currentMessage ?? ''} // Use currentMessage, default empty string
+                            onChange={(e) => handleEditFormChange(e, fb.auth0Id)} // Pass auth0Id
+                            className="inline-edit-input"
+                            placeholder="Enter status message"
+                          />
+                        ) : (
+                          currentMessage || 'No specific message'
+                        )}
+                      </td>
+                      <td>{fb.businessAddress || 'No address listed'}</td>
+                      <td> {/* Actions Cell */}
+                        {isEditing ? (
+                          <>
+                            <button onClick={() => handleSetFoodBankStatus(fb.auth0Id)} className="action-button save-button">Save</button>
+                            <button onClick={handleCancelEdit} className="action-button cancel-button">Cancel</button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => handleEditClick(fb)} className="action-button edit-button">Edit Status</button>
+                            <button 
+                              onClick={() => handleDeleteFoodBank(fb.auth0Id)} 
+                              className="action-button delete-button"
+                              title="Delete this food bank account"
+                            >
+                              Delete Food Bank
+                            </button>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </>
         )}
       </section>
 
