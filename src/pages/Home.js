@@ -82,6 +82,27 @@ const Home = () => {
         </div>
       </section>
 
+      {/* Food Waste Statistics Section */}
+      <section className="statistics-section">
+        <div className="statistics-content">
+          <h2>The Food Waste Crisis</h2>
+          <div className="statistics-items">
+            <div className="statistics-item highlight">
+              <h3>1/3</h3>
+              <p>Approximately 1/3 of all food produced is wasted, worth nearly $1 trillion annually.</p>
+            </div>
+            <div className="statistics-item">
+              <h3>1.3B Tons</h3>
+              <p>1.3 billion tons of food is wasted globally each year while millions go hungry.</p>
+            </div>
+            <div className="statistics-item">
+              <h3>8%</h3>
+              <p>Food waste contributes to 8% of global greenhouse gas emissions.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="cta-section">
         <div className="cta-content">
