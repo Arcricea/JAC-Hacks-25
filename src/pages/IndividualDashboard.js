@@ -31,7 +31,7 @@ const IndividualDashboard = () => {
           className={activeTab === 'history' ? 'active' : ''} 
           onClick={() => setActiveTab('history')}
         >
-          History
+          Assistance History
         </button>
         <button 
           className={activeTab === 'resources' ? 'active' : ''} 
@@ -43,42 +43,44 @@ const IndividualDashboard = () => {
 
       {activeTab === 'overview' && (
         <div className="overview-section">
-          <h3>Available Food Assistance</h3>
+          <h3>Available Assistance</h3>
           <div className="assistance-cards">
             {individualData.availableAssistance.map(assistance => (
               <div key={assistance.id} className="assistance-card">
-                <div className="assistance-details">
-                  <h4>{assistance.provider}</h4>
-                  <p><strong>Type:</strong> {assistance.type}</p>
-                  <p><strong>Location:</strong> {assistance.location}</p>
-                  <p><strong>Date:</strong> {assistance.date}</p>
-                </div>
-                <button className="primary-btn">Register</button>
+                <h4>{assistance.type}</h4>
+                <p><strong>Provider:</strong> {assistance.provider}</p>
+                <p><strong>Location:</strong> {assistance.location}</p>
+                <p><strong>Date:</strong> {assistance.date}</p>
+                <button className="primary-btn">Request Assistance</button>
               </div>
             ))}
           </div>
           
           <h3>Upcoming Appointments</h3>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Provider</th>
-                <th>Date</th>
-                <th>Time</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {individualData.upcomingAppointments.map(appointment => (
-                <tr key={appointment.id}>
-                  <td>{appointment.provider}</td>
-                  <td>{appointment.date}</td>
-                  <td>{appointment.time}</td>
-                  <td><span className="status confirmed">{appointment.status}</span></td>
+          {individualData.upcomingAppointments.length > 0 ? (
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Provider</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {individualData.upcomingAppointments.map(appointment => (
+                  <tr key={appointment.id}>
+                    <td>{appointment.provider}</td>
+                    <td>{appointment.date}</td>
+                    <td>{appointment.time}</td>
+                    <td>{appointment.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="no-data-message">No upcoming appointments</p>
+          )}
         </div>
       )}
 
@@ -105,7 +107,7 @@ const IndividualDashboard = () => {
           </table>
         </div>
       )}
-
+      
       {activeTab === 'resources' && (
         <div className="resources-section">
           <h3>Additional Resources</h3>
@@ -121,9 +123,9 @@ const IndividualDashboard = () => {
               <button className="secondary-btn">Learn More</button>
             </div>
             <div className="resource-card">
-              <h4>Community Support</h4>
-              <p>Connect with local community support groups and services.</p>
-              <button className="secondary-btn">Find Support</button>
+              <h4>Volunteer Opportunities</h4>
+              <p>Give back to the community by volunteering at local food banks.</p>
+              <button className="secondary-btn">Find Opportunities</button>
             </div>
           </div>
         </div>

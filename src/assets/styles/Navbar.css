@@ -173,6 +173,9 @@
   letter-spacing: 0.5px;
   margin-top: 0.2rem;
   text-transform: uppercase;
+  display: inline-block;
+  width: fit-content;
+  white-space: nowrap;
 }
 
 /* Responsive styles */
