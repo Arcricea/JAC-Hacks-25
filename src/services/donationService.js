@@ -169,7 +169,7 @@ export const getSupplierListedItems = async (userId, requestingUserId) => {
   }
 };
 
-export const confirmSupplierPickup = async (userId, scannedVolunteerId, requestingUserId) => {
+export const confirmSupplierPickup = async (userId, codePayload, requestingUserId) => {
   try {
     const response = await fetch(`${API_URL}/donations/supplier/confirm-pickup/${userId}`, {
       method: 'POST',
@@ -177,7 +177,7 @@ export const confirmSupplierPickup = async (userId, scannedVolunteerId, requesti
         'Content-Type': 'application/json',
         ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
       },
-      body: JSON.stringify({ scannedVolunteerId })
+      body: JSON.stringify(codePayload)
     });
     const data = await response.json();
 

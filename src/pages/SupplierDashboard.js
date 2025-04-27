@@ -38,11 +38,12 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
   const [isLoadingListedItems, setIsLoadingListedItems] = useState(true); // Default to true
   const [listedItemsError, setListedItemsError] = useState('');
 
-  // State for QR Scanner / Confirmation
-  const [showScanner, setShowScanner] = useState(false);
-  const [confirmationResult, setConfirmationResult] = useState(null); // Renamed from verificationResult
-  const [isConfirming, setIsConfirming] = useState(false); // Renamed from isVerifying
-  const scannerRef = useRef(null);
+  // State for Confirmation (Code or QR)
+  const [confirmationResult, setConfirmationResult] = useState(null); 
+  const [isConfirming, setIsConfirming] = useState(false); 
+  const [enteredCode, setEnteredCode] = useState(''); // State for the entered code
+  const [showScanner, setShowScanner] = useState(false); // Re-add state for scanner visibility
+  const scannerRef = useRef(null); // Re-add scanner ref
 
   // --- State for Triggering Data Refresh --- START
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -188,12 +189,14 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
     }
   };
 
-  // QR Code Scan Success Handler
-  const onScanSuccess = async (decodedText, decodedResult) => {
+  // --- Code Confirmation Handler ---
+  const handleConfirmCode = async () => {
     if (isConfirming) return; // Prevent multiple submissions
+    if (!enteredCode || enteredCode.length !== 8 || !/^[0-9]+$/.test(enteredCode)) { // Basic validation
+        setConfirmationResult({ success: false, message: 'Please enter a valid 8-digit code.' });
+        return;
+    }
 
-    console.log(`Code matched = ${decodedText}`, decodedResult);
-    setShowScanner(false); // Hide scanner after successful scan
     setIsConfirming(true);
     setConfirmationResult(null); // Clear previous result
 
@@ -201,19 +204,6 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
       if (!userData || !userData.auth0Id) {
         throw new Error("User data not available.");
       }
-      // Call the new function to confirm pickup
-      // --- Extract volunteer ID from scanned text --- START
-      console.log("Raw Scanned Text:", decodedText);
-      const parts = decodedText.split(':');
-      let scannedVolunteerId = null;
-      if (parts.length === 2 && parts[0].trim().toLowerCase() === 'volunteerid' && parts[1]) {
-        scannedVolunteerId = parts[1].trim();
-      } 
-      
-      if (!scannedVolunteerId) {
-        throw new Error("Invalid QR code format. Expected 'volunteerid:value'.");
-      }
-      // --- Extract volunteer ID from scanned text --- END
       
       // Determine the user ID whose pickup is being confirmed
       const resourceUserId = previewTargetUserId || userData.auth0Id;
@@ -221,11 +211,15 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
       const requestingUserId = userData.auth0Id;
       
       // Pass resource ID for URL path, requester ID for header
-      const response = await confirmSupplierPickup(resourceUserId, scannedVolunteerId, requestingUserId);
+      // Pass the enteredCode
+      const response = await confirmSupplierPickup(resourceUserId, { confirmationCode: enteredCode }, requestingUserId);
+      
       setConfirmationResult({ 
         success: true, 
         message: response.message || 'Pickup confirmed! Items are now on their way to food banks.' 
       });
+      setEnteredCode(''); // Clear input on success
+      
       // Optionally trigger refresh of overview/listed items if needed
       if (response.success && response.modifiedCount > 0) {
         setRefreshTrigger(prev => prev + 1); // Increment to trigger useEffect refresh
@@ -239,9 +233,76 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
     }
   };
 
-  // QR Code Scan Failure Handler (keep as is)
+  // --- QR Code Scan Success Handler ---
+  const onScanSuccess = async (decodedText, decodedResult) => {
+    if (isConfirming) return; // Prevent multiple submissions
+
+    console.log(`QR Code matched = ${decodedText}`);
+    setShowScanner(false); // Hide scanner after successful scan
+    setIsConfirming(true);
+    setConfirmationResult(null); // Clear previous result
+
+    try {
+      if (!userData || !userData.auth0Id) {
+        throw new Error("User data not available.");
+      }
+
+      // Extract volunteer ID from scanned text
+      const parts = decodedText.split(':');
+      let scannedVolunteerId = null;
+      if (parts.length === 2 && parts[0].trim().toLowerCase() === 'volunteerid' && parts[1]) {
+        scannedVolunteerId = parts[1].trim();
+      } else {
+        // Handle cases where the QR code doesn't contain the expected format
+        // Check if it might be the 8-digit code itself (though unlikely)
+        if (decodedText.length === 8 && /^[0-9]+$/.test(decodedText)) {
+           console.log("QR code contained an 8-digit number, treating as confirmation code.");
+           // If it's the 8-digit code, call the backend with confirmationCode
+            const resourceUserId = previewTargetUserId || userData.auth0Id;
+            const requestingUserId = userData.auth0Id;
+            const response = await confirmSupplierPickup(resourceUserId, { confirmationCode: decodedText }, requestingUserId);
+            setConfirmationResult({ 
+              success: response.success, 
+              message: response.message || (response.success ? 'Pickup confirmed via scanned code!' : 'Failed to confirm via scanned code.') 
+            });
+             // Trigger refresh if needed
+            if (response.success && response.modifiedCount > 0) {
+               setRefreshTrigger(prev => prev + 1);
+            }
+            setIsConfirming(false);
+            return; // Exit early
+        } else {
+             throw new Error("Invalid QR code format. Expected 'volunteerid:value' or an 8-digit code.");
+        }
+      }
+      
+      // If we extracted scannedVolunteerId, proceed with that
+      const resourceUserId = previewTargetUserId || userData.auth0Id;
+      const requestingUserId = userData.auth0Id;
+      const response = await confirmSupplierPickup(resourceUserId, { scannedVolunteerId: scannedVolunteerId }, requestingUserId);
+      
+      setConfirmationResult({ 
+        success: response.success, // Use success field from response
+        message: response.message || (response.success ? 'Pickup confirmed via QR Scan!' : 'Failed to confirm QR Scan.') 
+      });
+
+      // Trigger refresh if needed
+      if (response.success && response.modifiedCount > 0) {
+        setRefreshTrigger(prev => prev + 1);
+      }
+
+    } catch (error) {
+      console.error("Pickup confirmation error (QR Scan):", error);
+      setConfirmationResult({ success: false, message: error.message || 'Failed to confirm pickup via QR scan.' });
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
+  // --- QR Code Scan Failure Handler ---
   const onScanFailure = (error) => {
-    // console.warn(`Code scan error = ${error}`);
+    // console.warn(`QR Code scan error = ${error}`);
+    // Can add feedback here if needed, e.g., setConfirmationResult({success: false, message: `Scan Error: ${error}`})
   };
 
   // --- Fetch Overview Data (Remove isAdminView check) --- START
@@ -306,6 +367,7 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
   }, [userData, submitSuccess, refreshTrigger]); // Remove isAdminView dependency
   // --- Fetch Supplier's Listed Items --- END
 
+<<<<<<< HEAD
   // Effect to setup scanner (keep as is, just ensure element ID matches)
   useEffect(() => {
     if (showScanner) {
@@ -359,6 +421,11 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
 
   // Change handleFetchReceipt to a separate function 
   const fetchReceiptData = async () => {
+=======
+  // --- Function to Fetch Receipt --- START
+  const handleFetchReceipt = async () => {
+    // Determine whose receipt to fetch
+>>>>>>> b6d349b23939291b2961cb2a264f030cd968ba70
     const resourceUserId = previewTargetUserId || userData?.auth0Id;
     const requestingUserId = userData?.auth0Id;
 
@@ -879,44 +946,159 @@ The more details you provide, the easier it will be for volunteers to process yo
   );
 
   const renderConfirmPickup = () => (
-    <div className="verify-section"> {/* Keep class name or rename if desired */} 
+    <div className="verify-section card-style"> 
       <h3>Confirm Donation Pickup</h3>
-      <p>Scan the QR code presented by the volunteer/driver to confirm they have picked up your available donations. This will mark the items as 'completed'.</p>
+      {/* Update instruction text */}
+      <p>Enter the 8-digit code OR scan the QR code provided by the volunteer/driver to confirm pickup.</p>
 
-             {!showScanner && (
+      {/* Container for both methods */} 
+      <div className="confirmation-methods">
+          {/* Method 1: Code Input */} 
+          <div className="code-input-area confirmation-box">
+              <h4>Enter 8-Digit Code</h4>
+              <div className="code-input-form">
+                <div className="code-input-group">
+                  <input 
+                    type="text" 
+                    className="code-input large" 
+                    value={enteredCode}
+                    onChange={(e) => setEnteredCode(e.target.value.replace(/[^0-9]/g, ''))}
+                    maxLength={8}
+                    placeholder="8-Digit Code"
+                    disabled={isConfirming}
+                    aria-label="Volunteer confirmation code"
+                  />
+                  <button 
+                    className="primary-btn verify-button"
+                    onClick={handleConfirmCode} 
+                    disabled={isConfirming || enteredCode.length !== 8}
+                  >
+                    {isConfirming ? 'Confirming...' : 'Confirm Code'}
+                  </button>
+                </div>
+              </div>
+          </div>
+
+          {/* Separator */} 
+          <div className="confirmation-separator">OR</div>
+
+          {/* Method 2: QR Scanner */} 
+          <div className="scanner-area confirmation-box">
+              <h4>Scan QR Code</h4>
+              {!showScanner && (
+                  <button 
+                    className="primary-btn scan-button large" 
+                    onClick={() => {
+                      setShowScanner(true); 
+                      setEnteredCode(''); // Clear code input when starting scan
+                      setConfirmationResult(null); // Clear previous result
+                    }}
+                    disabled={isConfirming}
+                  >
+                    <i className="fas fa-camera"></i> Start Camera Scan
+                  </button>
+              )}
+              {showScanner && (
+                  <div className="scanner-active-container">
+                      <div id="qr-reader-supplier" style={{ width: '100%', maxWidth: '400px', margin: '1rem auto' }}></div> 
+                      <button className="secondary-btn cancel-scan-btn" onClick={() => setShowScanner(false)} disabled={isConfirming}>
+                          Cancel Scan
+                      </button>
+                  </div>
+              )}
+          </div>
+      </div>
+
+      {/* Keep confirmation result display - make it common */} 
+      <div className="confirmation-result-area">
+          {isConfirming && <p style={{marginTop: '1rem', textAlign: 'center'}}>Confirming pickup...</p>} 
+          {confirmationResult && (
+            <div 
+              className={`confirmation-result ${confirmationResult.success ? 'success-message' : 'error-message'}`} 
+              style={{marginTop: '1.5rem'}} // Add more margin
+            >
+              {confirmationResult.success ? '✅ ' : '❌ '}
+              {confirmationResult.message}
+              {!confirmationResult.success && (
                 <button 
-          className="primary-btn" 
-          onClick={() => {
-            setShowScanner(true); 
-            setConfirmationResult(null); // Clear previous result when showing scanner
-          }}
-          disabled={isConfirming}
-        >
-          Start Camera Scan
+                  onClick={() => {
+                      setConfirmationResult(null);
+                      setShowScanner(false); // Ensure scanner is off
+                      setEnteredCode(''); // Clear code
+                  }} 
+                  className="secondary-btn try-again-btn" 
+                  style={{marginLeft: '1rem'}}
+                >
+                  Try Again
                 </button>
-             )}
+              )}
+            </div>
+          )}
+      </div>
 
-      {showScanner && (
-        <> 
-          {/* Ensure this div ID matches the one used in useEffect */}
-          <div id="qr-reader-supplier" style={{ width: '100%', maxWidth: '500px', margin: '1rem auto' }}></div> 
-          <button className="secondary-btn" onClick={() => setShowScanner(false)}>Cancel Scan</button>
-        </>
-      )}
-
-      {isConfirming && <p style={{marginTop: '1rem'}}>Confirming pickup...</p>}
-
-      {confirmationResult && (
-        <div 
-          className={confirmationResult.success ? 'success-message' : 'error-message'}
-          style={{marginTop: '1rem'}}
-        >
-          {confirmationResult.success ? '✅ ' : '❌ '}
-          {confirmationResult.message}
-        </div>
-      )}
     </div>
   );
+
+  // --- Re-add Effect to setup scanner ---
+  useEffect(() => {
+    if (showScanner) {
+      // Ensure the container is visible before creating scanner
+      const qrReaderElement = document.getElementById("qr-reader-supplier");
+      if(qrReaderElement) qrReaderElement.style.display = 'block';
+
+      // Prevent duplicate scanners
+      if (!scannerRef.current) {
+          try {
+            scannerRef.current = new Html5QrcodeScanner(
+              "qr-reader-supplier",
+              {
+                 fps: 10, 
+                 qrbox: (viewfinderWidth, viewfinderHeight) => { // Responsive qrbox
+                      const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                      const qrboxSize = Math.max(200, Math.floor(minEdge * 0.7)); // Min 200px, 70% of smallest edge
+                      return { width: qrboxSize, height: qrboxSize };
+                  },
+                 supportedScanTypes: [0] // 0 for camera
+              }, 
+              /* verbose= */ false
+            );
+            scannerRef.current.render(onScanSuccess, onScanFailure);
+          } catch (error) {
+              console.error("Failed to initialize Html5QrcodeScanner:", error);
+              setConfirmationResult({ success: false, message: "Failed to initialize QR scanner." });
+              setShowScanner(false); // Hide scanner UI if init fails
+          }
+      }
+    } else {
+        // Cleanup scanner instance if it exists and we are hiding it
+        if (scannerRef.current && typeof scannerRef.current.getState === 'function' && scannerRef.current.getState() === 2) { // Check if scanner is running (state 2)
+          scannerRef.current.clear().then(() => {
+             console.log("QR Scanner cleared successfully.");
+             scannerRef.current = null; // Ensure ref is cleared after stopping
+          }).catch(error => {
+             // Ignore "NotRunning" error, log others
+             if (String(error).includes('HTML Element with id=')) {
+                 console.warn("Scanner already removed from DOM?");
+             } else if (error.name !== 'NotRunning') { 
+                console.error("Failed to clear html5QrcodeScanner:", error);
+             }
+             scannerRef.current = null; // Still clear ref on error
+           });
+        } else {
+            // If scanner wasn't running or ref is already null, just ensure ref is null
+             scannerRef.current = null;
+        }
+    }
+
+    // General cleanup on component unmount
+    return () => {
+      if (scannerRef.current && typeof scannerRef.current.clear === 'function') {
+         scannerRef.current.clear().catch(error => { /* ignore */ });
+         scannerRef.current = null;
+      }
+    };
+  // Add dependencies based on handlers used inside
+  }, [showScanner, userData, previewTargetUserId]); 
 
   return (
     <div className="dashboard-container">
