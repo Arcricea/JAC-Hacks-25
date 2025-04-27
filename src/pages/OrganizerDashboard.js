@@ -24,6 +24,15 @@ const OrganizerDashboard = () => {
   });
   const [addDonationError, setAddDonationError] = useState('');
 
+  // State for adding new food bank requests
+  const [showAddRequestForm, setShowAddRequestForm] = useState(false);
+  const [newRequestData, setNewRequestData] = useState({
+    targetFoodBankId: '', // Store the auth0Id of the selected food bank
+    priorityLevel: 3,    // Default priority
+    customMessage: '',
+  });
+  const [addRequestError, setAddRequestError] = useState('');
+
   // Priority level descriptions (similar to FoodBankDashboard)
   const priorityLevels = [
     { level: 1, label: 'Do not need', color: '#4CAF50' },
@@ -132,6 +141,55 @@ const OrganizerDashboard = () => {
     } catch (err) {
       console.error("Error deleting food bank:", err);
       setError(err.message || 'An error occurred while deleting the food bank.');
+    }
+  };
+
+  const handleResetFoodBankRequests = async (foodBankUserId) => {
+    // Optional: Add confirmation dialog
+    if (!window.confirm('Are you sure you want to RESET all requests/needs for this food bank? Existing needs will be cleared.')) {
+      return;
+    }
+    try {
+      // TODO: Implement the backend endpoint for this
+      const response = await fetch(`http://localhost:5000/api/users/reset-requests/${foodBankUserId}`, {
+        method: 'PUT', // Or POST, depending on backend implementation
+        // No body needed usually for this reset
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        console.log('Food bank requests reset successfully');
+        // Refresh data by potentially updating the food bank state
+        // For now, just refetch all data to be safe
+        // TODO: Optimize this later if needed by updating state directly
+        const fetchData = async () => {
+          setIsLoading(true);
+          setError('');
+          try {
+            const response = await fetch('http://localhost:5000/api/organizer/dashboard');
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            if (result.success) {
+              setFoodBanks(result.data.foodBanks || []);
+              setDonations(result.data.donations || { available: [], scheduled: [], completed: [] });
+            } else {
+              throw new Error(result.message || 'Failed to fetch data');
+            }
+          } catch (err) {
+            console.error("Error refetching data after reset:", err);
+            setError(err.message || 'An error occurred while refreshing data.');
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        fetchData();
+      } else {
+        throw new Error(result.message || 'Failed to reset food bank requests');
+      }
+    } catch (err) {
+      console.error("Error resetting food bank requests:", err);
+      setError(err.message || 'An error occurred while resetting requests.');
     }
   };
 
@@ -278,6 +336,55 @@ const OrganizerDashboard = () => {
     ));
   };
 
+  const handleAddNewRequest = async (e) => {
+    e.preventDefault();
+    setAddRequestError('');
+
+    if (!newRequestData.targetFoodBankId) {
+      setAddRequestError('Please select a food bank.');
+      return;
+    }
+
+    try {
+      const { targetFoodBankId, priorityLevel, customMessage } = newRequestData;
+
+      const response = await fetch(`http://localhost:5000/api/users/set-need/${targetFoodBankId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priorityLevel, customMessage }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        console.log('Food bank request (status) added/updated successfully');
+        // Update the specific food bank in the main list
+        setFoodBanks(prev => prev.map(fb => 
+          fb.auth0Id === targetFoodBankId ? { ...fb, needStatus: result.data.needStatus } : fb
+        ));
+        setShowAddRequestForm(false); // Hide form
+        setNewRequestData({ // Reset form
+          targetFoodBankId: '',
+          priorityLevel: 3,
+          customMessage: '',
+        });
+      } else {
+        throw new Error(result.message || 'Failed to add/update request');
+      }
+    } catch (err) {
+      console.error("Error adding/updating request:", err);
+      setAddRequestError(err.message || 'An error occurred while processing the request.');
+    }
+  };
+
+  const handleNewRequestChange = (e) => {
+    const { name, value } = e.target;
+    setNewRequestData(prev => ({
+      ...prev,
+      [name]: name === 'priorityLevel' ? parseInt(value, 10) : value,
+    }));
+  };
+
   // --- Render Functions --- //
 
   const renderDonationTable = (donationList) => {
@@ -348,6 +455,16 @@ const OrganizerDashboard = () => {
       
       <section className="organizer-section">
         <h2>Food Bank Needs Overview</h2>
+        {/* Add Request Button */} 
+        <div style={{ marginBottom: '15px' }}> {/* Add some spacing */} 
+          <button 
+            onClick={() => { setShowAddRequestForm(true); setAddRequestError(''); }} 
+            className="action-button add-button"
+          >
+            + Add Food Bank Request
+          </button>
+        </div>
+
         {foodBanks.length === 0 ? (
           <p>No food banks found.</p>
         ) : (
@@ -423,6 +540,13 @@ const OrganizerDashboard = () => {
                           <>
                             <button onClick={() => handleEditClick(fb)} className="action-button edit-button">Edit Status</button>
                             <button 
+                              onClick={() => handleResetFoodBankRequests(fb.auth0Id)}
+                              className="action-button reset-button"
+                              title="Reset all need requests for this food bank"
+                            >
+                              Reset Requests
+                            </button>
+                            <button 
                               onClick={() => handleDeleteFoodBank(fb.auth0Id)} 
                               className="action-button delete-button"
                               title="Delete this food bank account"
@@ -440,6 +564,52 @@ const OrganizerDashboard = () => {
           </>
         )}
       </section>
+
+      {/* Add Request Modal */} 
+      {showAddRequestForm && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <form onSubmit={handleAddNewRequest} className="modal-form">
+              <h3>Add Food Bank Request</h3>
+              <button type="button" className="modal-close-button" onClick={() => setShowAddRequestForm(false)}>&times;</button>
+              {addRequestError && <p className="error-message">{addRequestError}</p>}
+
+              <div className="form-group">
+                <label>Select Food Bank*</label>
+                <select name="targetFoodBankId" value={newRequestData.targetFoodBankId} onChange={handleNewRequestChange} required>
+                  <option value="" disabled>-- Select a Food Bank --</option>
+                  {foodBanks.map(fb => (
+                    <option key={fb.auth0Id} value={fb.auth0Id}>
+                      {fb.username || fb.businessName || fb.auth0Id} 
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Priority Level*</label>
+                  <select name="priorityLevel" value={newRequestData.priorityLevel} onChange={handleNewRequestChange} required>
+                    {priorityLevels.map(p => (
+                      <option key={p.level} value={p.level}>{p.level} - {p.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              
+              <div className="form-group">
+                <label>Request Details / Status Message*</label>
+                <textarea name="customMessage" value={newRequestData.customMessage} onChange={handleNewRequestChange} required></textarea>
+              </div>
+
+              <div className="form-actions">
+                <button type="submit" className="action-button save-button">Set Request/Status</button>
+                <button type="button" onClick={() => setShowAddRequestForm(false)} className="action-button cancel-button">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <section className="organizer-section">
         <h2>Donation Overview</h2>
@@ -464,24 +634,33 @@ const OrganizerDashboard = () => {
           </button>
         </div>
         
+        {/* Add Donation Button */} 
+        <div style={{ marginBottom: '15px' }}> 
+          <button 
+            onClick={() => { setShowAddDonationForm(true); setAddDonationError(''); }}
+            className="action-button add-button"
+          >
+            + Add New Donation
+          </button>
+        </div>
+
         <div className="donation-tab-content">
           {activeDonationTab === 'available' && renderDonationTable(donations.available)}
           {activeDonationTab === 'scheduled' && renderDonationTable(donations.scheduled)}
           {activeDonationTab === 'completed' && renderDonationTable(donations.completed)}
         </div>
+      </section>
 
-        {/* Add New Donation Section */} 
-        <div className="add-donation-section">
-          {!showAddDonationForm ? (
-            <button onClick={() => { setShowAddDonationForm(true); setAddDonationError(''); }} className="action-button add-button">
-              + Add New Donation
-            </button>
-          ) : (
-            <form onSubmit={handleAddNewDonation} className="inline-add-form">
+      {/* Add Donation Modal */} 
+      {showAddDonationForm && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <form onSubmit={handleAddNewDonation} className="modal-form">
               <h3>Add New Donation</h3>
+              <button type="button" className="modal-close-button" onClick={() => setShowAddDonationForm(false)}>&times;</button>
               {addDonationError && <p className="error-message">{addDonationError}</p>}
               
-              {/* Basic Form Fields - Reuse styles from other forms if available */}
+              {/* Form content remains the same */} 
               <div className="form-row">
                 <div className="form-group">
                   <label>Item Name*</label>
@@ -497,7 +676,6 @@ const OrganizerDashboard = () => {
                 <div className="form-group">
                   <label>Category*</label>
                   <select name="category" value={newDonationData.category} onChange={handleNewDonationChange} required>
-                    {/* TODO: Get categories from a shared config or Donation model */}
                     <option value="produce">Produce</option>
                     <option value="bakery">Bakery</option>
                     <option value="dairy">Dairy</option>
@@ -525,9 +703,9 @@ const OrganizerDashboard = () => {
                 <button type="button" onClick={() => setShowAddDonationForm(false)} className="action-button cancel-button">Cancel</button>
               </div>
             </form>
-          )}
+          </div>
         </div>
-      </section>
+      )}
     </div>
   );
 };
