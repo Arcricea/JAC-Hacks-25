@@ -425,7 +425,7 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
         <div className="form-group">
           <label htmlFor="quantity">Quantity *</label>
           <input
-            type="number"
+            type="text"
             id="quantity"
             name="quantity"
             value={formData.quantity}

@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import "../assets/styles/Landing.css";
+import AuthSignupButton from "../components/auth/AuthSignupButton";
 
 const Landing = () => {
   return (
@@ -17,9 +18,9 @@ const Landing = () => {
             inventory and food banks and individuals in need of assistance.
           </p>
           <div className="hero-buttons">
-            <Link to="/signup" className="primary-btn">
+            <AuthSignupButton className="primary-btn">
               Get Started
-            </Link>
+            </AuthSignupButton>
             <Link to="/how-it-works" className="secondary-btn">
               Learn More
             </Link>
@@ -73,9 +74,9 @@ const Landing = () => {
               Restaurants, grocery stores, and food manufacturers can easily
               donate excess food
             </p>
-            <Link to="/signup?type=supplier" className="user-type-link">
+            <AuthSignupButton className="user-type-link" returnTo="/dashboard">
               Join as Supplier →
-            </Link>
+            </AuthSignupButton>
           </div>
           <div className="user-type">
             <h3>Food Banks</h3>
@@ -83,9 +84,9 @@ const Landing = () => {
               Shelters and food banks can find and collect available donations
               efficiently
             </p>
-            <Link to="/signup?type=foodbank" className="user-type-link">
+            <AuthSignupButton className="user-type-link" returnTo="/dashboard">
               Join as Food Bank →
-            </Link>
+            </AuthSignupButton>
           </div>
           <div className="user-type">
             <h3>Individuals</h3>
@@ -93,9 +94,9 @@ const Landing = () => {
               People in need can find available food assistance programs and
               resources
             </p>
-            <Link to="/signup?type=individual" className="user-type-link">
+            <AuthSignupButton className="user-type-link" returnTo="/dashboard">
               Join as Individual →
-            </Link>
+            </AuthSignupButton>
           </div>
         </div>
       </section>
@@ -161,9 +162,9 @@ const Landing = () => {
         <p>
           Be part of the solution to food waste and hunger in your community.
         </p>
-        <Link to="/signup" className="cta-button">
+        <AuthSignupButton className="cta-button">
           Get Started
-        </Link>
+        </AuthSignupButton>
       </section>
     </div>
   );
