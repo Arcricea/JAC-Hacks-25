@@ -21,10 +21,14 @@ const isOrganizer = async (req, res, next) => {
       });
     }
 
-    if (requestingUser.accountType !== 'organizer') {
+    // Log the account type for debugging
+    console.log(`[Auth Middleware] Checking account type: ${requestingUser.accountType}`);
+
+    // Allow organizers and distributors based on schema
+    if (requestingUser.accountType !== 'organizer' && requestingUser.accountType !== 'distributor') {
       return res.status(403).json({ 
         success: false, 
-        message: 'Forbidden: Action requires organizer privileges.' 
+        message: 'Forbidden: Action requires organizer or distributor privileges.' 
       });
     }
 
