@@ -8,7 +8,9 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
   const { userData } = useContext(UserContext);
   const [activeTab, setActiveTab] = useState('overview');
   const [formData, setFormData] = useState({
-    itemNames: '',
+    itemName: '',
+    category: 'produce',
+    quantity: '1',
     expirationDate: '',
     pickupInfo: '',
     imageUrl: ''
@@ -60,7 +62,9 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
 
   const validateForm = () => {
     const errors = {};
-    if (!formData.itemNames.trim()) errors.itemNames = 'Item list is required';
+    if (!formData.itemName.trim()) errors.itemName = 'Item name is required';
+    if (!formData.category) errors.category = 'Category is required';
+    if (!formData.quantity) errors.quantity = 'Quantity is required';
     if (!formData.expirationDate) errors.expirationDate = 'Expiration date is required';
     if (!formData.pickupInfo.trim()) errors.pickupInfo = 'Pickup information is required';
     
@@ -93,7 +97,9 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
       if (response.success) {
         setSubmitSuccess(true);
         setFormData({
-          itemNames: '',
+          itemName: '',
+          category: 'produce',
+          quantity: '1',
           expirationDate: '',
           pickupInfo: '',
           imageUrl: ''
@@ -386,17 +392,47 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
       {submitSuccess && <div className="success-message">Donation listed successfully!</div>}
       <form onSubmit={handleSubmit} className="donate-form">
         <div className="form-group">
-          <label htmlFor="itemNames">Food Items (One per line)*</label>
-          <textarea
-            id="itemNames"
-            name="itemNames"
-            value={formData.itemNames}
+          <label htmlFor="itemName">Food Item *</label>
+          <input
+            id="itemName"
+            name="itemName"
+            value={formData.itemName}
             onChange={handleInputChange}
-            rows="4"
-            placeholder="e.g.\nApples\nBananas\nLoaf of Bread"
             required
           />
-          {formErrors.itemNames && <span className="error-text">{formErrors.itemNames}</span>}
+          {formErrors.itemName && <span className="error-text">{formErrors.itemName}</span>}
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="category">Category *</label>
+          <select
+            id="category"
+            name="category"
+            value={formData.category}
+            onChange={handleInputChange}
+            required
+          >
+            <option value="produce">Produce</option>
+            <option value="dairy">Dairy</option>
+            <option value="bakery">Bakery</option>
+            <option value="meat">Meat</option>
+            <option value="frozen">Frozen</option>
+            <option value="other">Other</option>
+          </select>
+          {formErrors.category && <span className="error-text">{formErrors.category}</span>}
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="quantity">Quantity *</label>
+          <input
+            type="number"
+            id="quantity"
+            name="quantity"
+            value={formData.quantity}
+            onChange={handleInputChange}
+            required
+          />
+          {formErrors.quantity && <span className="error-text">{formErrors.quantity}</span>}
         </div>
 
         <div className="form-group">

@@ -21,6 +21,9 @@ const VolunteerDashboard = () => {
   const [error, setError] = useState(null);
   const [statsError, setStatsError] = useState(null); // Separate error state for stats
   const [availableTasks, setAvailableTasks] = useState([]);
+  const [filteredTasks, setFilteredTasks] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -76,6 +79,27 @@ const VolunteerDashboard = () => {
     }
   }, []);
 
+  // Apply filters whenever availableTasks, searchTerm, or selectedCategory changes
+  useEffect(() => {
+    let filtered = [...availableTasks];
+    
+    // Apply category filter
+    if (selectedCategory) {
+      filtered = filtered.filter(task => task.category.toLowerCase() === selectedCategory.toLowerCase());
+    }
+    
+    // Apply search filter if implemented
+    if (searchTerm) {
+      filtered = filtered.filter(task => 
+        task.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (task.businessName && task.businessName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (task.pickupInfo && task.pickupInfo.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+    
+    setFilteredTasks(filtered);
+  }, [availableTasks, selectedCategory, searchTerm]);
+
   const fetchAvailableTasks = async () => {
     setIsLoading(true);
     setError(null);
@@ -83,6 +107,7 @@ const VolunteerDashboard = () => {
       const response = await getAvailableDonations();
       if (response.success) {
         setAvailableTasks(response.data);
+        setFilteredTasks(response.data);
       } else {
         setError(response.message || 'Failed to load available tasks.');
       }
@@ -253,6 +278,59 @@ const VolunteerDashboard = () => {
     }
   };
 
+  // Sort function for tasks - update to include awaiting_actions priority
+  const sortTasks = (a, b) => {
+    // Show "picked_up" (awaiting actions) items first
+    if (a.status === 'picked_up' && b.status !== 'picked_up') return -1;
+    if (a.status !== 'picked_up' && b.status === 'picked_up') return 1;
+    // Then sort by creation date (newest first)
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  };
+
+  // New function to handle the state transition from scheduled to awaiting_actions
+  const handleMoveToAwaitingActions = async (donationId) => {
+    if (!userData?.auth0Id) {
+      setError('Please log in to update this donation');
+      return;
+    }
+
+    setIsPickingUp(true);
+    setError(null);
+
+    try {
+      // Find the donation in the scheduled list
+      const donation = scheduledDonations.find(d => d._id === donationId);
+      
+      if (!donation) {
+        throw new Error('Donation not found in your scheduled pickups');
+      }
+      
+      if (donation.status === 'scheduled') {
+        // Mark as picked up - the backend still uses this terminology
+        const response = await markDonationPickedUp(donationId, userData.auth0Id);
+        
+        if (response.success) {
+          // Update the local state
+          const updatedDonations = scheduledDonations.map(d => 
+            d._id === donationId ? { ...d, status: 'picked_up' } : d
+          );
+          setScheduledDonations(updatedDonations);
+          
+          alert('Donation moved to awaiting actions');
+        } else {
+          throw new Error(response.message || 'Failed to update donation');
+        }
+      } else {
+        throw new Error(`Cannot update donation with status: ${donation.status}`);
+      }
+    } catch (err) {
+      console.error('Error updating donation status:', err);
+      setError(err.message || 'Failed to update donation. Please try again.');
+    } finally {
+      setIsPickingUp(false);
+    }
+  };
+
   const handleScanQRCode = async (donationId) => {
     if (!userData?.auth0Id) {
       setError('Please log in to scan the QR code');
@@ -363,6 +441,14 @@ const VolunteerDashboard = () => {
     }
   };
 
+  const handleCategoryChange = (e) => {
+    setSelectedCategory(e.target.value);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
   return (
     <div className="dashboard-container">
       <h2>Volunteer Dashboard</h2>
@@ -435,13 +521,7 @@ const VolunteerDashboard = () => {
               scheduledDonations.length > 0 ? (
                 <div className="task-list">
                   {[...scheduledDonations]
-                    .sort((a, b) => {
-                      // Show "picked_up" (on its way) items first
-                      if (a.status === 'picked_up' && b.status !== 'picked_up') return -1;
-                      if (a.status !== 'picked_up' && b.status === 'picked_up') return 1;
-                      // Then sort by creation date (newest first)
-                      return new Date(b.createdAt) - new Date(a.createdAt);
-                    })
+                    .sort(sortTasks)
                     .map(task => (
                       <div 
                         key={task._id} 
@@ -450,7 +530,7 @@ const VolunteerDashboard = () => {
                         <div className="task-card-header">
                           <h4>{task.itemName} ({task.quantity})</h4>
                           <span className={`status-badge ${task.status}`}>
-                            {task.status === 'picked_up' ? 'On Its Way' : task.status}
+                            {task.status === 'picked_up' ? 'Awaiting Actions' : task.status}
                           </span>
                         </div>
                         
@@ -469,13 +549,6 @@ const VolunteerDashboard = () => {
                             {task.status === 'scheduled' && (
                               <>
                                 <button 
-                                  className="scan-qr-btn"
-                                  onClick={() => handleScanQRCode(task._id)}
-                                  disabled={isPickingUp}
-                                >
-                                  {isPickingUp ? 'Processing...' : 'Scan QR & Pickup'}
-                                </button>
-                                <button 
                                   className="cancel-pickup-btn"
                                   onClick={() => handleCancelTask(task._id)}
                                   disabled={isCancelling}
@@ -486,11 +559,14 @@ const VolunteerDashboard = () => {
                             )}
                             {task.status === 'picked_up' && (
                               <button 
-                                className="delivery-btn"
-                                onClick={() => handleDirectMarkAsDelivered(task)}
+                                className="food-bank-btn"
+                                onClick={() => {
+                                  setSelectedPickup(task);
+                                  setIsFoodBankModalOpen(true);
+                                }}
                                 disabled={isPickingUp}
                               >
-                                {isPickingUp ? 'Processing...' : 'Mark as Delivered'}
+                                Choose Food Bank
                               </button>
                             )}
                           </div>
@@ -529,15 +605,30 @@ const VolunteerDashboard = () => {
                     type="text" 
                     placeholder="Search pickups..."
                     className="task-search"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
                   />
-                  <select className="task-filter">
+                  <select 
+                    className="task-filter" 
+                    value={selectedCategory}
+                    onChange={handleCategoryChange}
+                  >
                     <option value="">All Categories</option>
+                    <option value="produce">Produce</option>
+                    <option value="bakery">Bakery</option>
+                    <option value="dairy">Dairy</option>
+                    <option value="meat">Meat</option>
+                    <option value="canned">Canned Goods</option>
+                    <option value="dry">Dry Goods</option>
+                    <option value="frozen">Frozen</option>
+                    <option value="prepared">Prepared Meals</option>
+                    <option value="other">Other</option>
                   </select>
                 </div>
 
-                {availableTasks.length > 0 ? (
+                {filteredTasks.length > 0 ? (
                   <div className="task-list">
-                    {availableTasks.map(task => (
+                    {filteredTasks.map(task => (
                       <div 
                         key={task._id} 
                         className={`task-card ${task.status === 'picked_up' ? 'task-in-progress' : ''}`}
@@ -597,7 +688,7 @@ const VolunteerDashboard = () => {
                   </div>
                 ) : (
                   <div className="no-tasks-message">
-                    <p>No available pickups at the moment.</p>
+                    <p>No available pickups {selectedCategory ? `in ${selectedCategory} category` : ''} at the moment.</p>
                     <p>Check back later for new opportunities!</p>
                   </div>
                 )}
