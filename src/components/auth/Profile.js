@@ -150,12 +150,12 @@ const Profile = () => {
       localStorage.setItem(`user_nickname_${user.sub}`, nickname);
       
       if (userData) {
-        // Update in database
+        // Update in database - pass auth0Id as the second parameter
         await saveUser({
           auth0Id: user.sub,
           username: nickname,
           accountType: userData.accountType || 'individual'
-        });
+        }, user.sub); // Pass the user's Auth0 ID as requestingUserId
         
         // Update the global userData state
         setUserData(prev => ({
@@ -172,6 +172,7 @@ const Profile = () => {
       setIsEditingUsername(false);
     } catch (err) {
       setError("Failed to update username. Please try again.");
+      console.error("Error updating username:", err);
     } finally {
       setIsSaving(false);
     }

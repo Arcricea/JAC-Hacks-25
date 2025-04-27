@@ -497,7 +497,7 @@ const VolunteerDashboard = () => {
         {activeTab === 'qrcode' && (
           <div className="qr-code-section card-style volunteer-id-card">
             <h3><i className="fas fa-qrcode"></i> Your Volunteer Code</h3>
-            <p>Ask the location to scan this QR code. It updates automatically.</p>
+            <p>Ask the location to scan this QR code.</p>
             
             <div className="verification-details-container single-qr-display">
               {qrCodeValue === 'loading' && <p>Loading QR Code...</p>}
