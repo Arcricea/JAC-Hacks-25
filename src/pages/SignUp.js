@@ -51,6 +51,12 @@ const SignUp = () => {
           >
             Food Bank
           </button>
+          <button 
+            className={userType === 'volunteer' ? 'active' : ''}
+            onClick={() => setUserType('volunteer')}
+          >
+            Volunteer
+          </button>
         </div>
         
         <form onSubmit={handleSubmit}>
@@ -104,7 +110,7 @@ const SignUp = () => {
           </div>
           
           {/* User Type Specific Fields */}
-          {userType === 'individual' && (
+          {(userType === 'individual' || userType === 'volunteer') && (
             <div className="form-group">
               <label htmlFor="name">Full Name</label>
               <input 

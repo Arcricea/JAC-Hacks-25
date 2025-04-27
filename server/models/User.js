@@ -16,8 +16,13 @@ const userSchema = new mongoose.Schema({
   accountType: {
     type: String,
     required: true,
-    enum: ['individual', 'business', 'distributor'],
+    enum: ['individual', 'business', 'distributor', 'volunteer'],
     default: 'individual'
+  },
+  volunteerToken: {
+    type: String,
+    unique: true,
+    sparse: true // Allows multiple nulls, but token must be unique if present
   },
   createdAt: {
     type: Date,
