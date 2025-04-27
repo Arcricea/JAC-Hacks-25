@@ -164,7 +164,6 @@ const PickupDetailsModal = ({ isOpen, onClose, pickup, onAccept, onCancel }) => 
               <p className="pickup-category"><span>Category:</span> {pickup.category}</p>
               
               <div className="pickup-dates">
-                <p><span>Expiration Date:</span> {formatDate(pickup.expirationDate)}</p>
                 <p><span>Listed Date:</span> {formatDate(pickup.createdAt)}</p>
               </div>
               

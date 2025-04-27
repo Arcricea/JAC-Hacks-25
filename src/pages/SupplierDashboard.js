@@ -367,7 +367,6 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
   }, [userData, submitSuccess, refreshTrigger]); // Remove isAdminView dependency
   // --- Fetch Supplier's Listed Items --- END
 
-<<<<<<< HEAD
   // Effect to setup scanner (keep as is, just ensure element ID matches)
   useEffect(() => {
     if (showScanner) {
@@ -421,11 +420,6 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
 
   // Change handleFetchReceipt to a separate function 
   const fetchReceiptData = async () => {
-=======
-  // --- Function to Fetch Receipt --- START
-  const handleFetchReceipt = async () => {
-    // Determine whose receipt to fetch
->>>>>>> b6d349b23939291b2961cb2a264f030cd968ba70
     const resourceUserId = previewTargetUserId || userData?.auth0Id;
     const requestingUserId = userData?.auth0Id;
 
@@ -946,96 +940,331 @@ The more details you provide, the easier it will be for volunteers to process yo
   );
 
   const renderConfirmPickup = () => (
-    <div className="verify-section card-style"> 
-      <h3>Confirm Donation Pickup</h3>
-      {/* Update instruction text */}
-      <p>Enter the 8-digit code OR scan the QR code provided by the volunteer/driver to confirm pickup.</p>
-
-      {/* Container for both methods */} 
-      <div className="confirmation-methods">
-          {/* Method 1: Code Input */} 
-          <div className="code-input-area confirmation-box">
-              <h4>Enter 8-Digit Code</h4>
-              <div className="code-input-form">
-                <div className="code-input-group">
-                  <input 
-                    type="text" 
-                    className="code-input large" 
-                    value={enteredCode}
-                    onChange={(e) => setEnteredCode(e.target.value.replace(/[^0-9]/g, ''))}
-                    maxLength={8}
-                    placeholder="8-Digit Code"
-                    disabled={isConfirming}
-                    aria-label="Volunteer confirmation code"
-                  />
-                  <button 
-                    className="primary-btn verify-button"
-                    onClick={handleConfirmCode} 
-                    disabled={isConfirming || enteredCode.length !== 8}
-                  >
-                    {isConfirming ? 'Confirming...' : 'Confirm Code'}
-                  </button>
-                </div>
+    <div className="verify-section">
+      <div style={{
+        maxWidth: '900px',
+        margin: '0 auto',
+        background: 'white',
+        borderRadius: '16px',
+        boxShadow: '0 10px 30px rgba(0,0,0,0.08)',
+        overflow: 'hidden'
+      }}>
+        {/* Header Section */}
+        <div style={{
+          background: 'linear-gradient(135deg, #2e7d32, #388e3c)',
+          padding: '2rem',
+          color: 'white',
+          textAlign: 'center'
+        }}>
+          <h3 style={{
+            margin: 0,
+            fontSize: '1.8rem',
+            fontWeight: '600'
+          }}>Confirm Donation Pickup</h3>
+          <p style={{
+            margin: '1rem 0 0',
+            opacity: '0.9',
+            maxWidth: '700px',
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            lineHeight: '1.5'
+          }}>
+            Confirm that a volunteer has picked up your donations by scanning their QR code
+            or entering their 8-digit confirmation code.
+          </p>
+        </div>
+        
+        {/* Content Section */}
+        <div style={{ padding: '2.5rem' }}>
+          {/* Methods Container */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2rem',
+            maxWidth: '800px',
+            margin: '0 auto'
+          }}>
+            {/* Code Input Method */}
+            <div style={{
+              background: '#f9f9f9',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+            }}>
+              <h4 style={{
+                margin: '0 0 1rem',
+                color: '#333',
+                fontSize: '1.2rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <span style={{
+                  background: '#2e7d32',
+                  color: 'white',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '0.9rem'
+                }}>1</span>
+                Enter Confirmation Code
+              </h4>
+              
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                alignItems: 'center'
+              }}>
+                <input 
+                  type="text" 
+                  value={enteredCode}
+                  onChange={(e) => setEnteredCode(e.target.value.replace(/[^0-9]/g, ''))}
+                  maxLength={8}
+                  placeholder="8-Digit Code"
+                  disabled={isConfirming}
+                  aria-label="Volunteer confirmation code"
+                  style={{
+                    padding: '0.8rem 1rem',
+                    fontSize: '1.1rem',
+                    fontWeight: '500',
+                    border: '2px solid #e0e0e0',
+                    borderRadius: '8px',
+                    flexGrow: '1',
+                    minWidth: '200px',
+                    letterSpacing: '1px',
+                    transition: 'border-color 0.2s ease',
+                    ':focus': { borderColor: '#2e7d32' }
+                  }}
+                />
+                <button 
+                  onClick={handleConfirmCode} 
+                  disabled={isConfirming || enteredCode.length !== 8}
+                  style={{
+                    background: '#2e7d32',
+                    color: 'white',
+                    border: 'none',
+                    padding: '0.8rem 1.5rem',
+                    borderRadius: '8px',
+                    fontWeight: '500',
+                    fontSize: '1rem',
+                    cursor: isConfirming || enteredCode.length !== 8 ? 'not-allowed' : 'pointer',
+                    opacity: isConfirming || enteredCode.length !== 8 ? '0.7' : '1',
+                    transition: 'all 0.2s ease',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+                    minWidth: '150px'
+                  }}
+                >
+                  {isConfirming ? 'Confirming...' : 'Confirm Code'}
+                </button>
               </div>
-          </div>
-
-          {/* Separator */} 
-          <div className="confirmation-separator">OR</div>
-
-          {/* Method 2: QR Scanner */} 
-          <div className="scanner-area confirmation-box">
-              <h4>Scan QR Code</h4>
-              {!showScanner && (
+            </div>
+            
+            {/* Divider */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              color: '#888',
+              margin: '0 auto',
+              width: 'fit-content'
+            }}>
+              <div style={{ height: '1px', background: '#e0e0e0', width: '70px' }}></div>
+              <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>OR</span>
+              <div style={{ height: '1px', background: '#e0e0e0', width: '70px' }}></div>
+            </div>
+            
+            {/* QR Scanner Method */}
+            <div style={{
+              background: '#f9f9f9',
+              borderRadius: '12px',
+              padding: '1.5rem',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+            }}>
+              <h4 style={{
+                margin: '0 0 1rem',
+                color: '#333',
+                fontSize: '1.2rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <span style={{
+                  background: '#2e7d32',
+                  color: 'white',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '0.9rem'
+                }}>2</span>
+                Scan QR Code
+              </h4>
+              
+              {!showScanner ? (
+                <div style={{ textAlign: 'center', padding: '1.5rem 0' }}>
                   <button 
-                    className="primary-btn scan-button large" 
                     onClick={() => {
                       setShowScanner(true); 
-                      setEnteredCode(''); // Clear code input when starting scan
-                      setConfirmationResult(null); // Clear previous result
+                      setEnteredCode('');
+                      setConfirmationResult(null);
                     }}
                     disabled={isConfirming}
+                    style={{
+                      background: '#4caf50',
+                      color: 'white',
+                      border: 'none',
+                      padding: '1rem 2rem',
+                      borderRadius: '8px',
+                      fontWeight: '500',
+                      fontSize: '1rem',
+                      cursor: isConfirming ? 'not-allowed' : 'pointer',
+                      opacity: isConfirming ? '0.7' : '1',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}
                   >
-                    <i className="fas fa-camera"></i> Start Camera Scan
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                      <circle cx="12" cy="13" r="4"></circle>
+                    </svg>
+                    Start Camera Scan
                   </button>
+                </div>
+              ) : (
+                <div style={{
+                  padding: '1rem 0', 
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '1rem'
+                }}>
+                  <div id="qr-reader-supplier" style={{ 
+                    width: '100%', 
+                    maxWidth: '350px', 
+                    margin: '0 auto',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    boxShadow: '0 3px 10px rgba(0,0,0,0.1)'
+                  }}></div>
+                  
+                  <button 
+                    onClick={() => setShowScanner(false)}
+                    disabled={isConfirming}
+                    style={{
+                      background: 'transparent',
+                      color: '#666',
+                      border: '1px solid #ccc',
+                      padding: '0.6rem 1.2rem',
+                      borderRadius: '8px',
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    Cancel Scan
+                  </button>
+                </div>
               )}
-              {showScanner && (
-                  <div className="scanner-active-container">
-                      <div id="qr-reader-supplier" style={{ width: '100%', maxWidth: '400px', margin: '1rem auto' }}></div> 
-                      <button className="secondary-btn cancel-scan-btn" onClick={() => setShowScanner(false)} disabled={isConfirming}>
-                          Cancel Scan
-                      </button>
-                  </div>
-              )}
+            </div>
           </div>
-      </div>
-
-      {/* Keep confirmation result display - make it common */} 
-      <div className="confirmation-result-area">
-          {isConfirming && <p style={{marginTop: '1rem', textAlign: 'center'}}>Confirming pickup...</p>} 
-          {confirmationResult && (
-            <div 
-              className={`confirmation-result ${confirmationResult.success ? 'success-message' : 'error-message'}`} 
-              style={{marginTop: '1.5rem'}} // Add more margin
-            >
-              {confirmationResult.success ? '✅ ' : '❌ '}
-              {confirmationResult.message}
-              {!confirmationResult.success && (
-                <button 
-                  onClick={() => {
-                      setConfirmationResult(null);
-                      setShowScanner(false); // Ensure scanner is off
-                      setEnteredCode(''); // Clear code
-                  }} 
-                  className="secondary-btn try-again-btn" 
-                  style={{marginLeft: '1rem'}}
-                >
-                  Try Again
-                </button>
+          
+          {/* Result Display */}
+          {(isConfirming || confirmationResult) && (
+            <div style={{ 
+              marginTop: '2rem',
+              padding: '1.5rem',
+              borderRadius: '12px',
+              background: confirmationResult ? (confirmationResult.success ? '#e8f5e9' : '#ffebee') : '#f5f5f5',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.75rem'
+            }}>
+              {isConfirming && (
+                <>
+                  <div style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    border: '3px solid #f3f3f3',
+                    borderTop: '3px solid #2e7d32',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                  <span style={{ color: '#555', fontWeight: '500' }}>Confirming pickup...</span>
+                </>
+              )}
+              
+              {confirmationResult && (
+                <>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background: confirmationResult.success ? '#2e7d32' : '#e53935',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: '1.2rem',
+                    fontWeight: 'bold'
+                  }}>
+                    {confirmationResult.success ? '✓' : '!'}
+                  </div>
+                  
+                  <div style={{ flex: 1 }}>
+                    <div style={{ 
+                      fontWeight: '500', 
+                      color: confirmationResult.success ? '#2e7d32' : '#c62828',
+                      fontSize: '1.1rem'
+                    }}>
+                      {confirmationResult.success ? 'Success!' : 'Error'}
+                    </div>
+                    <div style={{ 
+                      color: confirmationResult.success ? '#3e7041' : '#d32f2f',
+                      marginTop: '0.25rem'
+                    }}>
+                      {confirmationResult.message}
+                    </div>
+                  </div>
+                  
+                  {!confirmationResult.success && (
+                    <button 
+                      onClick={() => {
+                        setConfirmationResult(null);
+                        setShowScanner(false);
+                        setEnteredCode('');
+                      }}
+                      style={{
+                        background: '#f5f5f5',
+                        border: '1px solid #ddd',
+                        borderRadius: '8px',
+                        padding: '0.5rem 1rem',
+                        fontSize: '0.9rem',
+                        cursor: 'pointer',
+                        color: '#555',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      Try Again
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}
+        </div>
       </div>
-
     </div>
   );
 

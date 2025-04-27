@@ -546,9 +546,39 @@ exports.getVolunteerScheduledDonations = async (req, res) => {
     })
     .sort({ createdAt: 1 }); // Or sort by expirationDate, etc.
 
+    // Get user info for each donation's donor
+    const userIds = [...new Set(scheduledDonations.map(d => d.userId))];
+    const donors = await User.find({ auth0Id: { $in: userIds } });
+    
+    // Create a map of user data
+    const donorMap = donors.reduce((map, user) => {
+      map[user.auth0Id] = {
+        businessName: user.businessName,
+        username: user.username,
+        address: user.address
+      };
+      return map;
+    }, {});
+    
+    // Add donor info to each donation
+    const donationsWithDonorInfo = scheduledDonations.map(donation => {
+      const donationObj = donation.toObject();
+      const donor = donorMap[donation.userId];
+      
+      if (donor) {
+        donationObj.businessName = donor.businessName || donor.username || 'Unknown';
+        // If businessAddress is not already set, use donor's address
+        if (!donationObj.businessAddress || donationObj.businessAddress === 'N/A') {
+          donationObj.businessAddress = donor.address;
+        }
+      }
+      
+      return donationObj;
+    });
+
     res.status(200).json({
       success: true,
-      data: scheduledDonations
+      data: donationsWithDonorInfo
     });
 
   } catch (error) {

@@ -572,17 +572,20 @@ const VolunteerDashboard = () => {
                         className={`task-card ${task.status === 'picked_up' ? 'task-in-progress' : ''}`}
                       >
                         <div className="task-card-header">
-                          <h4>{task.itemName} ({task.quantity})</h4>
+                          <h4>{task.businessName || 'Unknown Business'}</h4>
                           <span className={`status-badge ${task.status}`}>
                             {task.status === 'picked_up' ? 'Awaiting Actions' : task.status}
                           </span>
                         </div>
                         
                         <div className="task-card-body">
+                          <p><strong>Item:</strong> {task.itemName} {task.quantity ? `(${task.quantity})` : ''}</p>
                           <p><strong>Category:</strong> {task.category}</p>
-                          <p><strong>Expires:</strong> {formatDate(task.expirationDate)}</p>
-                          <p><strong>Address:</strong> {task.businessAddress || 'No address provided'}</p>
-                          <p><strong>Extra Information:</strong> {task.pickupInfo}</p>
+                          <p><strong>Address:</strong> {typeof task.businessAddress === 'object' ? 
+                            (task.businessAddress?.street ? 
+                              `${task.businessAddress.street}${task.businessAddress.city ? `, ${task.businessAddress.city}` : ''}${task.businessAddress.state ? `, ${task.businessAddress.state}` : ''}${task.businessAddress.postalCode ? ` ${task.businessAddress.postalCode}` : ''}` 
+                              : 'No address details') 
+                            : task.businessAddress || 'No address provided'}</p>
                           <div className="task-actions">
                             <button 
                               className="view-details-btn"
