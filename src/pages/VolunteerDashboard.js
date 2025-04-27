@@ -15,6 +15,30 @@ import {
 } from '../services/donationService';
 import { markDonationPickedUp, markDonationDelivered } from '../services/foodBankService';
 
+// Simple hash function (djb2) - you can replace this with a more robust one if needed
+const djb2Hash = (str) => {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 33) ^ str.charCodeAt(i);
+  }
+  return hash >>> 0; // Ensure positive integer
+};
+
+// Generate an 8-digit code based on a seed string (e.g., auth0Id)
+const generateVerificationCode = (seed) => {
+  if (!seed) return 'Error';
+  try {
+    const hash = djb2Hash(seed);
+    // Take the hash modulo 10^8 to get an 8-digit number
+    const code = hash % 100000000; 
+    // Pad with leading zeros if needed
+    return code.toString().padStart(8, '0'); 
+  } catch (err) {
+    console.error("Error generating verification code:", err);
+    return 'Error';
+  }
+};
+
 const VolunteerDashboard = () => {
   const { userData, setUserData } = useContext(UserContext);
   const [activeTab, setActiveTab] = useState('qrcode'); // Default tab
@@ -176,6 +200,11 @@ const VolunteerDashboard = () => {
     }
   };
 
+  // Replace qrCodeValue with verificationCodeValue
+  const verificationCodeValue = userData?.auth0Id
+                                ? generateVerificationCode(userData.auth0Id)
+                                : 'loading';
+  // Re-add qrCodeValue for the QR code itself
   const qrCodeValue = userData?.auth0Id 
                       ? `volunteerid:${userData.auth0Id}` 
                       : 'loading';
@@ -471,7 +500,7 @@ const VolunteerDashboard = () => {
           className={activeTab === 'qrcode' ? 'active' : ''} 
           onClick={() => setActiveTab('qrcode')}
         >
-          My QR Code
+          My Code 
         </button>
         <button 
           className={activeTab === 'tasks' ? 'active' : ''} 
@@ -495,20 +524,35 @@ const VolunteerDashboard = () => {
 
       <div className="dashboard-content">
         {activeTab === 'qrcode' && (
-          <div className="qr-code-section card-style volunteer-id-card">
-            <h3><i className="fas fa-qrcode"></i> Your Volunteer Code</h3>
-            <p>Ask the location to scan this QR code.</p>
+          <div className="verification-code-section card-style volunteer-id-card">
+            <h3><i className="fas fa-id-card"></i> Your Volunteer ID</h3>
+            <p>Provide this code OR ask the location to scan the QR code for pickup confirmation.</p>
             
-            <div className="verification-details-container single-qr-display">
-              {qrCodeValue === 'loading' && <p>Loading QR Code...</p>}
-              {qrCodeValue !== 'loading' && qrCodeValue !== 'Error' && (
-                       <div className="qr-code-container">
-                  <QRCodeSVG value={qrCodeValue} size={256} includeMargin={true} />
-                  <p style={{marginTop: '1rem', fontWeight: 'bold'}}>Your ID: {userData.auth0Id}</p>
+            <div className="verification-details-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}>
+              {(verificationCodeValue === 'loading' || qrCodeValue === 'loading') && <p>Loading...</p>}
+              
+              {verificationCodeValue !== 'loading' && verificationCodeValue !== 'Error' && (
+                <div className="verification-code-container text-code-display" style={{ textAlign: 'center' }}>
+                  <h4>8-Digit Code:</h4>
+                  <div className="verification-code-display">
+                    {verificationCodeValue}
+                  </div>
                 </div>
               )}
-              {qrCodeValue === 'Error' && <p className="error-message">Could not generate QR code.</p>}
-            </div> 
+              {verificationCodeValue === 'Error' && <p className="error-message small-error">Could not generate verification code.</p>}
+
+              {qrCodeValue !== 'loading' && qrCodeValue !== 'Error' && (
+                <div className="qr-code-container qr-display" style={{ textAlign: 'center' }}>
+                  <h4>QR Code:</h4>
+                  <QRCodeSVG value={qrCodeValue} size={150} includeMargin={true} />
+                </div>
+              )}
+              {qrCodeValue === 'Error' && <p className="error-message small-error">Could not generate QR code.</p>}
+            </div>
+            
+            {(verificationCodeValue !== 'loading' && qrCodeValue !== 'loading') && (
+                 <p style={{marginTop: '1.5rem', fontWeight: 'bold', fontSize: '0.9rem', color: '#666', textAlign: 'center', width: '100%'}}>Your ID: {userData.auth0Id}</p> 
+            )}
           </div>
         )}
 
