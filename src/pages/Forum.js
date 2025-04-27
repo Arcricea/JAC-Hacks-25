@@ -25,10 +25,69 @@ const ForumPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   
+  // Track account type at component level
+  const [currentAccountType, setCurrentAccountType] = useState('guest');
+  
   // Reference to scroll to bottom of messages
   const messagesEndRef = useRef(null);
   const shouldScrollToBottomRef = useRef(true);
   const messagesContainerRef = useRef(null);
+  
+  // Determine the user's account type on component mount
+  useEffect(() => {
+    // Check and update account type when dependencies change
+    const checkAccountType = () => {
+      console.log('User data for account type detection:', {
+        'Main userData': userData,
+        'userDetails': userDetails,
+        'Auth0 user': user
+      });
+      
+      // Start with guest
+      let detectedType = 'guest';
+      
+      // First try to get from main UserContext (most reliable)
+      if (userData?.accountType) {
+        console.log('Found account type in main userData:', userData.accountType);
+        detectedType = userData.accountType;
+      } else if (userDetails?.accountType) {
+        console.log('Found account type in userDetails:', userDetails.accountType);
+        detectedType = userDetails.accountType;
+      } else if (userDetails?.userType) {
+        console.log('Found user type in userDetails:', userDetails.userType);
+        detectedType = userDetails.userType;
+      } else if (userData?.role === 'organizer' || userData?.role === 'admin') {
+        console.log('Found organizer/admin role in userData');
+        detectedType = 'organizer';
+      } else if (userDetails?.role === 'organizer' || userDetails?.role === 'admin') {
+        console.log('Found organizer/admin role in userDetails');
+        detectedType = 'organizer';
+      }
+      
+      // Check for localStorage fallback for account type
+      if (detectedType === 'guest' && user?.sub) {
+        const localStorageType = localStorage.getItem(`user_type_${user.sub}`);
+        if (localStorageType) {
+          console.log('Found account type in localStorage:', localStorageType);
+          detectedType = localStorageType;
+        }
+      }
+      
+      // Special case handling for users we know are organizers
+      if (userData?.isOrganizer === true || userDetails?.isOrganizer === true) {
+        console.log('Found explicit isOrganizer flag');
+        detectedType = 'organizer';
+      }
+      
+      // Debug account type after all checks
+      console.log('Final determined account type:', detectedType);
+      
+      // Update state
+      setCurrentAccountType(detectedType);
+    };
+    
+    checkAccountType();
+  }, [user, userDetails, userData]);
   
   // Fetch messages when component mounts
   useEffect(() => {
@@ -126,7 +185,10 @@ const ForumPage = () => {
   const getUserTypeLabel = (userType) => {
     if (!userType) return 'Guest';
     
-    const type = userType.toLowerCase();
+    // Add detailed logging to debug user type issues
+    console.log('Processing user type:', userType, typeof userType);
+    
+    const type = typeof userType === 'string' ? userType.toLowerCase() : 'guest';
     switch(type) {
       case 'individual':
         return 'Individual';
@@ -139,11 +201,67 @@ const ForumPage = () => {
       case 'volunteer':
         return 'Volunteer';
       case 'organizer':
+      case 'admin':
         return 'Organizer';
       default:
+        console.log('Unrecognized user type:', userType, 'defaulting to Guest');
         return 'Guest';
     }
   };
+  
+  // Helper to clean display name (avoid showing email)
+  const cleanDisplayName = (name) => {
+    if (!name) return 'Anonymous';
+    
+    // If it looks like an email, show only the part before @
+    if (name.includes('@')) {
+      return name.split('@')[0];
+    }
+    
+    return name;
+  };
+  
+  // Display name (username) from userData or auth0
+  const getDisplayName = () => {
+    // First priority: username from MongoDB (via main UserContext)
+    if (userData?.username) {
+      console.log('Using username from main userData:', userData.username);
+      return userData.username;
+    }
+    
+    // Second priority: username from UserDetails context
+    if (userDetails?.username) {
+      console.log('Using username from userDetails:', userDetails.username);
+      return userDetails.username;
+    }
+    
+    // Third priority: nickname from Auth0
+    if (user?.nickname && user.nickname.trim()) {
+      console.log('Using nickname from Auth0:', user.nickname);
+      return user.nickname;
+    }
+    
+    // Fourth priority: Auth0 name if not an email
+    if (user?.name && !user.name.includes('@')) {
+      console.log('Using name from Auth0:', user.name);
+      return user.name;
+    }
+    
+    // Last resort: first part of email or Anonymous
+    if (user?.name && user.name.includes('@')) {
+      const emailName = user.name.split('@')[0];
+      console.log('Using email name part:', emailName);
+      return emailName;
+    }
+    
+    return 'Anonymous User';
+  };
+
+  // Get the properly prioritized display name
+  const displayName = getDisplayName();
+  
+  // Clean the display name before sending
+  const cleanedDisplayName = cleanDisplayName(displayName);
   
   // Handle sending a new message
   const handleSendMessage = async (e) => {
@@ -151,33 +269,10 @@ const ForumPage = () => {
     
     if (!newMessage.trim()) return;
     
-    // Display name (username) from userData or auth0
-    const displayName = 
-      userDetails?.username || 
-      (user?.nickname || '') || 
-      user?.name || 
-      'Anonymous User';
-      
-    // Get account type from context
-    let accountType = 'guest';
-    
-    // First try to get from userDetails
-    if (userDetails?.accountType) {
-      accountType = userDetails.accountType;
-    } else if (userDetails?.userType) {
-      accountType = userDetails.userType;
-    } else if (userData?.accountType) {
-      // Try from main UserContext if available
-      accountType = userData.accountType;
-    }
-    
-    // Debug account type (remove after testing)
-    console.log('User account type:', accountType);
-    
     const messageData = {
-      username: displayName,
-      userType: accountType,
-      avatar: user?.picture || `https://ui-avatars.com/api/?name=${displayName}&background=random`,
+      username: cleanedDisplayName,
+      userType: currentAccountType,  // Use the carefully determined account type
+      avatar: user?.picture || `https://ui-avatars.com/api/?name=${cleanedDisplayName}&background=random`,
       content: newMessage.trim(),
       auth0Id: user?.sub || undefined,  // Include Auth0 ID if available
     };
@@ -241,16 +336,60 @@ const ForumPage = () => {
   
   // Helper to check if a message belongs to current user
   const isOwnMessage = (message) => {
-    if (!user && !userDetails) return false;
+    if (!user && !userDetails && !userData) return false;
     
-    // Match by auth0 ID if available
+    // Check all possible username matches
+    const usernames = [
+      userData?.username,
+      userDetails?.username,
+      user?.nickname,
+      user?.name
+    ].filter(Boolean); // Remove nulls/undefined
+    
+    // Log message ownership check
+    console.log('Checking if message is own:', {
+      messageUsername: message.username,
+      messageAuth0Id: message.auth0Id,
+      usernames: usernames,
+      auth0Id: user?.sub
+    });
+    
+    // Match by auth0 ID if available (most reliable)
     if (message.auth0Id && user?.sub) {
       return message.auth0Id === user.sub;
     }
     
-    // Fall back to username matching
-    return message.username === (userDetails?.username || user?.name);
+    // Fall back to username matching (try all username variations)
+    return usernames.some(username => 
+      message.username === username || 
+      // Also try cleaned version in case message username is stored differently
+      cleanDisplayName(message.username) === cleanDisplayName(username)
+    );
   };
+  
+  // Debug user data when it changes
+  useEffect(() => {
+    console.log('User data updated:', { 
+      userData: userData || 'None',
+      userDetails: userDetails || 'None',
+      auth0User: user || 'None'
+    });
+    
+    // Check if we have a MongoDB username
+    if (userData?.username) {
+      console.log('MongoDB username found:', userData.username);
+    } else {
+      console.log('No MongoDB username found in userData');
+    }
+    
+    // Check for conflicts in username sources
+    if (userData?.username && userDetails?.username && userData.username !== userDetails.username) {
+      console.warn('Username mismatch between userData and userDetails:', {
+        userDataUsername: userData.username,
+        userDetailsUsername: userDetails.username
+      });
+    }
+  }, [userData, userDetails, user]);
   
   return (
     <div className="forum-container simple">
@@ -290,18 +429,30 @@ const ForumPage = () => {
           ) : (
             messages.map((message) => {
               const isOwn = isOwnMessage(message);
+              
+              // For the user's own messages, use the account type we determined above
+              // This ensures that the current user always sees their correct type
+              let messageUserType = message.userType;
+              if (isOwn && currentAccountType !== 'guest') {
+                console.log('Overriding own message type from', message.userType, 'to', currentAccountType);
+                messageUserType = currentAccountType;
+              }
+              
               // Ensure proper user type display
-              const displayedUserType = getUserTypeLabel(message.userType);
+              const displayedUserType = getUserTypeLabel(messageUserType);
+              
+              // Clean the username to avoid displaying emails
+              const cleanedUsername = cleanDisplayName(message.username);
               
               return (
                 <div className={`message ${isOwn ? 'own-message' : ''}`} key={message.id || message._id}>
                   <div className="message-avatar">
-                    <img src={message.avatar} alt={message.username} />
+                    <img src={message.avatar} alt={cleanedUsername} />
                   </div>
                   <div className="message-content">
                     <div className="message-header">
                       <span className="message-username">
-                        {message.username}
+                        {cleanedUsername}
                       </span>
                       <span className="user-type-badge">
                         {displayedUserType}
