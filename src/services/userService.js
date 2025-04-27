@@ -1,7 +1,7 @@
 const API_URL = 'http://localhost:5000/api';
 
 // Save user data (username and account type)
-export const saveUser = async (userData) => {
+export const saveUser = async (userData, requestingUserId) => {
   try {
     console.log('Saving user data:', userData); // Add this for debugging
     
@@ -9,6 +9,7 @@ export const saveUser = async (userData) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
       },
       body: JSON.stringify(userData),
     });
@@ -28,10 +29,14 @@ export const saveUser = async (userData) => {
 };
 
 // Get user data by Auth0 ID
-export const getUserByAuth0Id = async (auth0Id) => {
+// Add requestingUserId to include header for authorization
+export const getUserByAuth0Id = async (auth0Id, requestingUserId) => {
   try {
-    const response = await fetch(`${API_URL}/users/${auth0Id}`);
-    
+    const response = await fetch(`${API_URL}/users/${auth0Id}`, {
+      headers: {
+         ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
+      }
+    });
     const data = await response.json();
     
     if (!response.ok) {
@@ -40,7 +45,7 @@ export const getUserByAuth0Id = async (auth0Id) => {
     
     return data;
   } catch (error) {
-    console.error('Error getting user data:', error);
+    console.error('Error getting user data by Auth0 ID:', error);
     throw error;
   }
 };
@@ -118,28 +123,31 @@ export const verifyVolunteerCode = async (username, code) => {
 };
 
 // Update need status for a food bank
-export const updateNeedStatus = async (auth0Id, statusData) => {
+// Add requestingUserId for authorization header
+export const updateNeedStatus = async (userId, statusData, requestingUserId) => {
   try {
-    // First get the user data
-    const userData = await getUserByAuth0Id(auth0Id);
+    // No need to fetch user data first, the backend controller handles that.
+    // Just send the update request.
+    const response = await fetch(`${API_URL}/users/set-need/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          // Use the requestingUserId (admin's ID) for the header
+          ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
+        },
+        body: JSON.stringify(statusData), // Send { priorityLevel, customMessage }
+      });
     
-    if (!userData.success) {
-      throw new Error('Failed to get user data');
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to update need status');
     }
     
-    // Update the need status
-    const updatedUserData = {
-      ...userData.data,
-      needStatus: {
-        priorityLevel: statusData.priorityLevel,
-        customMessage: statusData.customMessage
-      }
-    };
+    // The backend controller returns { success: true, data: userResponse }
+    // Return the whole response object
+    return data; 
     
-    // Save the updated user data
-    const response = await saveUser(updatedUserData);
-    
-    return response;
   } catch (error) {
     console.error('Error updating need status:', error);
     throw error;

@@ -27,6 +27,10 @@ const donationSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Pickup information is required']
   },
+  businessAddress: {
+    type: String,
+    default: '4873 Westmount Ave, Westmount, Quebec H3Y 1X9'
+  },
   imageUrl: {
     type: String
   },
@@ -36,12 +40,25 @@ const donationSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['available', 'scheduled', 'completed', 'cancelled'],
+    enum: ['available', 'scheduled', 'picked_up', 'delivered', 'completed', 'cancelled'],
     default: 'available'
   },
   volunteerId: {
     type: String,
     ref: 'User',
+    default: null
+  },
+  foodBankId: {
+    type: String,
+    ref: 'User',
+    default: null
+  },
+  pickupDate: {
+    type: Date,
+    default: null
+  },
+  deliveryDate: {
+    type: Date,
     default: null
   },
   createdAt: {

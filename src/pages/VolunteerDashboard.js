@@ -3,12 +3,16 @@ import { QRCodeSVG } from 'qrcode.react';
 import { UserContext } from '../App';
 import '../assets/styles/Dashboard.css'; // Reuse existing dashboard styles for now
 import '../assets/styles/VolunteerDashboard.css'; // Add specific styles
+import PickupDetailsModal from '../components/PickupDetailsModal';
+import FoodBankSuggestionModal from '../components/FoodBankSuggestionModal';
 import { 
   getAvailableDonations, 
   assignDonationToVolunteer,
   getVolunteerScheduledDonations,
-  getVolunteerCompletedDonationCount
+  getVolunteerCompletedDonationCount,
+  cancelVolunteerAssignment
 } from '../services/donationService';
+import { markDonationPickedUp } from '../services/foodBankService';
 
 const VolunteerDashboard = () => {
   const { userData, setUserData } = useContext(UserContext);
@@ -18,9 +22,15 @@ const VolunteerDashboard = () => {
   const [availableTasks, setAvailableTasks] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [scheduledDonations, setScheduledDonations] = useState([]);
   const [completedCount, setCompletedCount] = useState(0); // State for completed count
   const [isLoadingStats, setIsLoadingStats] = useState(false); // Loading state for stats
+  const [selectedPickup, setSelectedPickup] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [isFoodBankModalOpen, setIsFoodBankModalOpen] = useState(false);
+  const [isPickingUp, setIsPickingUp] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'available') {
@@ -39,6 +49,23 @@ const VolunteerDashboard = () => {
       fetchCompletedDonationCount();
     }
   }, [userData]);
+
+  useEffect(() => {
+    // Get user's location for food bank recommendations
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+        }
+      );
+    }
+  }, []);
 
   const fetchAvailableTasks = async () => {
     setIsLoading(true);
@@ -114,6 +141,10 @@ const VolunteerDashboard = () => {
         fetchScheduledDonations();
         fetchCompletedDonationCount();
         alert('Donation scheduled successfully!');
+        // If modal is open with this pickup, close it
+        if (selectedPickup && selectedPickup._id === donationId) {
+          setIsModalOpen(false);
+        }
       } else {
         setError(response.message || 'Failed to schedule donation.');
       }
@@ -125,12 +156,139 @@ const VolunteerDashboard = () => {
     }
   };
 
+  const handleCancelTask = async (donationId) => {
+    if (!userData?.auth0Id) {
+      setError('Please log in to cancel a task');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to cancel this pickup? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsCancelling(true);
+    setError(null);
+    
+    try {
+      const response = await cancelVolunteerAssignment(donationId, userData.auth0Id);
+      if (response.success) {
+        // Update UI by removing the task from scheduled donations
+        setScheduledDonations(prev => prev.filter(task => task._id !== donationId));
+        // Close the modal if it's open with this task
+        if (selectedPickup && selectedPickup._id === donationId) {
+          setIsModalOpen(false);
+        }
+        alert('Pickup cancelled successfully.');
+      } else {
+        setError(response.message || 'Failed to cancel pickup.');
+      }
+    } catch (err) {
+      setError('Failed to cancel pickup. Please try again.');
+      console.error('Error cancelling task:', err);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleViewDetails = (pickup) => {
+    setSelectedPickup(pickup);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleModalAccept = (donationId) => {
+    // Update the available tasks list
+    setAvailableTasks(prev => prev.filter(task => task._id !== donationId));
+    
+    // Refresh scheduled donations and stats
+    fetchScheduledDonations();
+    fetchCompletedDonationCount();
+  };
+
+  const handleModalCancel = (donationId) => {
+    // Update the scheduled donations list
+    setScheduledDonations(prev => prev.filter(task => task._id !== donationId));
+    
+    // Refresh stats
+    fetchCompletedDonationCount();
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
       return new Date(dateString).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
     } catch (e) {
       return dateString;
+    }
+  };
+
+  const handleScanQRCode = async (donationId) => {
+    if (!userData?.auth0Id) {
+      setError('Please log in to scan the QR code');
+      return;
+    }
+
+    if (!donationId) {
+      alert('Invalid QR code');
+      return;
+    }
+
+    setIsPickingUp(true);
+    setError(null);
+
+    try {
+      // Find the donation in the scheduled list
+      const donation = scheduledDonations.find(d => d._id === donationId);
+      
+      if (!donation) {
+        throw new Error('Donation not found in your scheduled pickups');
+      }
+      
+      // Check if already picked up
+      if (donation.status === 'picked_up') {
+        // Open food bank modal for delivery
+        setSelectedPickup(donation);
+        setIsFoodBankModalOpen(true);
+      } else if (donation.status === 'scheduled') {
+        // Mark as picked up
+        const response = await markDonationPickedUp(donationId, userData.auth0Id);
+        
+        if (response.success) {
+          // Update the local state
+          const updatedDonations = scheduledDonations.map(d => 
+            d._id === donationId ? { ...d, status: 'picked_up' } : d
+          );
+          setScheduledDonations(updatedDonations);
+          
+          alert('Pickup confirmed! Please deliver to a food bank.');
+          
+          // Get the updated donation and open food bank modal
+          setSelectedPickup({...donation, status: 'picked_up'});
+          setIsFoodBankModalOpen(true);
+        } else {
+          throw new Error(response.message || 'Failed to confirm pickup');
+        }
+      } else {
+        throw new Error(`Cannot process donation with status: ${donation.status}`);
+      }
+    } catch (err) {
+      console.error('Error processing QR scan:', err);
+      setError(err.message || 'Failed to process QR code. Please try again.');
+    } finally {
+      setIsPickingUp(false);
+    }
+  };
+
+  const handleFoodBankModalClose = (wasDelivered = false) => {
+    setIsFoodBankModalOpen(false);
+    
+    if (wasDelivered) {
+      // Refresh data after delivery
+      fetchScheduledDonations();
+      fetchCompletedDonationCount();
     }
   };
 
@@ -209,7 +367,45 @@ const VolunteerDashboard = () => {
                       <div className="task-card-body">
                         <p><strong>Category:</strong> {task.category}</p>
                         <p><strong>Expires:</strong> {formatDate(task.expirationDate)}</p>
-                        <p><strong>Pickup Info:</strong> {task.pickupInfo}</p>
+                        <p><strong>Address:</strong> {task.businessAddress || 'No address provided'}</p>
+                        <p><strong>Extra Information:</strong> {task.pickupInfo}</p>
+                        <div className="task-actions">
+                          <button 
+                            className="view-details-btn"
+                            onClick={() => handleViewDetails(task)}
+                          >
+                            View Details
+                          </button>
+                          {task.status === 'scheduled' && (
+                            <>
+                              <button 
+                                className="scan-qr-btn"
+                                onClick={() => handleScanQRCode(task._id)}
+                                disabled={isPickingUp}
+                              >
+                                {isPickingUp ? 'Processing...' : 'Scan QR & Pickup'}
+                              </button>
+                              <button 
+                                className="cancel-pickup-btn"
+                                onClick={() => handleCancelTask(task._id)}
+                                disabled={isCancelling}
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          )}
+                          {task.status === 'picked_up' && (
+                            <button 
+                              className="delivery-btn"
+                              onClick={() => {
+                                setSelectedPickup(task);
+                                setIsFoodBankModalOpen(true);
+                              }}
+                            >
+                              Deliver to Food Bank
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -269,7 +465,12 @@ const VolunteerDashboard = () => {
                           </div>
 
                           <div className="task-section">
-                            <h4>Pickup Information:</h4>
+                            <h4>Address:</h4>
+                            <p>{task.businessAddress || 'No address provided'}</p>
+                          </div>
+
+                          <div className="task-section">
+                            <h4>Extra Information:</h4>
                             <p>{task.pickupInfo}</p>
                           </div>
 
@@ -292,7 +493,10 @@ const VolunteerDashboard = () => {
                             >
                               Accept Pickup
                             </button>
-                            <button className="view-details-btn">
+                            <button 
+                              className="view-details-btn"
+                              onClick={() => handleViewDetails(task)}
+                            >
                               View Details
                             </button>
                           </div>
@@ -311,6 +515,27 @@ const VolunteerDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Modal for viewing pickup details */}
+      {isModalOpen && selectedPickup && (
+        <PickupDetailsModal 
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          pickup={selectedPickup}
+          onAccept={handleModalAccept}
+          onCancel={handleModalCancel}
+        />
+      )}
+      
+      {/* Modal for food bank suggestions */}
+      {isFoodBankModalOpen && selectedPickup && userLocation && (
+        <FoodBankSuggestionModal
+          isOpen={isFoodBankModalOpen}
+          onClose={handleFoodBankModalClose}
+          pickup={selectedPickup}
+          userLocation={userLocation}
+        />
+      )}
     </div>
   );
 };

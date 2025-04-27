@@ -12,7 +12,7 @@ const isOrganizer = async (req, res, next) => {
   }
 
   try {
-    const requestingUser = await User.findOne({ auth0Id: requestingUserId });
+    const requestingUser = await User.findOne({ auth0Id: requestingUserId }).lean();
 
     if (!requestingUser) {
       return res.status(403).json({ 
@@ -21,12 +21,18 @@ const isOrganizer = async (req, res, next) => {
       });
     }
 
-    if (requestingUser.accountType !== 'organizer') {
+    // Log the account type for debugging
+    console.log(`[Auth Middleware] Checking account type: ${requestingUser.accountType}`);
+
+    // Allow organizers, distributors, and businesses based on schema & observed need
+    if (requestingUser.accountType !== 'organizer' && requestingUser.accountType !== 'distributor' && requestingUser.accountType !== 'business') {
       return res.status(403).json({ 
         success: false, 
-        message: 'Forbidden: Action requires organizer privileges.' 
+        message: 'Forbidden: Action requires organizer, distributor, or business privileges.' 
       });
     }
+
+    req.requestingUser = requestingUser;
 
     // If checks pass, proceed to the route handler
     next(); 

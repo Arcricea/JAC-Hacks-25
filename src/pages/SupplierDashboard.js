@@ -4,7 +4,7 @@ import { createDonation, getDonationReceipt, getSupplierOverviewData, getSupplie
 import '../assets/styles/Dashboard.css';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
-const SupplierDashboard = ({ isPreview = false }) => {
+const SupplierDashboard = ({ previewTargetUserId }) => {
   const { userData } = useContext(UserContext);
   const [activeTab, setActiveTab] = useState('overview');
   const [formData, setFormData] = useState({
@@ -28,17 +28,13 @@ const SupplierDashboard = ({ isPreview = false }) => {
   const [receiptError, setReceiptError] = useState('');
   // --- State for Receipts --- END
 
-  // --- State for Overview --- START
+  // --- State for Overview & Listed Items --- 
   const [overviewData, setOverviewData] = useState(null);
-  const [isLoadingOverview, setIsLoadingOverview] = useState(true); // Start loading initially
+  const [isLoadingOverview, setIsLoadingOverview] = useState(true); // Default to true
   const [overviewError, setOverviewError] = useState('');
-  // --- State for Overview --- END
-
-  // --- State for Supplier's Listed Items --- START
   const [supplierListedItems, setSupplierListedItems] = useState([]);
-  const [isLoadingListedItems, setIsLoadingListedItems] = useState(true);
+  const [isLoadingListedItems, setIsLoadingListedItems] = useState(true); // Default to true
   const [listedItemsError, setListedItemsError] = useState('');
-  // --- State for Supplier's Listed Items --- END
 
   // State for QR Scanner / Confirmation
   const [showScanner, setShowScanner] = useState(false);
@@ -90,10 +86,15 @@ const SupplierDashboard = ({ isPreview = false }) => {
     setIsSubmitting(true);
 
     try {
+      // Determine the user ID for whom the donation is being created
+      const donationOwnerId = previewTargetUserId || userData.auth0Id;
+      // The requestingUserId is always the logged-in user (admin in preview mode)
+      const requestingUserId = userData.auth0Id;
+
       const response = await createDonation({
         ...formData,
-        userId: userData.auth0Id
-      });
+        userId: donationOwnerId // Use the determined owner ID
+      }, requestingUserId); // Pass requester ID for header
 
       if (response.success) {
         setSubmitSuccess(true);
@@ -141,7 +142,13 @@ const SupplierDashboard = ({ isPreview = false }) => {
       }
       // --- Extract volunteer ID from scanned text --- END
       
-      const response = await confirmSupplierPickup(userData.auth0Id, scannedVolunteerId); // Pass ID
+      // Determine the user ID whose pickup is being confirmed
+      const resourceUserId = previewTargetUserId || userData.auth0Id;
+      // The requestingUserId is always the logged-in user
+      const requestingUserId = userData.auth0Id;
+      
+      // Pass resource ID for URL path, requester ID for header
+      const response = await confirmSupplierPickup(resourceUserId, scannedVolunteerId, requestingUserId);
       setConfirmationResult({ 
         success: true, 
         message: response.message || 'Pickup confirmed successfully!' 
@@ -164,19 +171,20 @@ const SupplierDashboard = ({ isPreview = false }) => {
     // console.warn(`Code scan error = ${error}`);
   };
 
-  // --- Fetch Overview Data --- START
+  // --- Fetch Overview Data (Remove isAdminView check) --- START
   useEffect(() => {
     const fetchOverview = async () => {
-      if (isPreview) {
-        setIsLoadingOverview(false);
-        return;
-      }
+      // Determine whose overview to fetch
+      const resourceUserId = previewTargetUserId || userData?.auth0Id;
+      // The requesting user is always the one from context
+      const requestingUserId = userData?.auth0Id;
 
-      if (userData && userData.auth0Id) {
+      if (resourceUserId && requestingUserId) {
         setIsLoadingOverview(true);
         setOverviewError('');
         try {
-          const response = await getSupplierOverviewData(userData.auth0Id);
+          // Pass resource ID for URL, requester ID for header
+          const response = await getSupplierOverviewData(resourceUserId, requestingUserId);
           if (response.success) {
             setOverviewData(response.data);
           } else {
@@ -190,24 +198,24 @@ const SupplierDashboard = ({ isPreview = false }) => {
         }
       }
     };
-
     fetchOverview();
-  }, [userData, refreshTrigger, isPreview]); // Re-fetch if userData or refreshTrigger changes
+  }, [userData, refreshTrigger]); // Remove isAdminView dependency
   // --- Fetch Overview Data --- END
 
-  // --- Fetch Supplier's Listed Items --- START
+  // --- Fetch Supplier's Listed Items (Remove isAdminView check) --- START
   useEffect(() => {
     const fetchListedItems = async () => {
-      if (isPreview) {
-        setIsLoadingListedItems(false);
-        return;
-      }
-      
-      if (userData && userData.auth0Id) {
+      // Determine whose items to fetch
+      const resourceUserId = previewTargetUserId || userData?.auth0Id;
+      // The requesting user is always the one from context
+      const requestingUserId = userData?.auth0Id;
+
+      if (resourceUserId && requestingUserId) { 
         setIsLoadingListedItems(true);
         setListedItemsError('');
         try {
-          const response = await getSupplierListedItems(userData.auth0Id);
+           // Pass resource ID for URL, requester ID for header
+          const response = await getSupplierListedItems(resourceUserId, requestingUserId);
           if (response.success) {
             setSupplierListedItems(response.data);
           } else {
@@ -221,9 +229,8 @@ const SupplierDashboard = ({ isPreview = false }) => {
         }
       }
     };
-
     fetchListedItems();
-  }, [userData, submitSuccess, refreshTrigger, isPreview]); // Re-fetch if userData, submitSuccess, or refreshTrigger changes
+  }, [userData, submitSuccess, refreshTrigger]); // Remove isAdminView dependency
   // --- Fetch Supplier's Listed Items --- END
 
   // Effect to setup scanner (keep as is, just ensure element ID matches)
@@ -271,8 +278,13 @@ const SupplierDashboard = ({ isPreview = false }) => {
 
   // --- Function to Fetch Receipt --- START
   const handleFetchReceipt = async () => {
-    if (!userData || !userData.auth0Id) {
-      setReceiptError('User data not available. Please log in again.');
+    // Determine whose receipt to fetch
+    const resourceUserId = previewTargetUserId || userData?.auth0Id;
+    // The requesting user is always the one from context
+    const requestingUserId = userData?.auth0Id;
+
+    if (!resourceUserId || !requestingUserId) {
+      setReceiptError('User ID not found.');
       return;
     }
     
@@ -287,7 +299,8 @@ const SupplierDashboard = ({ isPreview = false }) => {
     setReceiptData(null);
 
     try {
-      const response = await getDonationReceipt(userData.auth0Id, startDate, endDate);
+      // Pass resource ID for URL, requester ID for header
+      const response = await getDonationReceipt(resourceUserId, startDate, endDate, requestingUserId);
       if (response.success) {
         setReceiptData(response.data);
       } else {
@@ -345,9 +358,7 @@ const SupplierDashboard = ({ isPreview = false }) => {
 
       {activeTab === 'overview' && (
         <div className="overview-section">
-          {isPreview ? (
-            <p><i>Preview mode: Overview data is not loaded.</i></p>
-          ) : isLoadingOverview ? (
+          {isLoadingOverview ? (
             <p>Loading overview...</p>
           ) : overviewError ? (
             <div className="error-message">Error: {overviewError}</div>
@@ -536,9 +547,7 @@ const SupplierDashboard = ({ isPreview = false }) => {
 
           {/* Display Current Listed Items */}
           <h3>Your Currently Listed Items (Available/Scheduled)</h3>
-          {isPreview ? (
-            <p><i>Preview mode: Listed items data is not loaded.</i></p>
-          ) : isLoadingListedItems ? (
+          {isLoadingListedItems ? (
             <p>Loading listed items...</p>
           ) : listedItemsError ? (
             <div className="error-message">Error: {listedItemsError}</div>
@@ -560,7 +569,7 @@ const SupplierDashboard = ({ isPreview = false }) => {
                     <td>{item.quantity}</td>
                       <td>{formatDate(item.expiry)}</td>
                       <td>
-                        <span className={`status ${item.status.toLowerCase()}`}>{item.status}</span>
+                        <span className={`status ${item.status?.toLowerCase()}`}>{item.status}</span>
                       </td>
                     <td>
                         {/* Add actions like Edit/Cancel later if needed */}

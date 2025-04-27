@@ -1,11 +1,12 @@
 const API_URL = 'http://localhost:5000/api';
 
-export const createDonation = async (donationData) => {
+export const createDonation = async (donationData, requestingUserId) => {
   try {
     const response = await fetch(`${API_URL}/donations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
       },
       body: JSON.stringify(donationData),
     });
@@ -23,9 +24,13 @@ export const createDonation = async (donationData) => {
   }
 };
 
-export const getAvailableDonations = async () => {
+export const getAvailableDonations = async (requestingUserId) => {
   try {
-    const response = await fetch(`${API_URL}/donations/available`);
+    const response = await fetch(`${API_URL}/donations/available`, {
+      headers: {
+        ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
+      }
+    });
     const data = await response.json();
     
     if (!response.ok) {
@@ -39,7 +44,7 @@ export const getAvailableDonations = async () => {
   }
 };
 
-export const getDonationReceipt = async (userId, startDate, endDate) => {
+export const getDonationReceipt = async (userId, startDate, endDate, requestingUserId) => {
   try {
     // Construct the URL with query parameters for dates if they exist
     let url = `${API_URL}/donations/receipts/${userId}`;
@@ -55,7 +60,11 @@ export const getDonationReceipt = async (userId, startDate, endDate) => {
       url += `?${queryString}`;
     }
 
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
+      }
+    });
     const data = await response.json();
 
     if (!response.ok) {
@@ -69,9 +78,13 @@ export const getDonationReceipt = async (userId, startDate, endDate) => {
   }
 };
 
-export const getSupplierOverviewData = async (userId) => {
+export const getSupplierOverviewData = async (userId, requestingUserId) => {
   try {
-    const response = await fetch(`${API_URL}/donations/overview/${userId}`);
+    const response = await fetch(`${API_URL}/donations/overview/${userId}`, {
+      headers: {
+        ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
+      }
+    });
     const data = await response.json();
 
     if (!response.ok) {
@@ -85,9 +98,13 @@ export const getSupplierOverviewData = async (userId) => {
   }
 };
 
-export const getSupplierListedItems = async (userId) => {
+export const getSupplierListedItems = async (userId, requestingUserId) => {
   try {
-    const response = await fetch(`${API_URL}/donations/supplier/listed/${userId}`);
+    const response = await fetch(`${API_URL}/donations/supplier/listed/${userId}`, {
+      headers: {
+        ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
+      }
+    });
     const data = await response.json();
 
     if (!response.ok) {
@@ -101,12 +118,13 @@ export const getSupplierListedItems = async (userId) => {
   }
 };
 
-export const confirmSupplierPickup = async (userId, scannedVolunteerId) => {
+export const confirmSupplierPickup = async (userId, scannedVolunteerId, requestingUserId) => {
   try {
     const response = await fetch(`${API_URL}/donations/supplier/confirm-pickup/${userId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
       },
       body: JSON.stringify({ scannedVolunteerId })
     });
@@ -123,12 +141,13 @@ export const confirmSupplierPickup = async (userId, scannedVolunteerId) => {
   }
 };
 
-export const assignDonationToVolunteer = async (donationId, volunteerId) => {
+export const assignDonationToVolunteer = async (donationId, volunteerId, requestingUserId) => {
   try {
     const response = await fetch(`${API_URL}/donations/${donationId}/assign`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
       },
       body: JSON.stringify({ volunteerId }),
     });
@@ -146,9 +165,13 @@ export const assignDonationToVolunteer = async (donationId, volunteerId) => {
   }
 };
 
-export const getVolunteerScheduledDonations = async (volunteerId) => {
+export const getVolunteerScheduledDonations = async (volunteerId, requestingUserId) => {
   try {
-    const response = await fetch(`${API_URL}/donations/volunteer/scheduled/${volunteerId}`);
+    const response = await fetch(`${API_URL}/donations/volunteer/scheduled/${volunteerId}`, {
+      headers: {
+        ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
+      }
+    });
     const data = await response.json();
     
     if (!response.ok) {
@@ -162,9 +185,13 @@ export const getVolunteerScheduledDonations = async (volunteerId) => {
   }
 };
 
-export const getVolunteerCompletedDonationCount = async (volunteerId) => {
+export const getVolunteerCompletedDonationCount = async (volunteerId, requestingUserId) => {
   try {
-    const response = await fetch(`${API_URL}/donations/volunteer/completed-count/${volunteerId}`);
+    const response = await fetch(`${API_URL}/donations/volunteer/completed-count/${volunteerId}`, {
+      headers: {
+        ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
+      }
+    });
     const data = await response.json();
     
     if (!response.ok) {
@@ -175,6 +202,38 @@ export const getVolunteerCompletedDonationCount = async (volunteerId) => {
   } catch (error) {
     console.error('Error fetching volunteer completed donation count:', error);
     throw error;
+  }
+};
+
+// Cancel a donation assignment for a volunteer
+export const cancelVolunteerAssignment = async (donationId, volunteerId) => {
+  try {
+    const response = await fetch(`${API_URL}/donations/${donationId}/cancel-assignment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ volunteerId }),
+    });
+
+    if (!response.ok) {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to cancel pickup');
+      } else {
+        // Handle non-JSON responses (like HTML error pages)
+        const text = await response.text();
+        console.error('Server returned non-JSON response:', text);
+        throw new Error('Server returned an invalid response. Please try again later.');
+      }
+    }
+    
+    const data = await response.json();
+    return { success: true, data: data.data };
+  } catch (error) {
+    console.error('Error cancelling pickup:', error);
+    return { success: false, message: error.message || 'Failed to cancel pickup' };
   }
 };
 

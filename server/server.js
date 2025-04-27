@@ -5,7 +5,7 @@ const userRoutes = require('./routes/userRoutes');
 const donationRoutes = require('./routes/donationRoutes');
 const addressRoutes = require('./routes/addressRoutes');
 const organizerRoutes = require('./routes/organizerRoutes');
-const messageRoutes = require('./routes/messageRoutes');
+const foodBankRoutes = require('./routes/foodBankRoutes');
 
 // <<< REMOVE THESE FRONTEND IMPORTS >>>
 // import React, { useState, useEffect, useContext } from 'react';
@@ -47,7 +47,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/donations', donationRoutes);
 app.use('/api/addresses', addressRoutes);
 app.use('/api/organizer', organizerRoutes);
-app.use('/api/messages', messageRoutes);
+app.use('/api/foodbanks', foodBankRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

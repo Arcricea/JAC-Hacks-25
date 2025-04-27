@@ -2,7 +2,12 @@ import React, { useState, useEffect, useContext } from 'react';
 import { UserContext } from '../App'; // To check if current user is organizer
 import '../assets/styles/Dashboard.css'; // Reuse general dashboard styles
 import '../assets/styles/OrganizerDashboard.css'; // <<< ADD ORGANIZER STYLES
+import '../assets/styles/FoodBankDashboard.css'; // <<< ADD FOOD BANK STYLES FOR PREVIEW
 // import '../assets/styles/AdminDashboard.css'; // Optional: Create specific styles
+
+// Import the new editable components
+import EditableNeedStatus from '../components/EditableNeedStatus';
+import EditableContactField from '../components/EditableContactField'; 
 
 // <<< Import other dashboard components HERE >>>
 import IndividualDashboard from './IndividualDashboard';
@@ -66,7 +71,8 @@ const AdminDashboard = () => {
   // <<< UNCOMMENT hooks and state setters inside the component >>>
   const { userData } = useContext(UserContext);
   const [users, setUsers] = useState([]);
-  const [foodBanks, setFoodBanks] = useState([]);
+  // Rename foodBanks state to avoid confusion, it holds data from organizer endpoint
+  const [distributorData, setDistributorData] = useState([]); 
   const [donations, setDonations] = useState({ available: [], scheduled: [], completed: [] });
   const [activeDonationTab, setActiveDonationTab] = useState('available');
   const [isLoading, setIsLoading] = useState(true);
@@ -80,6 +86,7 @@ const AdminDashboard = () => {
     quantity: '',
     expirationDate: '',
     pickupInfo: '',
+    targetUserId: '',
   });
   const [addDonationError, setAddDonationError] = useState('');
   const [showAddRequestForm, setShowAddRequestForm] = useState(false);
@@ -90,6 +97,55 @@ const AdminDashboard = () => {
   });
   const [addRequestError, setAddRequestError] = useState('');
   const [previewDashboardType, setPreviewDashboardType] = useState(null);
+  const [adminRefreshTrigger, setAdminRefreshTrigger] = useState(0);
+
+  // Callback function for preview components to update parent state
+  const handlePreviewDataUpdate = (updatedUserData) => {
+    if (!updatedUserData || !updatedUserData.auth0Id) return;
+
+    console.log("AdminDashboard: Updating previewed user data", updatedUserData.auth0Id);
+    // Update the main users list
+    setUsers(prevUsers => 
+      prevUsers.map(u => 
+        u.auth0Id === updatedUserData.auth0Id ? { ...u, ...updatedUserData } : u
+      )
+    );
+    // Update the distributorData list (if the user is a distributor)
+    // Note: This assumes handlePreviewDataUpdate is only called for distributors from FoodBankDashboard
+    // If other previews call it, this logic might need refinement.
+    if (updatedUserData.accountType === 'distributor') {
+        setDistributorData(prevDists => 
+          prevDists.map(d => 
+             d.auth0Id === updatedUserData.auth0Id ? { ...d, ...updatedUserData } : d
+          )
+        );
+    } 
+    // We don't need to filter here as the main `users` list is the source of truth
+  };
+
+  // <<< ADD FILTERED LIST OF BUSINESS USERS >>>
+  const businessUsers = React.useMemo(() => {
+    return users.filter(user => user.accountType === 'business');
+  }, [users]);
+  // <<< END FILTERED LIST >>>
+
+  // <<< DERIVED LIST of Distributors and Organizers for the table >>>
+  const managedAccounts = React.useMemo(() => {
+    // Combine distributors and organizers from the main users list
+    return users.filter(user => user.accountType === 'distributor' || user.accountType === 'organizer')
+                .map(user => {
+                  // Check if this user exists in distributorData to merge potential edit state
+                  const distributorState = distributorData.find(d => d.auth0Id === user.auth0Id);
+                  return {
+                      ...user, // Base data from the users list
+                      ...(distributorState && { // Add edit state if present
+                          isEditing: distributorState.isEditing,
+                          editData: distributorState.editData
+                      })
+                  };
+                });
+  }, [users, distributorData]);
+  // <<< END DERIVED LIST >>>
 
   // --- Fetch Initial Data (Users, Food Banks, Donations) ---
   useEffect(() => {
@@ -116,12 +172,13 @@ const AdminDashboard = () => {
         // TODO: Add authorization headers if backend requires them
         const organizerResponse = await fetch('http://localhost:5000/api/organizer/dashboard', {
           // Assuming this might also need protection
-          // headers: { 'X-Requesting-User-Id': userData.auth0Id }
+          headers: { 'X-Requesting-User-Id': userData.auth0Id }
         });
         if (!organizerResponse.ok) throw new Error(`HTTP error fetching organizer data! status: ${organizerResponse.status}`);
         const organizerResult = await organizerResponse.json();
         if (organizerResult.success) {
-          setFoodBanks(organizerResult.data.foodBanks || []);
+          // Store the fetched distributor-specific data separately
+          setDistributorData(organizerResult.data.foodBanks || []); 
           setDonations(organizerResult.data.donations || { available: [], scheduled: [], completed: [] });
         } else {
           throw new Error(organizerResult.message || 'Failed to fetch organizer data');
@@ -141,7 +198,7 @@ const AdminDashboard = () => {
       setError('Access Denied. You do not have permission to view this page.');
       setIsLoading(false);
     }
-  }, [userData]);
+  }, [userData, adminRefreshTrigger]);
 
   // --- Action Handlers ---
 
@@ -171,8 +228,9 @@ const AdminDashboard = () => {
         console.log('User deleted successfully');
         // Refresh user list
         setUsers(prev => prev.filter(u => u.auth0Id !== userIdToDelete));
-        // Refresh food bank list if the deleted user was a food bank
-        setFoodBanks(prev => prev.filter(fb => fb.auth0Id !== userIdToDelete));
+        // Refresh food bank list if the deleted user was a food bank (distributor or organizer)
+        // No need to update distributorData state, as derived list uses `users`
+        // setDistributorData(prev => prev.filter(fb => fb.auth0Id !== userIdToDelete));
       } else {
         throw new Error(result.message || 'Failed to delete user');
       }
@@ -205,9 +263,10 @@ const AdminDashboard = () => {
           u.auth0Id === userIdToReset ? { ...u, needStatus: result.data.needStatus } : u
         ));
         // ALSO update in the foodBanks list if they are/were a distributor
-        setFoodBanks(prev => prev.map(fb =>
+        // No need to update distributorData state
+        /* setDistributorData(prevFbs => prevFbs.map(fb =>
           fb.auth0Id === userIdToReset ? { ...fb, needStatus: result.data.needStatus } : fb
-        ));
+        )); */
       } else {
         throw new Error(result.message || 'Failed to reset requests');
       }
@@ -249,18 +308,20 @@ const AdminDashboard = () => {
           u.auth0Id === userIdToChange ? { ...u, ...result.data } : u // Use result.data for full update
         ));
         // ALSO update in the foodBanks list if they are/were a distributor
-        setFoodBanks(prevFbs => prevFbs.map(fb => 
+        // No need to update distributorData state
+        /* setDistributorData(prevFbs => prevFbs.map(fb => 
              fb.auth0Id === userIdToChange ? { ...fb, ...result.data } : fb
-        ));
+        )); */
         // Remove from food bank list if type changed FROM distributor
-        if (result.data.accountType !== 'distributor') {
-             setFoodBanks(prevFbs => prevFbs.filter(fb => fb.auth0Id !== userIdToChange));
-        }
+        // No need to update distributorData state
+        /* if (result.data.accountType !== 'distributor') {
+             setDistributorData(prevFbs => prevFbs.filter(fb => fb.auth0Id !== userIdToChange));
+        } */
         // Add to food bank list if type changed TO distributor (may need refetch for full data)
-        else if (!foodBanks.some(fb => fb.auth0Id === userIdToChange)) {
-             // Simplest is to refetch, or push result.data if it contains all needed fields
-             setFoodBanks(prevFbs => [...prevFbs, result.data]); 
-        }
+        // No need to update distributorData state
+        /* else if (!distributorData.some(fb => fb.auth0Id === userIdToChange)) {
+             setDistributorData(prevFbs => [...prevFbs, result.data]); 
+        } */
         setUserTypeChanges(prev => {
           const newState = { ...prev };
           delete newState[userIdToChange];
@@ -296,42 +357,49 @@ const AdminDashboard = () => {
   };
 
   // Food Bank Need/Request Handlers (Copied/adapted from OrganizerDashboard)
-  const handleEditClick = (foodBank) => {
-    setFoodBanks(prev => prev.map(fb =>
-      fb.auth0Id === foodBank.auth0Id
-        ? { ...fb, isEditing: true, editData: { priorityLevel: fb.needStatus?.priorityLevel ?? 1, customMessage: fb.needStatus?.customMessage ?? '' } }
-        : { ...fb, isEditing: false }
+  const handleEditClick = (account) => {
+    // Update the edit state for the specific account in the distributorData list
+    // We need a way to track edits separately or merge into the main user list state?
+    // For simplicity, let's update the `distributorData` state, which gets merged into `managedAccounts`
+    setDistributorData(prevDists => prevDists.map(d =>
+      d.auth0Id === account.auth0Id
+        ? { ...d, isEditing: true, editData: { priorityLevel: account.needStatus?.priorityLevel ?? 1, customMessage: account.needStatus?.customMessage ?? '' } }
+        : { ...d, isEditing: false } // Ensure only one is edited
     ));
+    // Also add a temporary flag to the main user object? Or rely on managedAccounts merge?
+    // Let's rely on the merge in managedAccounts for now.
     setError('');
   };
 
   const handleCancelEdit = () => {
-    setFoodBanks(prev => prev.map(fb =>
-      fb.isEditing ? { ...fb, editData: undefined, isEditing: false } : fb
+    // Clear edit state from distributorData
+    setDistributorData(prevDists => prevDists.map(d =>
+      d.isEditing ? { ...d, editData: undefined, isEditing: false } : d
     ));
     setError('');
   };
 
-  const handleEditFormChange = (e, foodBankAuth0Id) => {
+  const handleEditFormChange = (e, accountAuth0Id) => {
     const { name, value } = e.target;
-    setFoodBanks(prev => prev.map(fb =>
-      fb.auth0Id === foodBankAuth0Id && fb.isEditing
-        ? { ...fb, editData: { ...fb.editData, [name]: name === 'priorityLevel' ? parseInt(value, 10) || 1 : value } }
-        : fb
+    // Update editData within the distributorData state
+    setDistributorData(prevDists => prevDists.map(d =>
+      d.auth0Id === accountAuth0Id && d.isEditing
+        ? { ...d, editData: { ...d.editData, [name]: name === 'priorityLevel' ? parseInt(value, 10) || 1 : value } }
+        : d
     ));
   };
 
-  const handleSetFoodBankStatus = async (foodBankUserId) => {
-    const foodBankToSave = foodBanks.find(fb => fb.auth0Id === foodBankUserId && fb.isEditing);
-    if (!foodBankToSave || !foodBankToSave.editData) {
-      setError('Could not find edit data.');
+  const handleSetFoodBankStatus = async (accountUserId) => {
+    // Find the edited data in the distributorData state
+    const accountToSave = distributorData.find(d => d.auth0Id === accountUserId && d.isEditing);
+    if (!accountToSave || !accountToSave.editData) {
+      setError('Could not find edit data. Ensure the account exists in distributorData.');
       return;
     }
-    const { priorityLevel, customMessage } = foodBankToSave.editData;
+    const { priorityLevel, customMessage } = accountToSave.editData;
     try {
       setError('');
-      // Uses the set-need endpoint, already present in user routes
-      const response = await fetch(`http://localhost:5000/api/users/set-need/${foodBankUserId}`, {
+      const response = await fetch(`http://localhost:5000/api/users/set-need/${accountUserId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -341,14 +409,20 @@ const AdminDashboard = () => {
       });
       const result = await response.json();
       if (response.ok && result.success) {
-        setFoodBanks(prev => prev.map(fb =>
-          fb.auth0Id === foodBankUserId ? { ...fb, needStatus: result.data.needStatus, editData: undefined, isEditing: false } : fb
+        // Update the main users list first
+        setUsers(prevUsers => prevUsers.map(u => 
+            u.auth0Id === accountUserId ? { ...u, needStatus: result.data.needStatus } : u
         ));
+        // Clear the editing state from distributorData
+        setDistributorData(prevDists => prevDists.map(d => 
+            d.auth0Id === accountUserId ? { ...d, needStatus: result.data.needStatus, editData: undefined, isEditing: false } : d
+        ));
+        // managedAccounts will automatically update due to dependency on users & distributorData
       } else {
         throw new Error(result.message || 'Failed to set status');
       }
     } catch (err) {
-      console.error("Error setting food bank status:", err);
+      console.error("Error setting account status:", err);
       setError(err.message || 'An error occurred while setting status.');
     }
   };
@@ -363,7 +437,6 @@ const AdminDashboard = () => {
       }
       try {
           const { targetFoodBankId, priorityLevel, customMessage } = newRequestData;
-          // Uses the set-need endpoint
           const response = await fetch(`http://localhost:5000/api/users/set-need/${targetFoodBankId}`, {
               method: 'PUT',
               headers: { 
@@ -374,8 +447,13 @@ const AdminDashboard = () => {
           });
           const result = await response.json();
           if (response.ok && result.success) {
-              setFoodBanks(prev => prev.map(fb =>
-                  fb.auth0Id === targetFoodBankId ? { ...fb, needStatus: result.data.needStatus } : fb
+              // Update main users list
+              setUsers(prevUsers => prevUsers.map(u => 
+                  u.auth0Id === targetFoodBankId ? { ...u, needStatus: result.data.needStatus } : u
+              ));
+              // Update distributorData list as well (if target was a distributor)
+              setDistributorData(prevDists => prevDists.map(d =>
+                  d.auth0Id === targetFoodBankId ? { ...d, needStatus: result.data.needStatus } : d
               ));
               setShowAddRequestForm(false);
               setNewRequestData({ targetFoodBankId: '', priorityLevel: 3, customMessage: '' });
@@ -403,6 +481,9 @@ const AdminDashboard = () => {
       setError('');
       const response = await fetch(`http://localhost:5000/api/donations/${donationId}`, {
         method: 'DELETE',
+        headers: {
+          'X-Requesting-User-Id': userData.auth0Id
+        }
       });
       const result = await response.json();
       if (response.ok && result.success) {
@@ -423,8 +504,14 @@ const AdminDashboard = () => {
   const handleAddNewDonation = async (e) => {
     e.preventDefault();
     setAddDonationError('');
+    // <<< VALIDATION FOR targetUserId >>>
+    if (!newDonationData.targetUserId) {
+      setAddDonationError('Please select the business user you are adding this donation for.');
+      return;
+    }
+    // <<< END VALIDATION >>>
     if (!userData?.auth0Id) {
-      setAddDonationError('Cannot add donation: Admin user ID not found.');
+      setAddDonationError('Cannot add donation: Admin user ID not found.'); // Should not happen if logged in
       return;
     }
     if (!newDonationData.itemName || !newDonationData.quantity || !newDonationData.expirationDate || !newDonationData.pickupInfo) {
@@ -432,20 +519,29 @@ const AdminDashboard = () => {
       return;
     }
     try {
+      // Prepare payload, ensuring targetUserId is sent as 'userId'
+      const { targetUserId, ...restOfDonationData } = newDonationData;
       const donationPayload = {
-        ...newDonationData,
-        userId: userData.auth0Id, // Admin listed as the donor?
+        ...restOfDonationData,
+        userId: targetUserId, // <<< USE targetUserId for the backend
       };
       const response = await fetch(`http://localhost:5000/api/donations`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+           // Add authentication token/header if needed by backend middleware
+           // 'Authorization': `Bearer ${your_auth_token}`
+           'X-Requesting-User-Id': userData.auth0Id
+        },
         body: JSON.stringify(donationPayload),
       });
       const result = await response.json();
       if (response.ok && result.success) {
         setDonations(prev => ({ ...prev, available: [result.data, ...prev.available] }));
         setShowAddDonationForm(false);
-        setNewDonationData({ itemName: '', category: 'other', quantity: '', expirationDate: '', pickupInfo: '' });
+        // Reset form including targetUserId
+        setNewDonationData({ itemName: '', category: 'other', quantity: '', expirationDate: '', pickupInfo: '', targetUserId: '' });
+        setAdminRefreshTrigger(prev => prev + 1);
       } else {
         throw new Error(result.message || 'Failed to add donation');
       }
@@ -508,6 +604,97 @@ const AdminDashboard = () => {
   };
   // <<< END OF ADDED RENDER FUNCTION >>>
 
+  // <<< RESTORE RENDER FUNCTION definition >>>
+  const renderRoleView = () => {
+    // Find the user object corresponding to the preview type, if applicable
+    const targetUser = users.find(u => u.accountType === previewDashboardType && u.auth0Id !== userData.auth0Id);
+    const targetUserId = targetUser ? targetUser.auth0Id : null;
+
+    const adminUserData = userData;
+
+    // Pass the target user ID and update handler as props
+    const componentProps = { 
+      ...(targetUserId && { previewTargetUserId: targetUserId }),
+      onUpdate: handlePreviewDataUpdate // Pass the update handler
+    }; 
+
+    const wrapInPreviewContext = (Component) => (
+      // Context provides ADMIN user data
+      <UserContext.Provider value={{ userData: adminUserData }}>
+        <Component {...componentProps} />
+      </UserContext.Provider>
+    );
+    
+    switch (previewDashboardType) {
+      case 'individual':
+        return wrapInPreviewContext(IndividualDashboard);
+      case 'business':
+        return wrapInPreviewContext(SupplierDashboard);
+      case 'distributor':
+        return wrapInPreviewContext(FoodBankDashboard);
+      case 'volunteer':
+        return wrapInPreviewContext(VolunteerDashboard);
+      default:
+        // Should not happen if dropdown is controlled, but return null as fallback
+        return null; 
+    }
+  };
+ // <<< END RESTORED RENDER FUNCTION >>>
+
+  // --- Action Handlers ---
+  // We need a consolidated save function for the editable components
+  const handleInlineSave = async (accountId, dataToSave) => {
+      // Determine if it's a status save or contact field save
+      if (dataToSave.hasOwnProperty('priorityLevel') || dataToSave.hasOwnProperty('customMessage')) {
+          // Need Status Save
+          try {
+              const response = await fetch(`http://localhost:5000/api/users/set-need/${accountId}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json', 'X-Requesting-User-Id': userData.auth0Id },
+                  body: JSON.stringify(dataToSave),
+              });
+              const result = await response.json();
+              if (!response.ok || !result.success) {
+                  throw new Error(result.message || 'Failed to save status');
+              }
+              // Update local state on success
+              setUsers(prevUsers => prevUsers.map(u => 
+                  u.auth0Id === accountId ? { ...u, needStatus: result.data.needStatus } : u
+              ));
+              // Also clear edit state if tracked in distributorData
+              setDistributorData(prevDists => prevDists.map(d => 
+                  d.auth0Id === accountId ? { ...d, isEditing: false, editData: undefined } : d
+              ));
+          } catch (err) {
+              console.error("Error saving need status:", err);
+              setError(`Save failed for ${accountId}: ${err.message}`); 
+              throw err; // Re-throw for the component to handle
+          }
+      } else {
+          // Contact Field Save (using POST /api/users)
+          try {
+             const payload = { auth0Id: accountId, ...dataToSave };
+             const response = await fetch(`http://localhost:5000/api/users`, {
+                  method: 'POST', // Uses the saveUser endpoint
+                  headers: { 'Content-Type': 'application/json', 'X-Requesting-User-Id': userData.auth0Id },
+                  body: JSON.stringify(payload),
+              });
+              const result = await response.json();
+              if (!response.ok || !result.success) {
+                  throw new Error(result.message || 'Failed to save contact field');
+              }
+              // Update local state on success
+              setUsers(prevUsers => prevUsers.map(u => 
+                  u.auth0Id === accountId ? { ...u, ...result.data } : u // Merge full updated user
+              ));
+          } catch (err) {
+              console.error("Error saving contact field:", err);
+              setError(`Save failed for ${accountId}: ${err.message}`); 
+              throw err; // Re-throw for the component to handle
+          }
+      }
+  };
+
   // --- Render Logic ---
 
   if (isLoading) {
@@ -533,74 +720,44 @@ const AdminDashboard = () => {
      return <div className="dashboard-error">Access Denied. Organizers only.</div>;
   }
 
-  // --- Function to render the selected preview dashboard --- 
-  const renderPreviewDashboard = () => {
-    // Create a simulated userData object for the context provider
-    const previewUserData = { 
-      ...userData, // Copy existing admin data (ID, username)
-      accountType: previewDashboardType // Override the account type
-    };
-    
-    // Pass relevant data as props where needed
-    const commonProps = {
-      // Example: Pass donations if the previewed dashboard might use it
-      // Note: Specific dashboards might need different props checked/added here
-      allDonations: donations, 
-      allFoodBanks: foodBanks,
-    };
-
-    // Use a temporary context provider for the preview
-    const wrapInPreviewContext = (Component) => (
-      <UserContext.Provider value={{ userData: previewUserData }}>
-        <Component {...commonProps} isPreview={true} />
-      </UserContext.Provider>
-    );
-
-    switch (previewDashboardType) {
-      case 'individual':
-        return wrapInPreviewContext(IndividualDashboard);
-      case 'business': // Assuming 'business' maps to SupplierDashboard
-        return wrapInPreviewContext(SupplierDashboard);
-      case 'distributor': // Assuming 'distributor' maps to FoodBankDashboard
-        return wrapInPreviewContext(FoodBankDashboard);
-      case 'volunteer':
-        return wrapInPreviewContext(VolunteerDashboard);
-      default:
-        return null; // Should not happen if selection is controlled
-    }
-  };
-
   return (
     <div className="dashboard-content admin-dashboard">
       <h1>Admin Dashboard</h1>
 
-      {/* <<< ADD DASHBOARD PREVIEW SELECTOR >>> */}
+      {/* <<< DISPLAY ADMIN ID >>> */}
+      {userData?.auth0Id && (
+        <p style={{ fontStyle: 'italic', color: '#666', marginBottom: '20px' }}>
+          Logged in as Admin: {userData.auth0Id}
+        </p>
+      )}
+      {/* <<< END DISPLAY ADMIN ID >>> */}
+
+      {/* Dashboard Role View Selector */}
       <div className="preview-selector" style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f0f0f0', borderRadius: '8px' }}>
-        <label htmlFor="previewType" style={{ marginRight: '10px', fontWeight: 'bold' }}>Preview Dashboard As:</label>
+        <label htmlFor="previewType" style={{ marginRight: '10px', fontWeight: 'bold' }}>View Dashboard As:</label>
         <select 
           id="previewType"
-          value={previewDashboardType || 'admin'} // Default to 'admin' view
+          value={previewDashboardType || 'admin'} 
           onChange={(e) => setPreviewDashboardType(e.target.value === 'admin' ? null : e.target.value)}
         >
           <option value="admin">Admin View (Default)</option>
-          <option value="individual">Individual User</option>
           <option value="business">Business/Supplier</option>
           <option value="distributor">Food Bank/Distributor</option>
           <option value="volunteer">Volunteer</option>
+          <option value="individual">Individual</option>
         </select>
         {previewDashboardType && (
           <p style={{ marginTop: '10px', fontStyle: 'italic' }}>
-            Showing a preview of the {formatAccountType(previewDashboardType)} dashboard. Data shown may be limited or based on admin context.
+            Displaying {formatAccountType(previewDashboardType)} dashboard layout using Admin data context.
           </p>
         )}
       </div>
-      {/* <<< END OF PREVIEW SELECTOR >>> */}
 
       {error && <div className="dashboard-error" style={{ marginBottom: '15px' }}>Error: {error}</div>}
 
-      {/* --- CONDITIONAL RENDERING: PREVIEW OR ADMIN VIEW --- */} 
+      {/* --- RESTORE CONDITIONAL RENDERING: ROLE VIEW OR ADMIN VIEW --- */} 
       {previewDashboardType ? (
-         renderPreviewDashboard() // Render the selected preview
+         renderRoleView() // Render the selected role view
       ) : (
         <> {/* Render the standard Admin sections */} 
           <section className="admin-section"> 
@@ -678,7 +835,7 @@ const AdminDashboard = () => {
           </section>
 
           <section className="organizer-section"> 
-            <h2>Food Bank Needs Overview</h2>
+            <h2>Managed Accounts (Food Banks & Organizers)</h2>
             <div style={{ marginBottom: '15px' }}> 
               <button 
                 onClick={() => { setShowAddRequestForm(true); setAddRequestError(''); }} 
@@ -687,79 +844,61 @@ const AdminDashboard = () => {
                 + Set Food Bank Request/Status
               </button>
             </div>
-            {foodBanks.length === 0 ? (
-              <p>No food banks found.</p>
+            {managedAccounts.length === 0 ? (
+              <p>No food banks or organizers found.</p>
             ) : (
               <table className="data-table organizer-foodbank-table">
                 <thead>
                   <tr>
-                    <th>Food Bank Name</th>
-                    <th>Priority Level</th>
-                    <th>Status Message</th>
+                    <th>Account Name</th> 
+                    <th>Need Status</th>{/* Combined Column */}
                     <th>Address</th> 
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {foodBanks.map(fb => {
-                    const isEditing = fb.isEditing;
-                    const currentPriority = isEditing ? fb.editData?.priorityLevel : fb.needStatus?.priorityLevel;
-                    const currentMessage = isEditing ? fb.editData?.customMessage : fb.needStatus?.customMessage;
-                    const priorityInfo = getPriorityInfo(currentPriority);
+                  {managedAccounts.map(account => {
+                    const displayName = account.businessName || account.username || 'Unnamed Account';
+                    const disableStatusEditing = account.auth0Id === userData.auth0Id; // Example: Disable editing own status
+                    
                     return (
-                      <tr key={fb.auth0Id}>
-                        <td>{fb.username || fb.businessName || 'Unnamed Food Bank'}</td>
+                      <tr key={account.auth0Id}>
+                        <td>{displayName} ({formatAccountType(account.accountType)})</td>
                         <td>
-                          {isEditing ? (
-                            <select
-                              name="priorityLevel"
-                              value={currentPriority ?? 1}
-                              onChange={(e) => handleEditFormChange(e, fb.auth0Id)}
-                              className="inline-edit-input"
-                            >
-                              {priorityLevels.map(p => (
-                                <option key={p.level} value={p.level}>{p.level} - {p.label}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <span className="priority-badge-inline" style={{ backgroundColor: priorityInfo.color }}>
-                              {priorityInfo.label}
-                            </span>
-                          )}
+                          {/* Use EditableNeedStatus component */} 
+                          <EditableNeedStatus 
+                              auth0Id={account.auth0Id}
+                              initialPriority={account.needStatus?.priorityLevel ?? 1}
+                              initialMessage={account.needStatus?.customMessage ?? ''}
+                              priorityLevels={priorityLevels} // Pass defined levels
+                              getPriorityInfo={getPriorityInfo} // Pass helper function
+                              onSave={handleInlineSave} // Pass the save handler
+                              disabled={disableStatusEditing} // Example condition
+                          />
                         </td>
                         <td>
-                          {isEditing ? (
-                            <input 
-                              type="text"
-                              name="customMessage"
-                              value={currentMessage ?? ''}
-                              onChange={(e) => handleEditFormChange(e, fb.auth0Id)}
-                              className="inline-edit-input"
-                              placeholder="Enter status message"
+                             {/* Use EditableContactField component - For Address */} 
+                            <EditableContactField
+                                auth0Id={account.auth0Id}
+                                fieldName="address" // Or businessAddress?
+                                label="Address" // Hide label visually if needed in table
+                                initialValue={account.address || account.businessAddress || ''}
+                                placeholder="No address listed"
+                                onSave={handleInlineSave}
+                                inputType="textarea" // Example: use textarea for address
                             />
-                          ) : (
-                            currentMessage || 'No specific message'
-                          )}
                         </td>
-                        <td>{fb.businessAddress || 'No address listed'}</td>
-                        <td> 
-                          {isEditing ? (
-                            <>
-                              <button onClick={() => handleSetFoodBankStatus(fb.auth0Id)} className="action-button save-button">Save</button>
-                              <button onClick={handleCancelEdit} className="action-button cancel-button">Cancel</button>
-                            </>
-                          ) : (
-                            <>
-                              <button onClick={() => handleEditClick(fb)} className="action-button edit-button">Edit Status</button>
-                              <button 
-                                onClick={() => handleResetRequests(fb.auth0Id)} 
+                        <td className="action-cell">
+                            {/* Other actions like Reset Requests, Delete */}
+                            <button 
+                                onClick={() => handleResetRequests(account.auth0Id)} 
                                 className="action-button reset-button"
-                                title="Reset all need requests for this food bank"
-                              >
-                                Reset Requests
-                              </button>
-                            </>
-                          )}
+                                title="Reset all need requests for this account"
+                                disabled={account.accountType !== 'distributor'} // Disable reset for organizers?
+                            >
+                                Reset
+                            </button>
+                            {/* Add Delete button here if needed, similar to User Management */}
                         </td>
                       </tr>
                     );
@@ -786,66 +925,84 @@ const AdminDashboard = () => {
             </div>
           </section>
 
-          {/* Modals are kept outside the conditional rendering, 
-              but their trigger buttons are within the standard admin view sections */}
+          {/* Modals remain accessible */} 
           {showAddRequestForm && (
-             <div className="modal-overlay">
-               <div className="modal-content">
-                 <form onSubmit={handleAddNewRequest} className="modal-form">
-                   <h3>Set Food Bank Request/Status</h3>
-                   <button type="button" className="modal-close-button" onClick={() => setShowAddRequestForm(false)}>&times;</button>
-                   {addRequestError && <p className="error-message">{addRequestError}</p>}
-                   <div className="form-group">
-                     <label>Select Food Bank*</label>
-                     <select name="targetFoodBankId" value={newRequestData.targetFoodBankId} onChange={handleNewRequestChange} required>
-                       <option value="" disabled>-- Select a Food Bank --</option>
-                       {foodBanks.map(fb => (
-                         <option key={fb.auth0Id} value={fb.auth0Id}>{fb.username || fb.businessName || fb.auth0Id}</option>
-                       ))}
-                     </select>
-                   </div>
-                   <div className="form-row">
-                      <div className="form-group">
-                         <label>Priority Level*</label>
-                         <select name="priorityLevel" value={newRequestData.priorityLevel} onChange={handleNewRequestChange} required>
-                            {priorityLevels.map(p => (<option key={p.level} value={p.level}>{p.level} - {p.label}</option>))}
-                         </select>
-                      </div>
-                   </div>
-                   <div className="form-group">
-                     <label>Request Details / Status Message*</label>
-                     <textarea name="customMessage" value={newRequestData.customMessage} onChange={handleNewRequestChange} required></textarea>
-                   </div>
-                   <div className="form-actions">
-                     <button type="submit" className="action-button save-button">Set Request/Status</button>
-                     <button type="button" onClick={() => setShowAddRequestForm(false)} className="action-button cancel-button">Cancel</button>
-                   </div>
-                 </form>
-               </div>
-             </div>
+              <div className="modal-overlay">
+                <div className="modal-content">
+                  <form onSubmit={handleAddNewRequest} className="modal-form">
+                    <h3>Set Food Bank Request/Status</h3>
+                    <button type="button" className="modal-close-button" onClick={() => setShowAddRequestForm(false)}>&times;</button>
+                    {addRequestError && <p className="error-message">{addRequestError}</p>}
+                    <div className="form-group">
+                      <label>Select Food Bank/Organizer*</label>
+                      <select name="targetFoodBankId" value={newRequestData.targetFoodBankId} onChange={handleNewRequestChange} required>
+                        <option value="" disabled>-- Select a Food Bank/Organizer --</option>
+                        {managedAccounts.map(acc => (
+                          <option key={acc.auth0Id} value={acc.auth0Id}>{acc.businessName || acc.username || acc.auth0Id} ({formatAccountType(acc.accountType)})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-row">
+                       <div className="form-group">
+                          <label>Priority Level*</label>
+                          <select name="priorityLevel" value={newRequestData.priorityLevel} onChange={handleNewRequestChange} required>
+                             {priorityLevels.map(p => (<option key={p.level} value={p.level}>{p.level} - {p.label}</option>))}
+                          </select>
+                       </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Request Details / Status Message*</label>
+                      <textarea name="customMessage" value={newRequestData.customMessage} onChange={handleNewRequestChange} required></textarea>
+                    </div>
+                    <div className="form-actions">
+                      <button type="submit" className="action-button save-button">Set Request/Status</button>
+                      <button type="button" onClick={() => setShowAddRequestForm(false)} className="action-button cancel-button">Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
           )}
 
           {showAddDonationForm && (
-             <div className="modal-overlay">
-               <div className="modal-content">
-                 <form onSubmit={handleAddNewDonation} className="modal-form">
-                   <h3>Add New Donation (as Admin)</h3>
-                   <button type="button" className="modal-close-button" onClick={() => setShowAddDonationForm(false)}>&times;</button>
-                   {addDonationError && <p className="error-message">{addDonationError}</p>}
-                   {/* Form content copied from OrganizerDashboard */}
-                   <div className="form-row">
-                      <div className="form-group"><label>Item Name*</label><input type="text" name="itemName" value={newDonationData.itemName} onChange={handleNewDonationChange} required /></div>
-                      <div className="form-group"><label>Quantity*</label><input type="text" name="quantity" value={newDonationData.quantity} onChange={handleNewDonationChange} required /></div>
-                   </div>
-                   <div className="form-row">
-                      <div className="form-group"><label>Category*</label><select name="category" value={newDonationData.category} onChange={handleNewDonationChange} required><option value="produce">Produce</option><option value="bakery">Bakery</option><option value="dairy">Dairy</option><option value="meat">Meat</option><option value="canned">Canned Goods</option><option value="dry">Dry Goods</option><option value="frozen">Frozen</option><option value="prepared">Prepared Meals</option><option value="other">Other</option></select></div>
-                      <div className="form-group"><label>Expiration Date*</label><input type="date" name="expirationDate" value={newDonationData.expirationDate} onChange={handleNewDonationChange} required /></div>
-                   </div>
-                   <div className="form-group"><label>Pickup Information*</label><textarea name="pickupInfo" value={newDonationData.pickupInfo} onChange={handleNewDonationChange} required></textarea></div>
-                   <div className="form-actions"><button type="submit" className="action-button save-button">Add Donation</button><button type="button" onClick={() => setShowAddDonationForm(false)} className="action-button cancel-button">Cancel</button></div>
-                 </form>
-               </div>
-             </div>
+              <div className="modal-overlay">
+                <div className="modal-content">
+                  <form onSubmit={handleAddNewDonation} className="modal-form">
+                    <h3>Add New Donation (as Admin)</h3>
+                    <button type="button" className="modal-close-button" onClick={() => setShowAddDonationForm(false)}>&times;</button>
+                    {addDonationError && <p className="error-message">{addDonationError}</p>}
+                    {/* Form content copied from OrganizerDashboard */}
+                    {/* <<< ADD TARGET USER SELECTOR >>> */}
+                    <div className="form-group">
+                      <label htmlFor="targetUserId">Add Donation For (Business User)*</label>
+                      <select
+                        id="targetUserId"
+                        name="targetUserId"
+                        value={newDonationData.targetUserId}
+                        onChange={handleNewDonationChange}
+                        required
+                      >
+                        <option value="" disabled>-- Select Business --</option>
+                        {businessUsers.map(user => (
+                          <option key={user.auth0Id} value={user.auth0Id}>
+                            {user.businessName || user.username} ({user.auth0Id})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {/* <<< END TARGET USER SELECTOR >>> */}
+                    <div className="form-row">
+                       <div className="form-group"><label>Item Name*</label><input type="text" name="itemName" value={newDonationData.itemName} onChange={handleNewDonationChange} required /></div>
+                       <div className="form-group"><label>Quantity*</label><input type="text" name="quantity" value={newDonationData.quantity} onChange={handleNewDonationChange} required /></div>
+                    </div>
+                    <div className="form-row">
+                       <div className="form-group"><label>Category*</label><select name="category" value={newDonationData.category} onChange={handleNewDonationChange} required><option value="produce">Produce</option><option value="bakery">Bakery</option><option value="dairy">Dairy</option><option value="meat">Meat</option><option value="canned">Canned Goods</option><option value="dry">Dry Goods</option><option value="frozen">Frozen</option><option value="prepared">Prepared Meals</option><option value="other">Other</option></select></div>
+                       <div className="form-group"><label>Expiration Date*</label><input type="date" name="expirationDate" value={newDonationData.expirationDate} onChange={handleNewDonationChange} required /></div>
+                    </div>
+                    <div className="form-group"><label>Pickup Information*</label><textarea name="pickupInfo" value={newDonationData.pickupInfo} onChange={handleNewDonationChange} required></textarea></div>
+                    <div className="form-actions"><button type="submit" className="action-button save-button">Add Donation</button><button type="button" onClick={() => setShowAddDonationForm(false)} className="action-button cancel-button">Cancel</button></div>
+                  </form>
+                </div>
+              </div>
           )}
         </>
       )}
