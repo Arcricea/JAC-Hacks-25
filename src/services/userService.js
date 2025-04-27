@@ -123,31 +123,28 @@ export const verifyVolunteerCode = async (username, code) => {
 };
 
 // Update need status for a food bank
-// Add requestingUserId for authorization header
-export const updateNeedStatus = async (userId, statusData, requestingUserId) => {
+export const updateNeedStatus = async (userId, statusData) => {
   try {
-    // No need to fetch user data first, the backend controller handles that.
-    // Just send the update request.
-    const response = await fetch(`${API_URL}/users/set-need/${userId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          // Use the requestingUserId (admin's ID) for the header
-          ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
-        },
-        body: JSON.stringify(statusData), // Send { priorityLevel, customMessage }
-      });
+    // Get the current user data
+    const userData = await getUserByAuth0Id(userId, userId);
     
-    const data = await response.json();
-    
-    if (!response.ok) {
-      throw new Error(data.message || 'Failed to update need status');
+    if (!userData || !userData.success || !userData.data) {
+      throw new Error('Failed to get user data');
     }
     
-    // The backend controller returns { success: true, data: userResponse }
-    // Return the whole response object
-    return data; 
+    // Update the needStatus field only
+    const updatedUserData = {
+      ...userData.data,
+      needStatus: {
+        priorityLevel: statusData.priorityLevel,
+        customMessage: statusData.customMessage
+      }
+    };
     
+    // Use the regular saveUser endpoint which doesn't require organizer privileges
+    const response = await saveUser(updatedUserData);
+    
+    return response;
   } catch (error) {
     console.error('Error updating need status:', error);
     throw error;
