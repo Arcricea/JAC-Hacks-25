@@ -3,6 +3,32 @@ const User = require('../models/User'); // Import User model
 // const AssignedTask = require('../models/AssignedTask');
 const mongoose = require('mongoose');
 
+// --- Helper Functions for Code Generation (Should match frontend) ---
+
+// Simple hash function (djb2)
+const djb2Hash = (str) => {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 33) ^ str.charCodeAt(i);
+  }
+  return hash >>> 0; // Ensure positive integer
+};
+
+// Generate an 8-digit code based on a seed string (e.g., auth0Id)
+const generateVerificationCode = (seed) => {
+  if (!seed) return null; // Return null on error/no seed
+  try {
+    const hash = djb2Hash(seed);
+    const code = hash % 100000000;
+    return code.toString().padStart(8, '0');
+  } catch (err) {
+    console.error("Error generating verification code on server:", err);
+    return null;
+  }
+};
+
+// --- End Helper Functions ---
+
 exports.createDonation = async (req, res) => {
   try {
     const { itemName, category, quantity, expirationDate, pickupInfo, imageUrl } = req.body;
@@ -330,40 +356,102 @@ exports.getSupplierListedDonations = async (req, res) => {
   }
 };
 
-// New function for Supplier to confirm pickup via QR scan
+// New function for Supplier to confirm pickup via Code or QR Scan
 exports.confirmSupplierPickup = async (req, res) => {
   try {
     const { userId } = req.params; // Supplier's auth0Id
-    const { scannedVolunteerId } = req.body; // Get volunteer ID from QR scan data
+    const { confirmationCode, scannedVolunteerId } = req.body; // Get potential inputs
 
-    if (!scannedVolunteerId) {
-      return res.status(400).json({ success: false, message: 'Scanned volunteer ID is required.' });
+    let matchedVolunteerId = null;
+
+    // --- Option 1: Validate using Confirmation Code ---
+    if (confirmationCode) {
+        if (confirmationCode.length !== 8 || !/^[0-9]+$/.test(confirmationCode)) {
+            return res.status(400).json({ success: false, message: 'Invalid 8-digit confirmation code format.' });
+        }
+
+        // Find potential volunteers based on supplier's scheduled donations
+        const scheduledDonations = await Donation.find({
+            userId: userId,
+            status: 'scheduled' 
+        }).select('volunteerId').lean();
+
+        if (!scheduledDonations || scheduledDonations.length === 0) {
+            return res.status(404).json({ success: false, message: 'No scheduled donations found for this supplier to verify code against.' });
+        }
+        const potentialVolunteerIds = [...new Set(scheduledDonations.map(d => d.volunteerId).filter(id => id))];
+        if (potentialVolunteerIds.length === 0) {
+             return res.status(404).json({ success: false, message: 'No volunteers assigned to scheduled donations for this supplier.' });
+        }
+
+        const potentialVolunteers = await User.find({ 
+             auth0Id: { $in: potentialVolunteerIds },
+             accountType: 'volunteer' 
+        }).select('auth0Id').lean();
+
+        // Find the volunteer whose code matches
+        for (const volunteer of potentialVolunteers) {
+            const generatedCode = generateVerificationCode(volunteer.auth0Id);
+            if (generatedCode === confirmationCode) {
+                matchedVolunteerId = volunteer.auth0Id;
+                break; 
+            }
+        }
+
+        if (!matchedVolunteerId) {
+            return res.status(400).json({ success: false, message: 'Invalid confirmation code provided.' });
+        }
+        console.log(`Confirmation successful via code for volunteer: ${matchedVolunteerId}`);
+
+    // --- Option 2: Validate using Scanned Volunteer ID ---
+    } else if (scannedVolunteerId) {
+        // Basic validation if needed (e.g., check format if there's a standard)
+        if (typeof scannedVolunteerId !== 'string' || scannedVolunteerId.trim() === '') { // Basic check
+             return res.status(400).json({ success: false, message: 'Invalid scanned volunteer ID format.' });
+        }
+        // Assume the scanned ID is the correct volunteer ID
+        // Optional: You *could* add a check here to ensure this volunteer ID exists 
+        //           and is actually scheduled for a pickup from this supplier, for extra security.
+        // Example Check (optional):
+        // const isValidAssignment = await Donation.findOne({ userId: userId, volunteerId: scannedVolunteerId, status: 'scheduled' });
+        // if (!isValidAssignment) {
+        //     return res.status(400).json({ success: false, message: 'Scanned volunteer is not scheduled for a pickup from this supplier.' });
+        // }
+        matchedVolunteerId = scannedVolunteerId.trim();
+        console.log(`Confirmation successful via scanned ID for volunteer: ${matchedVolunteerId}`);
+
+    // --- No valid input provided ---
+    } else {
+        return res.status(400).json({ success: false, message: 'Confirmation code or scanned volunteer ID is required.' });
     }
 
-    // Find donations by this supplier, scheduled for this specific volunteer
+    // --- If we have a matchedVolunteerId (from either method), proceed --- 
+    if (!matchedVolunteerId) {
+         // This should technically be caught by the specific checks above, but acts as a safeguard.
+         return res.status(400).json({ success: false, message: 'Could not determine volunteer ID for confirmation.' });
+    }
+
+    // Update donations for the matched volunteer
     const updateResult = await Donation.updateMany(
       { 
         userId: userId, 
-        volunteerId: scannedVolunteerId, // Match the specific volunteer
+        volunteerId: matchedVolunteerId, 
         status: 'scheduled' 
       },
-      { $set: { status: 'picked_up', pickupDate: new Date() } } // Update status to picked_up instead of completed
+      { $set: { status: 'picked_up', pickupDate: new Date() } } 
     );
 
     if (updateResult.matchedCount === 0) {
-      return res.status(200).json({
-        success: true, 
-        message: 'No scheduled donations found for this supplier and volunteer combination to mark as picked up.', // Updated message
+      return res.status(404).json({
+        success: false, 
+        message: 'No scheduled donations found for the verified volunteer to mark as picked up.', 
         modifiedCount: 0
       });
     }
 
-    // If update was successful, maybe update related AssignedTask status if that model is still used elsewhere
-    // Example: await AssignedTask.updateMany({ volunteerId: scannedVolunteerId, status: 'pending' }, { $set: { status: 'picked_up' } });
-
     res.status(200).json({
       success: true,
-      message: `Successfully marked ${updateResult.modifiedCount} donation(s) from volunteer ${scannedVolunteerId} as picked up.`, // Updated message
+      message: `Successfully confirmed pickup for ${updateResult.modifiedCount} donation(s). Volunteer ID: ${matchedVolunteerId}`,
       modifiedCount: updateResult.modifiedCount
     });
 
