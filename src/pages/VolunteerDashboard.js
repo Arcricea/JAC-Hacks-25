@@ -5,6 +5,7 @@ import { UserContext } from '../App';
 import '../assets/styles/Dashboard.css'; // Reuse existing dashboard styles for now
 import '../assets/styles/VolunteerDashboard.css'; // Add specific styles
 import { saveUser } from '../services/userService'; // Import saveUser service
+import { getAvailableDonations } from '../services/donationService';
 
 const VolunteerDashboard = () => {
   const { userData, setUserData } = useContext(UserContext);
@@ -15,6 +16,8 @@ const VolunteerDashboard = () => {
   const [error, setError] = useState(null);
   const intervalRef = useRef(null);
   const totpRef = useRef(null);
+  const [availableTasks, setAvailableTasks] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     // Clear previous interval on component unmount or when secret changes
@@ -71,6 +74,37 @@ const VolunteerDashboard = () => {
     };
   }, [userData?.volunteerSecret, userData?.username]); // Rerun if secret or username changes
 
+  useEffect(() => {
+    if (activeTab === 'available') {
+      fetchAvailableTasks();
+    }
+  }, [activeTab]);
+
+  const fetchAvailableTasks = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await getAvailableDonations();
+      if (response.success) {
+        setAvailableTasks(response.data);
+      }
+    } catch (err) {
+      setError('Failed to load available tasks. Please try again later.');
+      console.error('Error fetching tasks:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Function to format the date
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
   // Combine username and code for the QR code value
   const qrCodeValue = (userData?.username && currentCode && currentCode !== '------' && currentCode !== 'Error') 
                       ? `${userData.username}:${currentCode}` 
@@ -111,12 +145,48 @@ const VolunteerDashboard = () => {
     }
   };
 
-  // Basic volunteer data - can be expanded later
+  // Example data - this would come from your backend in a real application
   const volunteerData = {
-    tasksCompleted: 12, // Example data
+    tasksCompleted: 12,
     upcomingShifts: [
       { id: 1, location: 'Community Food Bank', date: '2025-05-10', time: '9:00 AM - 12:00 PM' },
       { id: 2, location: 'Downtown Shelter', date: '2025-05-15', time: '1:00 PM - 4:00 PM' },
+    ],
+    // Add available tasks data
+    availableTasks: [
+      {
+        id: 1,
+        organization: 'Community Food Bank',
+        role: 'Food Sorter',
+        date: '2025-05-20',
+        time: '10:00 AM - 2:00 PM',
+        location: '123 Main St',
+        spots: 5,
+        description: 'Help sort and organize food donations for distribution.',
+        requirements: ['Must be able to lift 20lbs', 'Food handling experience preferred']
+      },
+      {
+        id: 2,
+        organization: 'Local Soup Kitchen',
+        role: 'Meal Server',
+        date: '2025-05-21',
+        time: '11:30 AM - 2:30 PM',
+        location: '456 Oak Ave',
+        spots: 3,
+        description: 'Serve meals to community members in need.',
+        requirements: ['Food handling certificate required', 'Standing for extended periods']
+      },
+      {
+        id: 3,
+        organization: 'Food Rescue Program',
+        role: 'Delivery Driver',
+        date: '2025-05-22',
+        time: '8:00 AM - 12:00 PM',
+        location: '789 Pine St',
+        spots: 2,
+        description: 'Pick up and deliver food donations from local businesses to food banks.',
+        requirements: ['Valid driver\'s license', 'Clean driving record', 'Own vehicle']
+      }
     ]
   };
 
@@ -135,9 +205,14 @@ const VolunteerDashboard = () => {
           className={activeTab === 'tasks' ? 'active' : ''} 
           onClick={() => setActiveTab('tasks')}
         >
-          Volunteer Tasks
+          My Tasks
         </button>
-        {/* Add more tabs as needed */}
+        <button 
+          className={activeTab === 'available' ? 'active' : ''} 
+          onClick={() => setActiveTab('available')}
+        >
+          Available Deliveries
+        </button>
       </div>
 
       <div className="dashboard-content">
@@ -226,6 +301,88 @@ const VolunteerDashboard = () => {
                 </div>
                 {/* Add more stats */}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'available' && (
+          <div className="available-tasks-section">
+            <h3>Available Food Deliveries</h3>
+            
+            {isLoading && (
+              <div className="loading-spinner">Loading available tasks...</div>
+            )}
+
+            {error && (
+              <div className="error-message">
+                {error}
+              </div>
+            )}
+
+            {!isLoading && !error && (
+              <>
+                <div className="task-filters">
+                  <input 
+                    type="text" 
+                    placeholder="Search deliveries..."
+                    className="task-search"
+                  />
+                  <select className="task-filter">
+                    <option value="">All Categories</option>
+                    <option value="produce">Fresh Produce</option>
+                    <option value="bakery">Bakery</option>
+                    <option value="dairy">Dairy</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div className="available-tasks-grid">
+                  {availableTasks.map(task => (
+                    <div key={task._id} className="task-card">
+                      <div className="task-card-header">
+                        <h4>Food Delivery Task</h4>
+                        <span className="task-category">{task.category}</span>
+                      </div>
+                      
+                      <div className="task-card-body">
+                        <div className="task-details">
+                          <h5>Items to Deliver:</h5>
+                          <p className="item-details">
+                            <span className="item-name">{task.itemName}</span>
+                            <span className="item-quantity">({task.quantity})</span>
+                          </p>
+                          
+                          <h5>Pickup Information:</h5>
+                          <p className="pickup-info">{task.pickupInfo}</p>
+                          
+                          <div className="task-metadata">
+                            <p className="expiry-date">
+                              <span className="material-icons">Expiration Date: </span>
+                              {formatDate(task.expirationDate)}
+                            </p>
+                            <p className="created-date">
+                              <span className="material-icons">Listed Time:</span>
+                              {formatDate(task.createdAt)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="task-card-footer">
+                        <button className="primary-btn">Accept Delivery</button>
+                        <button className="secondary-btn">View Details</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {availableTasks.length === 0 && (
+                  <div className="no-tasks-message">
+                    <p>No deliveries available at the moment.</p>
+                    <p>Please check back later for new opportunities.</p>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>

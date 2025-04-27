@@ -43,4 +43,22 @@ exports.createDonation = async (req, res) => {
       error: error.message
     });
   }
+};
+
+exports.getAvailableDonations = async (req, res) => {
+  try {
+    const donations = await Donation.find({ status: 'available' })
+      .sort({ createdAt: -1 }); // Most recent first
+
+    res.status(200).json({
+      success: true,
+      data: donations
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching available donations',
+      error: error.message
+    });
+  }
 }; 

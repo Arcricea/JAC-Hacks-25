@@ -21,4 +21,20 @@ export const createDonation = async (donationData) => {
     console.error('Error creating donation:', error);
     throw error;
   }
+};
+
+export const getAvailableDonations = async () => {
+  try {
+    const response = await fetch(`${API_URL}/donations/available`);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch available donations');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching available donations:', error);
+    throw error;
+  }
 }; 
