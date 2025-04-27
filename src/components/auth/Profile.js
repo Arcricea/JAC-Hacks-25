@@ -9,6 +9,22 @@ import GoogleMapsScript from '../GoogleMapsScript';
 // Define account types available
 const accountTypes = ['individual', 'business', 'distributor', 'volunteer', 'organizer'];
 
+// Function to display address object as a string
+const displayAddress = (addressObj) => {
+  if (!addressObj) return '';
+  
+  // Check if addressObj is already a string
+  if (typeof addressObj === 'string') return addressObj;
+  
+  const parts = [];
+  if (addressObj.street) parts.push(addressObj.street);
+  if (addressObj.city) parts.push(addressObj.city);
+  if (addressObj.state) parts.push(addressObj.state);
+  if (addressObj.zipCode) parts.push(addressObj.zipCode);
+  
+  return parts.join(', ');
+};
+
 const Profile = () => {
   const { user, isAuthenticated, isLoading } = useAuth0();
   const { userData, setUserData } = useContext(UserContext);
@@ -40,7 +56,15 @@ const Profile = () => {
 
   useEffect(() => {
     if (userData?.address) {
-      setAddress(userData.address);
+      // Handle address which could be a string or an object
+      if (typeof userData.address === 'object') {
+        // Format the object as a string to display in the input field
+        const formattedAddress = displayAddress(userData.address);
+        setAddress(formattedAddress);
+      } else {
+        // If it's a string, use it directly
+        setAddress(userData.address);
+      }
     }
   }, [userData]);
 
@@ -63,15 +87,15 @@ const Profile = () => {
             // Update the input field display
             setAddress(selectedAddressString); 
             
-            // Now, automatically validate the selected address to get components
-            handleValidateAddress(selectedAddressString); 
-
-            // Show temporary feedback (optional, validation provides its own)
-            // setAddressSaveStatus({ 
-            //   message: "✓ Address selected, validating...", 
-            //   type: 'info' 
-            // });
-            // setTimeout(() => setAddressSaveStatus({ message: '', type: '' }), 3000);
+            // Mark as validated with no additional validation needed
+            setValidatedAddress({ validated: true });
+            
+            // Show temporary feedback
+            setAddressSaveStatus({ 
+              message: "✓ Address selected", 
+              type: 'success' 
+            });
+            setTimeout(() => setAddressSaveStatus({ message: '', type: '' }), 3000);
           }
         });
 
@@ -216,12 +240,18 @@ const Profile = () => {
 
   const handleAddressChange = (e) => {
     setAddress(e.target.value);
+    // Reset validation when user types manually
     setValidatedAddress(null);
     setAddressError('');
+    setAddressSaveStatus({ message: '', type: '' });
   };
 
   const handleValidateAddress = async (addressToValidate = address) => {
-    if (!addressToValidate.trim()) {
+    // Check if the addressToValidate is valid before trying to trim it
+    if (!addressToValidate || 
+        (typeof addressToValidate === 'string' && !addressToValidate.trim()) ||
+        (typeof addressToValidate === 'object' && 
+         (!addressToValidate.street || !addressToValidate.street.trim()))) {
       setAddressError('Please enter an address');
       return;
     }
@@ -230,52 +260,15 @@ const Profile = () => {
     setAddressError('');
 
     try {
-      const geocoder = new window.google.maps.Geocoder();
-      const result = await new Promise((resolve, reject) => {
-        geocoder.geocode({ address: addressToValidate }, (results, status) => {
-          if (status === 'OK' && results[0]) {
-            resolve(results[0]);
-          } else {
-            reject(new Error('Address validation failed'));
-          }
-        });
-      });
-
-      const addressComponents = {
-        formatted: result.formatted_address,
-        street_number: '',
-        street_name: '',
-        city: '',
-        state: '',
-        zip: '',
-        country: '',
-        validated: true
-      };
-
-      // Extract address components
-      result.address_components.forEach(component => {
-        const types = component.types;
-        if (types.includes('street_number')) {
-          addressComponents.street_number = component.long_name;
-        } else if (types.includes('route')) {
-          addressComponents.street_name = component.long_name;
-        } else if (types.includes('locality')) {
-          addressComponents.city = component.long_name;
-        } else if (types.includes('administrative_area_level_1')) {
-          addressComponents.state = component.short_name;
-        } else if (types.includes('postal_code')) {
-          addressComponents.zip = component.long_name;
-        } else if (types.includes('country')) {
-          addressComponents.country = component.short_name;
-        }
-      });
-
-      // --- Add Logging --- 
-      console.log("Extracted Address Components:", addressComponents);
-      // --- End Logging ---
-
-      setValidatedAddress(addressComponents);
-      setAddress(result.formatted_address);
+      // If addressToValidate is an object, convert it to string
+      const addressString = typeof addressToValidate === 'object' 
+        ? displayAddress(addressToValidate)
+        : addressToValidate;
+        
+      // Just set the address - no need for complex validation
+      setAddress(addressString);
+      setValidatedAddress({ validated: true });
+      setAddressError('');
     } catch (error) {
       console.error('Error validating address:', error);
       setAddressError('Please enter a valid address');
@@ -286,78 +279,52 @@ const Profile = () => {
   };
 
   const handleSaveAddress = async () => {
-    // Use the validated address data if available
-    if (!validatedAddress || !validatedAddress.validated) { 
+    // Check if the address was selected from dropdown
+    if (!validatedAddress || !validatedAddress.validated) {
       setAddressSaveStatus({
-          message: '⚠ Please select a valid address from suggestions first.',
-          type: 'error'
+        message: '⚠ Please select an address from the dropdown suggestions',
+        type: 'error'
       });
-      // Optionally re-trigger validation if desired
-      // handleValidateAddress(address);
       return;
     }
 
     setIsSaving(true);
     setAddressSaveStatus({ message: '', type: '' }); // Clear previous status
 
-    // Prepare the address object in the format the backend expects
-    const addressData = {
-        street: `${validatedAddress.street_number || ''} ${validatedAddress.street_name || ''}`.trim(),
-        city: validatedAddress.city || '',
-        state: validatedAddress.state || '',
-        zip: validatedAddress.zip || ''
-        // country: validatedAddress.country || '' // Add if needed
-    };
-    
-    // Check if essential parts are present after extraction
-    if (!addressData.street || !addressData.city || !addressData.zip) {
-        setAddressSaveStatus({
-          message: '⚠ Validation result missing required fields (street, city, zip). Please try again.',
-          type: 'error'
-        });
-        setIsSaving(false);
-        return;
-    }
-
-    // --- Add Logging before sending --- 
-    console.log('Attempting to save address with data:', addressData);
-    const payload = {
-      auth0Id: userData.auth0Id,
-      username: userData.username,
-      accountType: userData.accountType || 'individual',
-      address: addressData, // Send the structured object
-      ...(userData.needStatus && { needStatus: userData.needStatus })
-    };
-    console.log('Payload being sent to saveUser:', payload);
-    // --- End Logging ---
-
     try {
-      // Send the structured addressData object
-      const response = await saveUser(payload, userData.auth0Id); // Add auth0Id as second parameter
-
-      // --- Add Logging for response --- 
+      // Prepare a simpler payload with the address as a string in the street field
+      // This matches how the dashboard handles addresses
+      const payload = {
+        auth0Id: userData.auth0Id,
+        username: userData.username,
+        accountType: userData.accountType || 'individual',
+        address: {
+          street: address.trim()
+        },
+        ...(userData.needStatus && { needStatus: userData.needStatus })
+      };
+      
+      console.log('Payload being sent to saveUser:', payload);
+      
+      // Send the payload to the server
+      const response = await saveUser(payload, userData.auth0Id);
+      
       console.log('Response received from saveUser:', response);
-      // --- End Logging ---
-
+      
       if (response.success) {
-        // --- Add Logging before state update --- 
-        console.log('Save successful, updating userData context with:', response.data);
-        // --- End Logging ---
         setUserData(response.data);
         setIsEditingAddress(false);
-        setValidatedAddress(null); // Clear validation state after successful save
+        setValidatedAddress(null); // Clear validation state
         setAddressSaveStatus({
           message: "✓ Address saved successfully!",
           type: 'success'
         });
         setTimeout(() => setAddressSaveStatus({ message: '', type: '' }), 3000);
       } else {
-         // Log specific failure message from backend
-        console.error('Backend indicated save failure:', response.message);
-        throw new Error(response.message || 'Failed to save address (backend)');
+        throw new Error(response.message || 'Failed to save address');
       }
     } catch (error) {
-      console.error('Save address error (catch block):', error);
+      console.error('Save address error:', error);
       setAddressSaveStatus({
         message: `⚠ Error saving address: ${error.message}. Please try again.`,
         type: 'error'
@@ -373,20 +340,6 @@ const Profile = () => {
     if (autocompleteInputRef.current) {
       autocompleteInputRef.current.value = exampleAddress;
     }
-  };
-
-  // Improve address display when not editing
-  const displayAddress = (addr) => {
-    if (!addr) return "No address set";
-    if (typeof addr === 'string') return addr; // Handle old string addresses
-    // Format the address object for display
-    const parts = [
-      addr.street,
-      addr.city,
-      addr.state,
-      addr.zip
-    ];
-    return parts.filter(part => part).join(', '); // Join non-empty parts
   };
 
   return (
@@ -528,7 +481,7 @@ const Profile = () => {
                       ref={autocompleteInputRef}
                       type="text"
                       value={address}
-                      onChange={(e) => setAddress(e.target.value)}
+                      onChange={handleAddressChange}
                       placeholder="Enter your address"
                       className={addressError ? 'error' : ''}
                       disabled={!isGoogleLoaded}
@@ -543,6 +496,11 @@ const Profile = () => {
                   <span className="helper-text">
                     Start typing and select an address from the dropdown suggestions
                   </span>
+                  {!validatedAddress?.validated && (
+                    <span className="warning-text">
+                      You must select an address from the dropdown to continue
+                    </span>
+                  )}
                 </div>
 
                 <div className="address-actions-container">
@@ -550,7 +508,7 @@ const Profile = () => {
                     <button
                       className="primary-btn"
                       onClick={handleSaveAddress}
-                      disabled={isSaving || !address.trim()}
+                      disabled={isSaving || !validatedAddress?.validated}
                     >
                       {isSaving ? 'Saving...' : 'Save Address'}
                     </button>
