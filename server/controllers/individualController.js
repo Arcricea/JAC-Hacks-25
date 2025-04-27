@@ -30,7 +30,7 @@ const Donation = require('../models/Donation');
 exports.createDonation = async (req, res) => {
     try {
         // Extract data specific to individual donations from req.body
-        const { itemsDescriptionFromUser, description, pickupInstructions } = req.body;
+        const { itemsDescriptionFromUser, description, pickupInstructions, isPickupRequest, category } = req.body;
         const userId = req.user._id; // Get Mongoose user ID from auth middleware
         const userAuth0Id = req.user.auth0Id; // Get user Auth0 ID from auth middleware
         const userAddress = req.user.address; // Get user address object from auth middleware
@@ -41,11 +41,47 @@ exports.createDonation = async (req, res) => {
         }
 
         // Validate user address obtained from middleware
-        if (!userAddress || !userAddress.street || !userAddress.city || !userAddress.zip) {
+        if (!userAddress) {
+             return res.status(400).json({ success: false, message: 'Your profile address is incomplete. Please update it before donating.' });
+        }
+        
+        // Handle different address formats
+        let validAddress = false;
+        
+        // Case 1: Address has street, city, zip structure
+        if (userAddress.street && userAddress.city && userAddress.zip) {
+            validAddress = true;
+        }
+        // Case 2: Address has just street field containing full address
+        else if (userAddress.street && userAddress.street.trim()) {
+            validAddress = true;
+        }
+        
+        if (!validAddress) {
              return res.status(400).json({ success: false, message: 'Your profile address is incomplete. Please update it before donating.' });
         }
 
         // --- Prepare data for the NEW Donation schema --- 
+        // Format address for storage
+        let formattedAddress;
+        
+        if (typeof userAddress === 'string') {
+            // If it's already a string, use as-is
+            formattedAddress = userAddress;
+        } 
+        else if (userAddress && userAddress.street) {
+            // If it has a street property, use that directly
+            formattedAddress = userAddress.street;
+        }
+        else if (userAddress) {
+            // Otherwise use the whole object
+            formattedAddress = userAddress;
+        }
+        else {
+            // Fallback to prevent errors
+            formattedAddress = 'No address provided';
+        }
+        
         const donationData = {
             userId: userAuth0Id, // Store the Auth0 ID string
             donorType: 'Individual', // Set donor type
@@ -53,21 +89,24 @@ exports.createDonation = async (req, res) => {
                 name: itemsDescriptionFromUser.trim(), 
                 quantity: 'Various' // Default quantity for text description
             }],
-            pickupAddress: userAddress, // Use the object from user profile
+            // Set addresses directly as strings when possible
+            pickupAddress: formattedAddress,
+            businessAddress: formattedAddress,
+            
             pickupInstructions: pickupInstructions?.trim() || '', // Optional instructions
             description: description?.trim() || '', // Optional description
             status: 'available', // Use 'available' as the initial status (must be in schema enum)
-
-            // --- Provide DEFAULT values for OLD REQUIRED fields --- 
-            // Remove these if the frontend should use the `items` array instead
-            // itemName: 'Individual Donation Items', // REMOVING DEFAULT
-            // category: 'other', // Keep default or remove?
-            // quantity: '1 Box/Bag', // REMOVING DEFAULT
-            // expirationDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Keep default or remove?
-            // pickupInfo: 'Scheduled pickup required - see instructions' // Keep default or remove?
-
-            // Keep necessary defaults if still required by schema and not provided otherwise
-            category: 'other', // Assuming still required
+            
+            // Set itemName to the user's input for backward compatibility
+            itemName: itemsDescriptionFromUser.trim(),
+            
+            // For pickup requests, use the provided category
+            category: category || 'other',
+            
+            // Mark this as a pickup request if specified
+            isPickupRequest: isPickupRequest === true,
+            
+            // Keep necessary defaults
             expirationDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Assuming still required
             pickupInfo: 'Individual donation pickup' // Assuming still required, but more generic
         };
@@ -120,7 +159,7 @@ exports.getMyDonations = async (req, res) => {
         // Find donations where the userId matches the logged-in user's auth0Id
         const donations = await Donation.find({ userId: userAuth0Id })
             .sort({ createdAt: -1 }) // Sort by newest first
-            .select('items createdAt status'); // Select only needed fields
+            .select('items createdAt status itemName category isPickupRequest businessAddress pickupAddress'); // Include address fields
 
         res.status(200).json({
             success: true,

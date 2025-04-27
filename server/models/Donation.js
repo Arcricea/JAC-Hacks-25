@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
 const donationSchema = new mongoose.Schema({
   userId: {
@@ -22,16 +23,8 @@ const donationSchema = new mongoose.Schema({
   pickupInfo: {
     type: String,
   },
-  businessAddress: {
-    type: String,
-    default: 'N/A'
-  },
-  pickupAddress: {
-    street: { type: String, trim: true },
-    city:   { type: String, trim: true },
-    state:  { type: String, trim: true },
-    zip:    { type: String, trim: true },
-  },
+  businessAddress: Schema.Types.Mixed,
+  pickupAddress: Schema.Types.Mixed,
   pickupInstructions: {
     type: String,
     trim: true
