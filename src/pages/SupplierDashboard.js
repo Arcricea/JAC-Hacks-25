@@ -46,6 +46,10 @@ const SupplierDashboard = () => {
   const [isConfirming, setIsConfirming] = useState(false); // Renamed from isVerifying
   const scannerRef = useRef(null);
 
+  // --- State for Triggering Data Refresh --- START
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  // --- State for Triggering Data Refresh --- END
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -130,6 +134,9 @@ const SupplierDashboard = () => {
         message: response.message || 'Pickup confirmed successfully!' 
       });
       // Optionally trigger refresh of overview/listed items if needed
+      if (response.success && response.modifiedCount > 0) {
+        setRefreshTrigger(prev => prev + 1); // Increment to trigger useEffect refresh
+      }
 
     } catch (error) {
       console.error("Pickup confirmation error:", error);
@@ -167,7 +174,7 @@ const SupplierDashboard = () => {
     };
 
     fetchOverview();
-  }, [userData]); // Re-fetch if userData changes
+  }, [userData, refreshTrigger]); // Re-fetch if userData or refreshTrigger changes
   // --- Fetch Overview Data --- END
 
   // --- Fetch Supplier's Listed Items --- START
@@ -193,7 +200,7 @@ const SupplierDashboard = () => {
     };
 
     fetchListedItems();
-  }, [userData, submitSuccess]); // Re-fetch if userData changes or a new donation is submitted
+  }, [userData, submitSuccess, refreshTrigger]); // Re-fetch if userData, submitSuccess, or refreshTrigger changes
   // --- Fetch Supplier's Listed Items --- END
 
   // Effect to setup scanner (keep as is, just ensure element ID matches)

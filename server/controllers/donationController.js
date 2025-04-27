@@ -267,11 +267,11 @@ exports.confirmSupplierPickup = async (req, res) => {
     // passed in the request body (e.g., req.body.scannedCode) to ensure the correct pickup is being confirmed.
     // For this implementation, we are simply confirming based on the logged-in user triggering the action.
 
-    // Find donations by this user that are either available or scheduled
+    // Find donations by this user that are currently SCHEDULED
     const updateResult = await Donation.updateMany(
       { 
         userId: userId, 
-        status: { $in: ['available', 'scheduled'] } 
+        status: 'scheduled' // <-- Only target donations that are already scheduled
       },
       { $set: { status: 'completed' } } // Update status to completed
     );
