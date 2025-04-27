@@ -144,4 +144,30 @@ export const updateNeedStatus = async (auth0Id, statusData) => {
     console.error('Error updating need status:', error);
     throw error;
   }
+};
+
+// Add a new function to update food bank information
+export const updateFoodBankInfo = async (auth0Id, foodBankInfo) => {
+  try {
+    console.log(`Updating food bank info for user ${auth0Id}`);
+    const response = await fetch(`${API_URL}/users/${auth0Id}/foodbank-info`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(foodBankInfo),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Error updating food bank info:', errorData);
+      return { success: false, error: errorData };
+    }
+
+    const data = await response.json();
+    return { success: true, data };
+  } catch (error) {
+    console.error('Error updating food bank info:', error);
+    return { success: false, error };
+  }
 }; 

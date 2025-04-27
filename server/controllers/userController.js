@@ -5,7 +5,7 @@ const User = require('../models/User');
 // Create or update a user
 exports.saveUser = async (req, res) => {
   try {
-    const { auth0Id, username, accountType, needStatus, address, businessName, businessAddress, organizerPassword } = req.body;
+    const { auth0Id, username, accountType, needStatus, address, email, phone, openingHours, businessName, businessAddress, organizerPassword } = req.body;
 
     // Validate required fields
     if (!auth0Id || !username || !accountType) {
@@ -50,6 +50,9 @@ exports.saveUser = async (req, res) => {
         ...(businessName !== undefined && { businessName }),
         ...(businessAddress !== undefined && { businessAddress }),
         ...(address !== undefined && { address }),
+        ...(email !== undefined && { email }),
+        ...(phone !== undefined && { phone }),
+        ...(openingHours !== undefined && { openingHours }),
         ...(needStatus && accountType === 'distributor' && {
           needStatus: {
             ...user.needStatus || {},
@@ -67,6 +70,9 @@ exports.saveUser = async (req, res) => {
         ...(businessName !== undefined && { businessName }),
         ...(businessAddress !== undefined && { businessAddress }),
         ...(address !== undefined && { address }),
+        ...(email !== undefined && { email }),
+        ...(phone !== undefined && { phone }),
+        ...(openingHours !== undefined && { openingHours }),
         ...(needStatus && accountType === 'distributor' && { needStatus })
       });
     }

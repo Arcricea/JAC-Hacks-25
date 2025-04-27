@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { UserContext } from '../App';
 import '../assets/styles/Dashboard.css'; // Reuse existing dashboard styles for now
 import '../assets/styles/VolunteerDashboard.css'; // Add specific styles
+import PickupDetailsModal from '../components/PickupDetailsModal';
 import { 
   getAvailableDonations, 
   assignDonationToVolunteer,
@@ -21,6 +22,8 @@ const VolunteerDashboard = () => {
   const [scheduledDonations, setScheduledDonations] = useState([]);
   const [completedCount, setCompletedCount] = useState(0); // State for completed count
   const [isLoadingStats, setIsLoadingStats] = useState(false); // Loading state for stats
+  const [selectedPickup, setSelectedPickup] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     if (activeTab === 'available') {
@@ -114,6 +117,10 @@ const VolunteerDashboard = () => {
         fetchScheduledDonations();
         fetchCompletedDonationCount();
         alert('Donation scheduled successfully!');
+        // If modal is open with this pickup, close it
+        if (selectedPickup && selectedPickup._id === donationId) {
+          setIsModalOpen(false);
+        }
       } else {
         setError(response.message || 'Failed to schedule donation.');
       }
@@ -123,6 +130,24 @@ const VolunteerDashboard = () => {
     } finally {
       setIsAssigning(false);
     }
+  };
+
+  const handleViewDetails = (pickup) => {
+    setSelectedPickup(pickup);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleModalAccept = (donationId) => {
+    // Update the available tasks list
+    setAvailableTasks(prev => prev.filter(task => task._id !== donationId));
+    
+    // Refresh scheduled donations and stats
+    fetchScheduledDonations();
+    fetchCompletedDonationCount();
   };
 
   const formatDate = (dateString) => {
@@ -210,6 +235,14 @@ const VolunteerDashboard = () => {
                         <p><strong>Category:</strong> {task.category}</p>
                         <p><strong>Expires:</strong> {formatDate(task.expirationDate)}</p>
                         <p><strong>Pickup Info:</strong> {task.pickupInfo}</p>
+                        <div className="task-actions">
+                          <button 
+                            className="view-details-btn"
+                            onClick={() => handleViewDetails(task)}
+                          >
+                            View Details
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -248,63 +281,65 @@ const VolunteerDashboard = () => {
                   />
                   <select className="task-filter">
                     <option value="">All Categories</option>
-                    <option value="produce">Fresh Produce</option>
-                    <option value="bakery">Bakery</option>
-                    <option value="dairy">Dairy</option>
-                    <option value="other">Other</option>
                   </select>
                 </div>
 
-                <div className="available-tasks-grid">
-                  {availableTasks.map(task => (
-                    <div key={task._id} className="task-card">
-                      <div className="task-card-header">
-                        <h4>Food Delivery Task</h4>
-                        <span className="task-category">{task.category}</span>
-                      </div>
-                      
-                      <div className="task-card-body">
-                        <div className="task-details">
-                          <h5>Items to Pickup:</h5>
-                          <p className="item-details">
-                            <span className="item-name">{task.itemName}</span>
-                            <span className="item-quantity">({task.quantity})</span>
-                          </p>
-                          
-                          <h5>Pickup Information:</h5>
-                          <p className="pickup-info">{task.pickupInfo}</p>
-                          
-                          <div className="task-metadata">
-                            <p className="expiry-date">
-                              <span className="material-icons">Expiration Date: </span>
-                              {formatDate(task.expirationDate)}
-                            </p>
-                            <p className="created-date">
-                              <span className="material-icons">Listed Time:</span>
-                              {formatDate(task.createdAt)}
-                            </p>
+                {availableTasks.length > 0 ? (
+                  <div className="task-list">
+                    {availableTasks.map(task => (
+                      <div key={task._id} className="task-card">
+                        <div className="task-header">
+                          <span className="task-title">
+                            {task.businessName || task.donorName || 'Anonymous'} Food Delivery Task
+                          </span>
+                          <span className="task-category">{task.category}</span>
+                        </div>
+                        
+                        <div className="task-content">
+                          <div className="task-section">
+                            <h4>Items to Pickup:</h4>
+                            <p>{task.itemName} ({task.quantity})</p>
+                          </div>
+
+                          <div className="task-section">
+                            <h4>Pickup Information:</h4>
+                            <p>{task.pickupInfo}</p>
+                          </div>
+
+                          <div className="task-dates">
+                            <div className="date-info">
+                              <span className="date-label">Expiration Date:</span>
+                              <span className="date-value">{formatDate(task.expirationDate)}</span>
+                            </div>
+                            <div className="date-info">
+                              <span className="date-label">Listed Time:</span>
+                              <span className="date-value">{formatDate(task.createdAt)}</span>
+                            </div>
+                          </div>
+
+                          <div className="task-actions">
+                            <button
+                              onClick={() => handleAcceptTask(task._id)}
+                              disabled={isAssigning}
+                              className="accept-pickup-btn"
+                            >
+                              Accept Pickup
+                            </button>
+                            <button 
+                              className="view-details-btn"
+                              onClick={() => handleViewDetails(task)}
+                            >
+                              View Details
+                            </button>
                           </div>
                         </div>
                       </div>
-
-                      <div className="task-card-footer">
-                        <button 
-                          className="primary-btn"
-                          onClick={() => handleAcceptTask(task._id)}
-                          disabled={isAssigning}
-                        >
-                          {isAssigning ? 'Scheduling...' : 'Accept Pickup'}
-                        </button>
-                        <button className="secondary-btn">View Details</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {availableTasks.length === 0 && (
+                    ))}
+                  </div>
+                ) : (
                   <div className="no-tasks-message">
-                    <p>No pickups available at the moment.</p>
-                    <p>Please check back later for new opportunities.</p>
+                    <p>No available pickups at the moment.</p>
+                    <p>Check back later for new opportunities!</p>
                   </div>
                 )}
               </>
@@ -312,6 +347,16 @@ const VolunteerDashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Modal for viewing pickup details */}
+      {isModalOpen && selectedPickup && (
+        <PickupDetailsModal 
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          pickup={selectedPickup}
+          onAccept={handleModalAccept}
+        />
+      )}
     </div>
   );
 };

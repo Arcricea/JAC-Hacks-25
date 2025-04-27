@@ -1,42 +1,43 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useRef } from 'react';
 import { UserContext } from '../App';
-import { updateNeedStatus } from '../services/userService';
+import { updateNeedStatus, saveUser } from '../services/userService';
 import '../assets/styles/Dashboard.css';
 import '../assets/styles/FoodBankDashboard.css';
+import GoogleMapsScript from '../components/GoogleMapsScript';
+import { useAuth0 } from '@auth0/auth0-react';
 
 const FoodBankDashboard = () => {
   const { userData, setUserData } = useContext(UserContext);
+  const { user } = useAuth0(); // Get Auth0 user object
   const [activeTab, setActiveTab] = useState('overview');
   
-  // Sample data for the food bank
+  // Default data structure (without sample values)
   const foodBankData = {
-    receivedDonations: 87,
-    upcomingDeliveries: 5,
-    peopleServed: 342,
+    receivedDonations: 0,
+    upcomingDeliveries: 0,
+    peopleServed: 0,
     currentPriority: 3,
-    contactInfo: {
-      address: '123 Main Street, Springfield, IL',
-      phone: '(555) 123-4567',
-      email: 'info@communityfoodbank.org',
-      hours: 'Mon-Fri: 9am-5pm, Sat: 10am-2pm'
-    },
-    recentActivity: [
-      { id: 1, action: 'Donation Received', details: '15 kg of rice from Metro Grocery', date: '2025-04-25' },
-      { id: 2, action: 'Food Distribution', details: 'Served 45 families', date: '2025-04-23' },
-    ]
+    recentActivity: []
   };
 
   // State for form values
   const [priorityLevel, setPriorityLevel] = useState(userData?.needStatus?.priorityLevel || foodBankData.currentPriority);
-  const [address, setAddress] = useState(foodBankData.contactInfo.address);
-  const [phone, setPhone] = useState(foodBankData.contactInfo.phone);
-  const [email, setEmail] = useState(foodBankData.contactInfo.email);
-  const [openingHours, setOpeningHours] = useState(foodBankData.contactInfo.hours);
-  const [additionalInfo, setAdditionalInfo] = useState('');
-  const [isEditingInfo, setIsEditingInfo] = useState(false);
   const [customStatusMessage, setCustomStatusMessage] = useState(userData?.needStatus?.customMessage || '');
   const [isEditingStatus, setIsEditingStatus] = useState(false);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
+
+  // Contact information states
+  const [address, setAddress] = useState(userData?.address || '');
+  const [email, setEmail] = useState(userData?.email || (user?.email || ''));
+  const [phone, setPhone] = useState(userData?.phone || '');
+  const [openingHours, setOpeningHours] = useState(userData?.openingHours || '');
+  const [editingField, setEditingField] = useState(null);
+  const [isSavingContact, setIsSavingContact] = useState(false);
+  const [contactSaveStatus, setContactSaveStatus] = useState({ message: '', type: '' });
+  const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
+  const autocompleteInputRef = useRef(null);
+  const autocompleteRef = useRef(null);
+  const [addressError, setAddressError] = useState('');
 
   // Priority level options
   const priorityLevels = [
@@ -46,20 +47,6 @@ const FoodBankDashboard = () => {
     { level: 4, label: 'High need', description: 'We have significant shortages', color: '#FF9800' },
     { level: 5, label: 'URGENT NEED', description: '🚨 WE NEED FOOD DONATIONS IMMEDIATELY!! WE ARE GOING TO DIE FROM HUNGER!!! PLEASE HELP US!!! WE WILL ALL DIE FROM HUNGER!!!', color: '#F44336' }
   ];
-
-  // Handler for saving contact info
-  const handleSaveInfo = () => {
-    // In a real app, this would save to the backend
-    console.log('Saving food bank info:', {
-      address,
-      phone,
-      email,
-      openingHours,
-      additionalInfo,
-      priorityLevel
-    });
-    setIsEditingInfo(false);
-  };
 
   // Handler for saving need status
   const handleSaveStatus = async () => {
@@ -100,6 +87,54 @@ const FoodBankDashboard = () => {
     }
   };
 
+  // Handler for saving contact information
+  const handleSaveContact = async () => {
+    if (!userData?.auth0Id) {
+      console.error('No auth0Id found for user');
+      return;
+    }
+    
+    setIsSavingContact(true);
+    try {
+      // Prepare data to save
+      const updatedUserData = {
+        auth0Id: userData.auth0Id,
+        username: userData.username,
+        accountType: userData.accountType || 'distributor',
+        address: address.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        openingHours: openingHours.trim(),
+        ...(userData.needStatus && { needStatus: userData.needStatus })
+      };
+      
+      console.log('Saving contact information:', updatedUserData);
+      
+      const response = await saveUser(updatedUserData);
+      
+      if (response && response.success) {
+        // Update local userData with the new contact info
+        setUserData(response.data);
+        setEditingField(null);
+        setContactSaveStatus({
+          message: "✓ Contact information saved successfully!",
+          type: 'success'
+        });
+        setTimeout(() => setContactSaveStatus({ message: '', type: '' }), 3000);
+      } else {
+        throw new Error(response.message || 'Failed to save contact information');
+      }
+    } catch (error) {
+      console.error('Error saving contact information:', error);
+      setContactSaveStatus({
+        message: '⚠ Error saving contact information. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setIsSavingContact(false);
+    }
+  };
+
   // Update need status when priority level changes (if not in editing mode)
   useEffect(() => {
     // Only save if the user is authenticated and not explicitly editing the message
@@ -111,11 +146,61 @@ const FoodBankDashboard = () => {
   
   // Initialize from userData when it loads
   useEffect(() => {
-    if (userData?.needStatus) {
-      setPriorityLevel(userData.needStatus.priorityLevel || foodBankData.currentPriority);
-      setCustomStatusMessage(userData.needStatus.customMessage || '');
+    if (userData) {
+      if (userData.needStatus) {
+        setPriorityLevel(userData.needStatus.priorityLevel || foodBankData.currentPriority);
+        setCustomStatusMessage(userData.needStatus.customMessage || '');
+      }
+      
+      if (userData.address) setAddress(userData.address);
+      // For email, prefer userData.email if available, otherwise fallback to Auth0 email
+      setEmail(userData.email || (user?.email || ''));
+      if (userData.phone) setPhone(userData.phone);
+      if (userData.openingHours) setOpeningHours(userData.openingHours);
+    } else {
+      // If userData not available yet but Auth0 user is, use Auth0 email as fallback
+      if (user?.email) setEmail(user.email);
     }
-  }, [userData]);
+  }, [userData, user]);
+
+  // Initialize Google Maps autocomplete when editing address
+  useEffect(() => {
+    if (editingField === 'address' && isGoogleLoaded && autocompleteInputRef.current) {
+      try {
+        autocompleteRef.current = new window.google.maps.places.Autocomplete(
+          autocompleteInputRef.current,
+          {
+            componentRestrictions: { country: ["us", "ca"] },
+            fields: ["formatted_address"],
+            types: ["address"]
+          }
+        );
+
+        const listener = autocompleteRef.current.addListener("place_changed", () => {
+          const place = autocompleteRef.current.getPlace();
+          if (place.formatted_address) {
+            setAddress(place.formatted_address);
+          }
+        });
+
+        return () => {
+          if (listener) {
+            window.google.maps.event.removeListener(listener);
+          }
+          if (autocompleteRef.current) {
+            window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
+          }
+        };
+      } catch (error) {
+        console.error('Error initializing Google Places Autocomplete:', error);
+        setAddressError('Error initializing address autocomplete');
+      }
+    }
+  }, [editingField, isGoogleLoaded]);
+
+  const handleGoogleMapsLoad = () => {
+    setIsGoogleLoaded(true);
+  };
 
   const renderPriorityBadge = (level) => {
     const priorityInfo = priorityLevels.find(p => p.level === level);
@@ -129,239 +214,283 @@ const FoodBankDashboard = () => {
     );
   };
 
-  return (
-    <div className="dashboard-content">
-      <div className="dashboard-nav">
-        <button 
-          className={activeTab === 'overview' ? 'active' : ''} 
-          onClick={() => setActiveTab('overview')}
-        >
-          Overview
-        </button>
-        <button 
-          className={activeTab === 'donation-history' ? 'active' : ''} 
-          onClick={() => setActiveTab('donation-history')}
-        >
-          Donation History
-        </button>
-        <button 
-          className={activeTab === 'incoming' ? 'active' : ''} 
-          onClick={() => setActiveTab('incoming')}
-        >
-          Incoming Food
-        </button>
-      </div>
-
-      {activeTab === 'overview' && (
-        <div className="overview-section">
-          <div className="priority-status-card">
-            <h3>Current Need Status</h3>
-            <div className="priority-indicator">
-              {renderPriorityBadge(priorityLevel)}
-              <div className="status-message-display">
-                <div 
+  const renderContactField = (fieldName, label, value, placeholder) => {
+    const isEditing = editingField === fieldName;
+    
+    return (
+      <div className="contact-field">
+        <h4>{label}</h4>
+        <div className="status-message-display">
+          {isEditing ? (
+            <>
+              {fieldName === 'address' ? (
+                <input
+                  ref={autocompleteInputRef}
                   className="editable-content"
-                  contentEditable={isEditingStatus}
-                  suppressContentEditableWarning={true}
-                  onBlur={(e) => setCustomStatusMessage(e.target.innerText)}
-                >
-                  {customStatusMessage || priorityLevels.find(p => p.level === priorityLevel).description}
-                </div>
-                
-                {isEditingStatus ? (
-                  <div className="status-edit-buttons">
-                    <button 
-                      className="save-btn modern-btn" 
-                      onClick={async () => {
-                        await handleSaveStatus();
-                        setIsEditingStatus(false);
-                      }}
-                      disabled={isSavingStatus}
-                    >
-                      {isSavingStatus ? 
-                        <span className="loading-dots">•••</span> : 
-                        <span className="save-icon">✓</span>
-                      }
-                    </button>
-                    <button 
-                      className="cancel-btn modern-btn" 
-                      onClick={() => {
-                        setIsEditingStatus(false);
-                        setCustomStatusMessage(userData?.needStatus?.customMessage || '');
-                      }}
-                      disabled={isSavingStatus}
-                    >
-                      <span className="cancel-icon">×</span>
-                    </button>
-                  </div>
-                ) : (
-                  <button className="edit-status-btn" onClick={() => setIsEditingStatus(true)}>
-                    <span className="edit-icon">✏️</span>
-                  </button>
-                )}
-              </div>
-            </div>
-            
-            <div className="priority-selector-inline">
-              <p className="priority-selector-label">Update Need Status:</p>
-              <div className="priority-buttons">
-                {priorityLevels.map((priority) => (
-                  <button 
-                    key={priority.level}
-                    className={`priority-button ${priorityLevel === priority.level ? 'selected' : ''}`}
-                    style={{ 
-                      backgroundColor: priorityLevel === priority.level ? priority.color : 'transparent',
-                      color: priorityLevel === priority.level ? 'white' : '#333',
-                      borderColor: priority.color
-                    }}
-                    onClick={() => setPriorityLevel(priority.level)}
-                  >
-                    <span className="priority-number">{priority.level}</span>
-                    <span className="priority-text">{priority.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="stats-cards">
-            <div className="stat-card">
-              <h3>{foodBankData.receivedDonations}</h3>
-              <p>Donations Received</p>
-            </div>
-            <div className="stat-card">
-              <h3>{foodBankData.upcomingDeliveries}</h3>
-              <p>Upcoming Deliveries</p>
-            </div>
-            <div className="stat-card">
-              <h3>{foodBankData.peopleServed}</h3>
-              <p>People Served</p>
-            </div>
-          </div>
-
-          <div className="food-bank-contact-card">
-            <h3>Food Bank Information</h3>
-            <div className="food-bank-info-container">
-              <div className="info-item">
-                <strong>Address:</strong>
-                <div 
-                  className="editable-field"
-                  contentEditable={isEditingInfo}
-                  suppressContentEditableWarning={true}
-                  onBlur={(e) => setAddress(e.target.innerText)}
-                >
-                  {address || <span className="placeholder-text">Enter your address here</span>}
-                </div>
-              </div>
-              
-              <div className="info-item">
-                <strong>Phone:</strong>
-                <div 
-                  className="editable-field"
-                  contentEditable={isEditingInfo}
-                  suppressContentEditableWarning={true}
-                  onBlur={(e) => setPhone(e.target.innerText)}
-                >
-                  {phone || <span className="placeholder-text">Enter your phone number here</span>}
-                </div>
-              </div>
-              
-              <div className="info-item">
-                <strong>Email:</strong>
-                <div 
-                  className="editable-field"
-                  contentEditable={isEditingInfo}
-                  suppressContentEditableWarning={true}
-                  onBlur={(e) => setEmail(e.target.innerText)}
-                >
-                  {email || <span className="placeholder-text">Enter your email address here</span>}
-                </div>
-              </div>
-              
-              <div className="info-item">
-                <strong>Hours:</strong>
-                <div 
-                  className="editable-field"
-                  contentEditable={isEditingInfo}
-                  suppressContentEditableWarning={true}
-                  onBlur={(e) => setOpeningHours(e.target.innerText)}
-                >
-                  {openingHours || <span className="placeholder-text">Enter your operating hours here</span>}
-                </div>
-              </div>
-            </div>
-
-            {isEditingInfo ? (
-              <div className="edit-controls">
+                  type="text"
+                  value={value}
+                  onChange={(e) => {
+                    switch(fieldName) {
+                      case 'address': setAddress(e.target.value); break;
+                      case 'email': setEmail(e.target.value); break;
+                      case 'phone': setPhone(e.target.value); break;
+                      case 'openingHours': setOpeningHours(e.target.value); break;
+                      default: break;
+                    }
+                  }}
+                  placeholder={placeholder}
+                  disabled={!isGoogleLoaded && fieldName === 'address'}
+                  style={{ padding: '0.8rem 3rem 0.8rem 1rem', width: '100%', boxSizing: 'border-box' }}
+                />
+              ) : fieldName === 'openingHours' ? (
+                <textarea
+                  className="editable-content"
+                  value={value}
+                  onChange={(e) => setOpeningHours(e.target.value)}
+                  placeholder={placeholder}
+                  rows={2}
+                  style={{ padding: '0.8rem 3rem 0.8rem 1rem', width: '100%', boxSizing: 'border-box' }}
+                />
+              ) : (
+                <input
+                  className="editable-content"
+                  type={fieldName === 'email' ? 'email' : 'text'}
+                  value={value}
+                  onChange={(e) => {
+                    switch(fieldName) {
+                      case 'email': setEmail(e.target.value); break;
+                      case 'phone': setPhone(e.target.value); break;
+                      default: break;
+                    }
+                  }}
+                  placeholder={placeholder}
+                  style={{ padding: '0.8rem 3rem 0.8rem 1rem', width: '100%', boxSizing: 'border-box' }}
+                />
+              )}
+              <div className="status-edit-buttons">
                 <button 
                   className="save-btn modern-btn" 
-                  onClick={handleSaveInfo}
+                  onClick={handleSaveContact}
+                  disabled={isSavingContact}
                 >
-                  <span className="save-icon">✓</span>
+                  {isSavingContact ? 
+                    <span className="loading-dots">•••</span> : 
+                    <span className="save-icon">✓</span>
+                  }
                 </button>
                 <button 
                   className="cancel-btn modern-btn" 
-                  onClick={() => setIsEditingInfo(false)}
+                  onClick={() => {
+                    setEditingField(null);
+                    // Reset to original values
+                    setAddress(userData?.address || '');
+                    setEmail(userData?.email || '');
+                    setPhone(userData?.phone || '');
+                    setOpeningHours(userData?.openingHours || '');
+                  }}
+                  disabled={isSavingContact}
                 >
                   <span className="cancel-icon">×</span>
                 </button>
               </div>
-            ) : (
-              <button 
-                className="edit-info-btn" 
-                onClick={() => setIsEditingInfo(true)}
-              >
+            </>
+          ) : (
+            <>
+              <div className="editable-content" style={{ padding: '0.8rem 3rem 0.8rem 1rem' }}>
+                {value || placeholder}
+              </div>
+              <button className="edit-status-btn" onClick={() => setEditingField(fieldName)}>
                 <span className="edit-icon">✏️</span>
               </button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <GoogleMapsScript onLoad={handleGoogleMapsLoad} />
+      <div className="dashboard-content">
+        <div className="dashboard-nav">
+          <button 
+            className={activeTab === 'overview' ? 'active' : ''} 
+            onClick={() => setActiveTab('overview')}
+          >
+            Overview
+          </button>
+          <button 
+            className={activeTab === 'donation-history' ? 'active' : ''} 
+            onClick={() => setActiveTab('donation-history')}
+          >
+            Donation History
+          </button>
+          <button 
+            className={activeTab === 'incoming' ? 'active' : ''} 
+            onClick={() => setActiveTab('incoming')}
+          >
+            Incoming Food
+          </button>
+        </div>
+
+        {activeTab === 'overview' && (
+          <div className="overview-section">
+            <div className="priority-status-card">
+              <h3>Current Need Status</h3>
+              <div className="priority-indicator">
+                {renderPriorityBadge(priorityLevel)}
+                <div className="status-message-display">
+                  <div 
+                    className="editable-content"
+                    contentEditable={isEditingStatus}
+                    suppressContentEditableWarning={true}
+                    onBlur={(e) => setCustomStatusMessage(e.target.innerText)}
+                  >
+                    {customStatusMessage || priorityLevels.find(p => p.level === priorityLevel).description}
+                  </div>
+                  
+                  {isEditingStatus ? (
+                    <div className="status-edit-buttons">
+                      <button 
+                        className="save-btn modern-btn" 
+                        onClick={async () => {
+                          await handleSaveStatus();
+                          setIsEditingStatus(false);
+                        }}
+                        disabled={isSavingStatus}
+                      >
+                        {isSavingStatus ? 
+                          <span className="loading-dots">•••</span> : 
+                          <span className="save-icon">✓</span>
+                        }
+                      </button>
+                      <button 
+                        className="cancel-btn modern-btn" 
+                        onClick={() => {
+                          setIsEditingStatus(false);
+                          setCustomStatusMessage(userData?.needStatus?.customMessage || '');
+                        }}
+                        disabled={isSavingStatus}
+                      >
+                        <span className="cancel-icon">×</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <button className="edit-status-btn" onClick={() => setIsEditingStatus(true)}>
+                      <span className="edit-icon">✏️</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              <div className="priority-selector-inline">
+                <p className="priority-selector-label">Update Need Status:</p>
+                <div className="priority-buttons">
+                  {priorityLevels.map((priority) => (
+                    <button 
+                      key={priority.level}
+                      className={`priority-button ${priorityLevel === priority.level ? 'selected' : ''}`}
+                      style={{ 
+                        backgroundColor: priorityLevel === priority.level ? priority.color : 'transparent',
+                        color: priorityLevel === priority.level ? 'white' : '#333',
+                        borderColor: priority.color
+                      }}
+                      onClick={() => setPriorityLevel(priority.level)}
+                    >
+                      <span className="priority-number">{priority.level}</span>
+                      <span className="priority-text">{priority.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="contact-info-card">
+              <h3>Contact Information</h3>
+              <div className="contact-fields-container">
+                {renderContactField('address', 'Address', address, 'No address provided')}
+                {renderContactField('email', 'Email', email, 'No email provided')}
+                {renderContactField('phone', 'Phone', phone, 'No phone number provided')}
+                {renderContactField('openingHours', 'Opening Hours', openingHours, 'No opening hours provided')}
+              </div>
+              {contactSaveStatus.message && (
+                <div className={`status-message ${contactSaveStatus.type}`}>
+                  {contactSaveStatus.message}
+                </div>
+              )}
+            </div>
+
+            <div className="stats-cards">
+              <div className="stat-card">
+                <h3>{foodBankData.receivedDonations}</h3>
+                <p>Donations Received</p>
+              </div>
+              <div className="stat-card">
+                <h3>{foodBankData.upcomingDeliveries}</h3>
+                <p>Upcoming Deliveries</p>
+              </div>
+              <div className="stat-card">
+                <h3>{foodBankData.peopleServed}</h3>
+                <p>People Served</p>
+              </div>
+            </div>
+
+            {foodBankData.recentActivity.length > 0 ? (
+              <div className="recent-activity">
+                <h3>Recent Activity</h3>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Action</th>
+                      <th>Details</th>
+                      <th>Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {foodBankData.recentActivity.map(activity => (
+                      <tr key={activity.id}>
+                        <td>{activity.action}</td>
+                        <td>{activity.details}</td>
+                        <td>{activity.date}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="empty-state">
+                <div className="empty-icon">📋</div>
+                <p>Your recent activity will appear here.</p>
+                <p className="empty-subtext">When you receive donations or distribute food, it will be logged here.</p>
+              </div>
             )}
           </div>
+        )}
 
-          <div className="recent-activity">
-            <h3>Recent Activity</h3>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Action</th>
-                  <th>Details</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {foodBankData.recentActivity.map(activity => (
-                  <tr key={activity.id}>
-                    <td>{activity.action}</td>
-                    <td>{activity.details}</td>
-                    <td>{activity.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {activeTab === 'donation-history' && (
+          <div className="donation-history-section">
+            <h3>Donation History</h3>
+            <div className="empty-state">
+              <div className="empty-icon">📋</div>
+              <p>Your donation history will appear here once you start receiving donations.</p>
+              <p className="empty-subtext">You'll be able to see which companies and individuals have donated to your food bank.</p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {activeTab === 'donation-history' && (
-        <div className="donation-history-section">
-          <h3>Donation History</h3>
-          <div className="empty-state">
-            <div className="empty-icon">📋</div>
-            <p>Your donation history will appear here once you start receiving donations.</p>
-            <p className="empty-subtext">You'll be able to see which companies and individuals have donated to your food bank.</p>
+        {activeTab === 'incoming' && (
+          <div className="incoming-food-section">
+            <h3>Incoming Food</h3>
+            <div className="empty-state">
+              <div className="empty-icon">🚚</div>
+              <p>Information about incoming food deliveries will appear here.</p>
+              <p className="empty-subtext">You'll be able to track scheduled pickups and deliveries from donors.</p>
+            </div>
           </div>
-        </div>
-      )}
-
-      {activeTab === 'incoming' && (
-        <div className="incoming-food-section">
-          <h3>Incoming Food</h3>
-          <div className="empty-state">
-            <div className="empty-icon">🚚</div>
-            <p>Information about incoming food deliveries will appear here.</p>
-            <p className="empty-subtext">You'll be able to track scheduled pickups and deliveries from donors.</p>
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 };
 

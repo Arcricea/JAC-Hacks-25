@@ -662,4 +662,244 @@
 
 .editable-field[contenteditable="true"] .placeholder-text {
   display: none;
+}
+
+/* Contact Information Section */
+.contact-info-section {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.contact-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.contact-info-item {
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+  border-left: 4px solid #2e7d32;
+}
+
+.contact-info-item h4 {
+  margin: 0 0 8px 0;
+  color: #2e7d32;
+  font-size: 16px;
+}
+
+.contact-info-item p {
+  margin: 0;
+  color: #333;
+  font-size: 15px;
+  word-break: break-word;
+}
+
+.edit-btn {
+  display: inline-block;
+  padding: 10px 15px;
+  background-color: #2e7d32;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.edit-btn:hover {
+  background-color: #1b5e20;
+}
+
+/* Contact Form Styles */
+.contact-form {
+  max-width: 600px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  border-color: #2e7d32;
+  outline: none;
+}
+
+.form-group input.error {
+  border-color: #f44336;
+}
+
+.error-text {
+  color: #f44336;
+  font-size: 13px;
+  margin-top: 5px;
+  display: block;
+}
+
+.helper-text {
+  color: #666;
+  font-size: 12px;
+  margin-top: 5px;
+  display: block;
+}
+
+.loading-text {
+  color: #666;
+  font-style: italic;
+  font-size: 13px;
+  margin-top: 5px;
+  display: block;
+}
+
+.status-message {
+  margin-top: 15px;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.status-message.success {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+}
+
+.status-message.error {
+  background-color: #ffebee;
+  color: #f44336;
+  border: 1px solid #ffcdd2;
+}
+
+.address-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.primary-btn {
+  padding: 10px 15px;
+  background-color: #2e7d32;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  flex: 1;
+  transition: background-color 0.2s;
+}
+
+.primary-btn:hover {
+  background-color: #1b5e20;
+}
+
+.primary-btn:disabled {
+  background-color: #a5d6a7;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  padding: 10px 15px;
+  background-color: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  flex: 1;
+  transition: background-color 0.2s;
+}
+
+.cancel-btn:hover {
+  background-color: #e0e0e0;
+}
+
+.cancel-btn:disabled {
+  background-color: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+}
+
+/* Contact Information Card */
+.contact-info-card {
+  background-color: #fff;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.contact-fields-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.contact-field {
+  position: relative;
+}
+
+.contact-field h4 {
+  margin: 0 0 0.5rem 0;
+  color: #2e7d32;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.contact-field .status-message-display {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: relative;
+  min-height: 50px;
+  max-height: none;
+  height: auto;
+  overflow: hidden;
+}
+
+.contact-field .editable-content {
+  width: 100%;
+  display: block;
+  min-height: 20px;
+  box-sizing: border-box;
+}
+
+.contact-field textarea.editable-content {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.contact-field .status-message-display input.editable-content,
+.contact-field .status-message-display textarea.editable-content {
+  border: none;
+  outline: none;
+  background: transparent;
+}
+
+.contact-field .status-message-display .edit-status-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
 } 

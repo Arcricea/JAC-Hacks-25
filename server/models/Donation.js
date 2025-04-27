@@ -27,6 +27,10 @@ const donationSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Pickup information is required']
   },
+  businessAddress: {
+    type: String,
+    default: '4873 Westmount Ave, Westmount, Quebec H3Y 1X9'
+  },
   imageUrl: {
     type: String
   },
