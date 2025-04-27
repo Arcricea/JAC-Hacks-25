@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Modal, Alert } from 'react-bootstrap';
 import { GrLocation, FiClock } from './Icons';
 import '../assets/styles/FoodBankSuggestionModal.css';
-import { foodBankService } from '../services/foodBankService';
+import { foodBankService, markDonationDelivered } from '../services/foodBankService';
 import { donationService } from '../services/donationService';
 import { toast } from 'react-toastify';
 import LoadingSpinner from './LoadingSpinner';
@@ -1498,14 +1498,57 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
   }, [mapInitialized, foodBanks, userLocationState, calculateAllRoutes]);
 
   // Handle confirmation of delivery
-  const confirmDelivery = () => {
-    if (selectedFoodBank) {
-      console.log('Confirming delivery to food bank:', selectedFoodBank);
-      onDeliveryConfirmed(selectedFoodBank);
+  const confirmDelivery = async () => {
+    try {
+      if (!selectedFoodBank) {
+        toast.error("Please select a food bank before confirming delivery");
+        return;
+      }
+
+      if (!donation || !donation._id) {
+        toast.error("Donation ID not found. Please try again.");
+        return;
+      }
+
+      setLoading(true);
+      
+      // Use the foodBankService directly with the proper payload
+      // Including all fields that might be required by the server
+      const response = await fetch(`http://localhost:5000/api/foodbanks/mark-delivery`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          donationId: donation._id, 
+          volunteerId: userId,
+          foodBankId: selectedFoodBank._id,
+          // Include additional donation fields from original donation
+          donorType: donation.donorType || 'individual',
+          status: 'picked_up',  // Match the expected initial status in the server
+          // Add other fields from the donation if they exist
+          title: donation.title,
+          description: donation.description,
+          category: donation.category,
+          quantity: donation.quantity,
+          donorId: donation.donorId
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to mark donation as delivered');
+      }
+
+      toast.success("Delivery confirmed!");
+      setLoading(false);
       onClose();
-    } else {
-      // If no food bank is selected, show an error or prompt
-      setError('Please select a food bank first');
+      if (onDeliveryConfirmed) onDeliveryConfirmed();
+    } catch (error) {
+      console.error('Error confirming delivery:', error);
+      toast.error("Failed to confirm delivery. Please try again.");
+      setLoading(false);
     }
   };
 
