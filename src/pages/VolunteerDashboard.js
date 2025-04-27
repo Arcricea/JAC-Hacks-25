@@ -21,6 +21,9 @@ const VolunteerDashboard = () => {
   const [error, setError] = useState(null);
   const [statsError, setStatsError] = useState(null); // Separate error state for stats
   const [availableTasks, setAvailableTasks] = useState([]);
+  const [filteredTasks, setFilteredTasks] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -76,6 +79,27 @@ const VolunteerDashboard = () => {
     }
   }, []);
 
+  // Apply filters whenever availableTasks, searchTerm, or selectedCategory changes
+  useEffect(() => {
+    let filtered = [...availableTasks];
+    
+    // Apply category filter
+    if (selectedCategory) {
+      filtered = filtered.filter(task => task.category.toLowerCase() === selectedCategory.toLowerCase());
+    }
+    
+    // Apply search filter if implemented
+    if (searchTerm) {
+      filtered = filtered.filter(task => 
+        task.itemName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (task.businessName && task.businessName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (task.pickupInfo && task.pickupInfo.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+    }
+    
+    setFilteredTasks(filtered);
+  }, [availableTasks, selectedCategory, searchTerm]);
+
   const fetchAvailableTasks = async () => {
     setIsLoading(true);
     setError(null);
@@ -83,6 +107,7 @@ const VolunteerDashboard = () => {
       const response = await getAvailableDonations();
       if (response.success) {
         setAvailableTasks(response.data);
+        setFilteredTasks(response.data);
       } else {
         setError(response.message || 'Failed to load available tasks.');
       }
@@ -363,6 +388,14 @@ const VolunteerDashboard = () => {
     }
   };
 
+  const handleCategoryChange = (e) => {
+    setSelectedCategory(e.target.value);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
   return (
     <div className="dashboard-container">
       <h2>Volunteer Dashboard</h2>
@@ -529,15 +562,30 @@ const VolunteerDashboard = () => {
                     type="text" 
                     placeholder="Search pickups..."
                     className="task-search"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
                   />
-                  <select className="task-filter">
+                  <select 
+                    className="task-filter" 
+                    value={selectedCategory}
+                    onChange={handleCategoryChange}
+                  >
                     <option value="">All Categories</option>
+                    <option value="produce">Produce</option>
+                    <option value="bakery">Bakery</option>
+                    <option value="dairy">Dairy</option>
+                    <option value="meat">Meat</option>
+                    <option value="canned">Canned Goods</option>
+                    <option value="dry">Dry Goods</option>
+                    <option value="frozen">Frozen</option>
+                    <option value="prepared">Prepared Meals</option>
+                    <option value="other">Other</option>
                   </select>
                 </div>
 
-                {availableTasks.length > 0 ? (
+                {filteredTasks.length > 0 ? (
                   <div className="task-list">
-                    {availableTasks.map(task => (
+                    {filteredTasks.map(task => (
                       <div 
                         key={task._id} 
                         className={`task-card ${task.status === 'picked_up' ? 'task-in-progress' : ''}`}
@@ -597,7 +645,7 @@ const VolunteerDashboard = () => {
                   </div>
                 ) : (
                   <div className="no-tasks-message">
-                    <p>No available pickups at the moment.</p>
+                    <p>No available pickups {selectedCategory ? `in ${selectedCategory} category` : ''} at the moment.</p>
                     <p>Check back later for new opportunities!</p>
                   </div>
                 )}
