@@ -118,7 +118,7 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
         username,
         accountType: selectedType,
         ...(selectedType === 'organizer' && { organizerPassword: organizerPassword })
-      });
+      }, user.sub);
       
       // Update the global userData state with the returned user data
       if (response.success && response.data) {

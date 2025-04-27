@@ -173,12 +173,15 @@ const Profile = () => {
     setAccountTypeSuccess(""); // Clear previous success message
 
     try {
+      // Log the user ID before making the call
+      console.log('handleChangeAccountType: Attempting to save with requestingUserId:', userData?.auth0Id);
+
       // Update account type to the selected type
       const response = await saveUser({
         auth0Id: userData.auth0Id,
         username: userData.username,
         accountType: selectedAccountType // Use the selected type
-      });
+      }, userData.auth0Id); // Pass requestingUserId here
 
       if (response.success) {
         const newType = response.data.accountType || selectedAccountType; // Use response data if available

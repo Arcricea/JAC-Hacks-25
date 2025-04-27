@@ -211,14 +211,6 @@ const IndividualDashboard = () => {
               <button type="submit" className="primary-btn">Submit Donation</button>
             </form>
           </div>
-
-          {/* Volunteer Request Section */}
-          <div className="volunteer-request-section" style={{marginTop: '40px'}}>
-              <h3>Request Volunteer Pickup</h3>
-              <p>If you don't have specific items now but want to request a general pickup from your address, use the button below.</p>
-              {/* TODO: Add button and handler for volunteer request API call */}
-              <button className="secondary-btn" onClick={() => alert('Volunteer request functionality to be added.')}>Request Pickup</button>
-          </div>
         </>
       )}
 
