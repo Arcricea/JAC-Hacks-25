@@ -128,7 +128,19 @@ const SupplierDashboard = () => {
         throw new Error("User data not available.");
       }
       // Call the new function to confirm pickup
-      const response = await confirmSupplierPickup(userData.auth0Id);
+      // --- Extract volunteer ID from scanned text --- START
+      const parts = decodedText.split(':');
+      let scannedVolunteerId = null;
+      if (parts.length === 2 && parts[0].trim() === 'volunteerId') {
+        scannedVolunteerId = parts[1].trim();
+      } 
+      
+      if (!scannedVolunteerId) {
+        throw new Error("Invalid QR code format. Expected 'volunteerId:value'.");
+      }
+      // --- Extract volunteer ID from scanned text --- END
+      
+      const response = await confirmSupplierPickup(userData.auth0Id, scannedVolunteerId); // Pass ID
       setConfirmationResult({ 
         success: true, 
         message: response.message || 'Pickup confirmed successfully!' 

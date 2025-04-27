@@ -101,11 +101,14 @@ export const getSupplierListedItems = async (userId) => {
   }
 };
 
-export const confirmSupplierPickup = async (userId) => {
+export const confirmSupplierPickup = async (userId, scannedVolunteerId) => {
   try {
     const response = await fetch(`${API_URL}/donations/supplier/confirm-pickup/${userId}`, {
       method: 'POST',
-      // No body needed for this simplified version
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ scannedVolunteerId })
     });
     const data = await response.json();
 

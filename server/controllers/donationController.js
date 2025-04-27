@@ -1,6 +1,6 @@
 const Donation = require('../models/Donation');
 const User = require('../models/User'); // Import User model
-const AssignedTask = require('../models/AssignedTask');
+// const AssignedTask = require('../models/AssignedTask');
 
 exports.createDonation = async (req, res) => {
   try {
@@ -262,16 +262,19 @@ exports.getSupplierListedDonations = async (req, res) => {
 // New function for Supplier to confirm pickup via QR scan
 exports.confirmSupplierPickup = async (req, res) => {
   try {
-    const { userId } = req.params; // Get userId (auth0Id) from URL parameters
-    // Note: In a real scenario, you might want to verify something from the scanned QR code 
-    // passed in the request body (e.g., req.body.scannedCode) to ensure the correct pickup is being confirmed.
-    // For this implementation, we are simply confirming based on the logged-in user triggering the action.
+    const { userId } = req.params; // Supplier's auth0Id
+    const { scannedVolunteerId } = req.body; // Get volunteer ID from QR scan data
 
-    // Find donations by this user that are currently SCHEDULED
+    if (!scannedVolunteerId) {
+      return res.status(400).json({ success: false, message: 'Scanned volunteer ID is required.' });
+    }
+
+    // Find donations by this supplier, scheduled for this specific volunteer
     const updateResult = await Donation.updateMany(
       { 
         userId: userId, 
-        status: 'scheduled' // <-- Only target donations that are already scheduled
+        volunteerId: scannedVolunteerId, // Match the specific volunteer
+        status: 'scheduled' 
       },
       { $set: { status: 'completed' } } // Update status to completed
     );
@@ -279,14 +282,17 @@ exports.confirmSupplierPickup = async (req, res) => {
     if (updateResult.matchedCount === 0) {
       return res.status(200).json({
         success: true, 
-        message: 'No available or scheduled donations found to mark as completed.',
+        message: 'No scheduled donations found for this supplier and volunteer combination to mark as completed.', // Updated message
         modifiedCount: 0
       });
     }
 
+    // If update was successful, maybe update related AssignedTask status if that model is still used elsewhere
+    // Example: await AssignedTask.updateMany({ volunteerId: scannedVolunteerId, status: 'pending' }, { $set: { status: 'completed' } });
+
     res.status(200).json({
       success: true,
-      message: `Successfully marked ${updateResult.modifiedCount} donation(s) as completed.`,
+      message: `Successfully marked ${updateResult.modifiedCount} donation(s) from volunteer ${scannedVolunteerId} as completed.`, // Updated message
       modifiedCount: updateResult.modifiedCount
     });
 
@@ -303,94 +309,82 @@ exports.confirmSupplierPickup = async (req, res) => {
 exports.assignDonationToVolunteer = async (req, res) => {
   try {
     const { donationId } = req.params;
-    const { volunteerId } = req.body;
+    const { volunteerId } = req.body; // Expect volunteer's auth0Id
 
-    // Find the donation
-    const donation = await Donation.findById(donationId);
-    if (!donation) {
-      return res.status(404).json({
-        success: false,
-        message: 'Donation not found'
-      });
+    if (!volunteerId) {
+      return res.status(400).json({ success: false, message: 'Volunteer ID is required.' });
     }
 
-    // Create new assigned task
-    const assignedTask = new AssignedTask({
-      volunteerId,
-      donationId: donation._id,
-      itemName: donation.itemName,
-      category: donation.category,
-      quantity: donation.quantity,
-      pickupInfo: donation.pickupInfo,
-      expirationDate: donation.expirationDate
-    });
+    // Find the donation and check if it's available
+    const donation = await Donation.findById(donationId);
 
-    // Save the assigned task
-    await assignedTask.save();
+    if (!donation) {
+      return res.status(404).json({ success: false, message: 'Donation not found' });
+    }
 
-    // Remove the donation from available donations
-    await Donation.findByIdAndDelete(donationId);
+    if (donation.status !== 'available') {
+        return res.status(400).json({ success: false, message: 'Donation is not available for assignment.' });
+    }
 
-    res.status(200).json({
-      success: true,
-      data: assignedTask
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error assigning task',
-      error: error.message
-    });
-  }
-};
-
-exports.getVolunteerTasks = async (req, res) => {
-  try {
-    const { volunteerId } = req.params;
-    
-    const tasks = await AssignedTask.find({ volunteerId })
-      .sort({ assignedAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      data: tasks
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching volunteer tasks',
-      error: error.message
-    });
-  }
-};
-
-// Add this function to the existing controller
-exports.updateTaskStatus = async (req, res) => {
-  try {
-    const { taskId } = req.params;
-    const { status } = req.body;
-
-    const task = await AssignedTask.findByIdAndUpdate(
-      taskId,
-      { status },
-      { new: true }
+    // Update the donation status and assign volunteer
+    const updatedDonation = await Donation.findByIdAndUpdate(
+      donationId,
+      { 
+        status: 'scheduled', 
+        volunteerId: volunteerId 
+      },
+      { new: true } // Return the updated document
     );
 
-    if (!task) {
-      return res.status(404).json({
-        success: false,
-        message: 'Task not found'
-      });
+    // --- Commented Out AssignedTask logic --- 
+    // const assignedTask = new AssignedTask(...);
+    // await assignedTask.save();
+    // await Donation.findByIdAndDelete(donationId);
+    // --- End Commented Out AssignedTask logic ---
+
+    // Ensure updatedDonation is not null before sending response
+    if (!updatedDonation) {
+      // This case might happen if the donation was deleted between findById and findByIdAndUpdate
+      return res.status(404).json({ success: false, message: 'Donation not found during update.' });
     }
 
     res.status(200).json({
       success: true,
-      data: task
+      message: 'Donation successfully scheduled for pickup.',
+      data: updatedDonation // Return the updated donation object
     });
+
   } catch (error) {
+    console.error("Error assigning donation:", error); // Added logging
     res.status(500).json({
       success: false,
-      message: 'Error updating task status',
+      message: 'Error assigning donation to volunteer', // Updated message
+      error: error.message
+    });
+  }
+};
+
+// New function for volunteers to see their scheduled donations
+exports.getVolunteerScheduledDonations = async (req, res) => {
+  try {
+    const { volunteerId } = req.params; // Expect volunteer's auth0Id
+
+    const scheduledDonations = await Donation.find({
+      volunteerId: volunteerId,
+      status: 'scheduled'
+    })
+    .sort({ createdAt: 1 }); // Or sort by expirationDate, etc.
+
+    res.status(200).json({
+      success: true,
+      data: scheduledDonations
+    });
+
+  } catch (error) {
+    console.error("Error fetching volunteer scheduled donations:", error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching volunteer scheduled donations',
       error: error.message
     });
   }
