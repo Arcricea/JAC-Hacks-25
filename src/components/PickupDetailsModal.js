@@ -53,7 +53,7 @@ const PickupDetailsModal = ({ isOpen, onClose, pickup, onAccept }) => {
         new window.google.maps.Marker({
           position: { lat, lng },
           map,
-          title: pickup?.businessName || pickup?.donorName || 'Pickup Location'
+          title: pickup?.businessName || pickup?.donorName || 'Extra Information'
         });
       }
     } catch (err) {
@@ -132,7 +132,7 @@ const PickupDetailsModal = ({ isOpen, onClose, pickup, onAccept }) => {
               </div>
               
               <div className="pickup-location-info">
-                <h3>Pickup Location:</h3>
+                <h3>Extra Information:</h3>
                 <p>{pickup.pickupInfo}</p>
                 {coordinates && <p className="formatted-address">{coordinates.formattedAddress}</p>}
               </div>

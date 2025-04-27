@@ -302,7 +302,7 @@ const VolunteerDashboard = () => {
                           </div>
 
                           <div className="task-section">
-                            <h4>Pickup Information:</h4>
+                            <h4>Extra Information:</h4>
                             <p>{task.pickupInfo}</p>
                           </div>
 
