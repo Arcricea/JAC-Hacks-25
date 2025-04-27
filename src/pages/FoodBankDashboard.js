@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
+import { UserContext } from '../App';
+import { updateNeedStatus } from '../services/userService';
 import '../assets/styles/Dashboard.css';
 import '../assets/styles/FoodBankDashboard.css';
 
 const FoodBankDashboard = () => {
+  const { userData, setUserData } = useContext(UserContext);
   const [activeTab, setActiveTab] = useState('overview');
   
   // Sample data for the food bank
@@ -29,13 +32,16 @@ const FoodBankDashboard = () => {
   };
 
   // State for form values
-  const [priorityLevel, setPriorityLevel] = useState(foodBankData.currentPriority);
+  const [priorityLevel, setPriorityLevel] = useState(userData?.needStatus?.priorityLevel || foodBankData.currentPriority);
   const [address, setAddress] = useState(foodBankData.contactInfo.address);
   const [phone, setPhone] = useState(foodBankData.contactInfo.phone);
   const [email, setEmail] = useState(foodBankData.contactInfo.email);
   const [openingHours, setOpeningHours] = useState(foodBankData.contactInfo.hours);
   const [additionalInfo, setAdditionalInfo] = useState('');
   const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [customStatusMessage, setCustomStatusMessage] = useState(userData?.needStatus?.customMessage || '');
+  const [isEditingStatus, setIsEditingStatus] = useState(false);
+  const [isSavingStatus, setIsSavingStatus] = useState(false);
 
   // Priority level options
   const priorityLevels = [
@@ -59,6 +65,63 @@ const FoodBankDashboard = () => {
     });
     setIsEditingInfo(false);
   };
+
+  // Handler for saving need status
+  const handleSaveStatus = async () => {
+    if (!userData?.auth0Id) {
+      console.error('No auth0Id found for user');
+      return;
+    }
+    
+    setIsSavingStatus(true);
+    try {
+      // Ensure we're passing the correct data
+      const dataToSave = {
+        priorityLevel,
+        customMessage: customStatusMessage
+      };
+      
+      console.log('Saving need status:', dataToSave, 'for user:', userData.auth0Id);
+      
+      const response = await updateNeedStatus(userData.auth0Id, dataToSave);
+      
+      if (response && response.success) {
+        // Update local userData with the new status
+        setUserData(prev => ({
+          ...prev,
+          needStatus: {
+            priorityLevel,
+            customMessage: customStatusMessage
+          }
+        }));
+        // User wants to stay in edit mode after saving
+        console.log('Need status saved successfully');
+      } else {
+        console.error('Failed to save need status:', response);
+      }
+    } catch (error) {
+      console.error('Error saving need status:', error);
+    } finally {
+      setIsSavingStatus(false);
+    }
+  };
+
+  // Update need status when priority level changes (if not in editing mode)
+  useEffect(() => {
+    // Only save if the user is authenticated and not explicitly editing the message
+    if (userData?.auth0Id && !isEditingStatus && userData.needStatus?.priorityLevel !== priorityLevel) {
+      console.log('Priority level changed, saving...');
+      handleSaveStatus();
+    }
+  }, [priorityLevel]);
+  
+  // Initialize from userData when it loads
+  useEffect(() => {
+    if (userData?.needStatus) {
+      setPriorityLevel(userData.needStatus.priorityLevel || foodBankData.currentPriority);
+      setCustomStatusMessage(userData.needStatus.customMessage || '');
+    }
+  }, [userData]);
 
   const renderPriorityBadge = (level) => {
     const priorityInfo = priorityLevels.find(p => p.level === level);
@@ -113,7 +176,50 @@ const FoodBankDashboard = () => {
             <h3>Current Need Status</h3>
             <div className="priority-indicator">
               {renderPriorityBadge(priorityLevel)}
-              <p>{priorityLevels.find(p => p.level === priorityLevel).description}</p>
+              <div className="status-message-display">
+                {isEditingStatus ? (
+                  <>
+                    <textarea
+                      value={customStatusMessage || priorityLevels.find(p => p.level === priorityLevel).description}
+                      onChange={(e) => setCustomStatusMessage(e.target.value)}
+                      placeholder="Describe your current needs..."
+                    />
+                    <div className="status-edit-buttons">
+                      <button 
+                        className="save-btn modern-btn" 
+                        onClick={async () => {
+                          await handleSaveStatus();
+                          // Close the editor after saving
+                          setIsEditingStatus(false);
+                        }}
+                        disabled={isSavingStatus}
+                      >
+                        {isSavingStatus ? 
+                          <span className="loading-dots">•••</span> : 
+                          <span className="save-icon">✓</span>
+                        }
+                      </button>
+                      <button 
+                        className="cancel-btn modern-btn" 
+                        onClick={() => {
+                          setIsEditingStatus(false);
+                          setCustomStatusMessage(userData?.needStatus?.customMessage || '');
+                        }}
+                        disabled={isSavingStatus}
+                      >
+                        <span className="cancel-icon">×</span>
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p>{customStatusMessage || priorityLevels.find(p => p.level === priorityLevel).description}</p>
+                    <button className="edit-status-btn" onClick={() => setIsEditingStatus(true)}>
+                      <span className="edit-icon">✏️</span>
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
             
             <div className="priority-selector-inline">
@@ -129,9 +235,9 @@ const FoodBankDashboard = () => {
                       borderColor: priority.color
                     }}
                     onClick={() => setPriorityLevel(priority.level)}
-                    data-label={priority.label}
                   >
-                    {priority.level}
+                    <span className="priority-number">{priority.level}</span>
+                    <span className="priority-text">{priority.label}</span>
                   </button>
                 ))}
               </div>

@@ -3,10 +3,10 @@
 /* Priority Status Card */
 .priority-status-card {
   background-color: #fff;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .priority-indicator {
@@ -21,22 +21,148 @@
   border-radius: 20px;
   color: white;
   font-weight: 600;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-size: 0.9rem;
+  white-space: nowrap;
+  align-self: center;
+}
+
+/* Status Message Styling */
+.status-message-display {
+  flex: 1;
+  position: relative;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 0.8rem 3rem 0.8rem 1rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  min-height: 50px;
+  max-height: 50px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 50px;
+  overflow: hidden;
+}
+
+.status-message-display p {
+  margin: 0;
+  line-height: 1.5;
+  color: #444;
+  width: 100%;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-message-display textarea {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font-size: inherit;
+  font-family: inherit;
+  color: inherit;
+  line-height: inherit;
+  resize: none;
+  outline: none;
+  height: 36px;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  overflow: hidden;
+}
+
+.edit-status-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  padding: 4px;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.edit-status-btn:hover {
+  opacity: 1;
+  background-color: rgba(0,0,0,0.05);
+}
+
+.edit-icon {
+  font-size: 1rem;
+}
+
+.status-edit-buttons {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 0.5rem;
+  z-index: 2;
+}
+
+.save-btn, .cancel-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  font-size: 0.9rem;
+  padding: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.save-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.save-btn:hover:not(:disabled) {
+  background-color: #45a049;
+  transform: scale(1.1);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+
+.save-btn:disabled, .cancel-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  background-color: #f5f5f5;
+  color: #555;
+}
+
+.cancel-btn:hover:not(:disabled) {
+  background-color: #e0e0e0;
+  transform: scale(1.1);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
 }
 
 /* Inline Priority Selector */
 .priority-selector-inline {
   margin-top: 1.5rem;
   border-top: 1px solid #eee;
-  padding-top: 1rem;
+  padding-top: 1.5rem;
 }
 
 .priority-selector-label {
   font-weight: 600;
-  margin-bottom: 0.75rem;
+  margin-bottom: 1rem;
   color: #333;
   font-size: 1rem;
 }
@@ -48,40 +174,46 @@
 }
 
 .priority-button {
-  min-width: 80px;
+  width: 170px;
   height: 60px;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 2px solid;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
-  background-color: transparent;
+  display: flex;
+  align-items: center;
+  text-align: left;
   position: relative;
-  padding: 0.5rem;
-  font-size: 1.2rem;
+  padding: 0;
+  overflow: hidden;
 }
 
 .priority-button:hover {
   transform: translateY(-3px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
 }
 
 .priority-button.selected {
   transform: scale(1.05);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
-.priority-button::after {
-  content: attr(data-label);
-  position: absolute;
-  bottom: 5px;
-  font-size: 0.65rem;
-  font-weight: 500;
-  opacity: 0.8;
+.priority-number {
+  width: 50px;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.6rem;
+  font-weight: 700;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.priority-button .priority-text {
+  flex: 1;
+  padding: 0 15px;
+  font-size: 0.85rem;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -372,4 +504,65 @@
 
 .dashboard-nav button:hover:not(.active) {
   background-color: #f0f0f0;
+}
+
+/* Modern button styles for save/cancel */
+.modern-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+.save-btn.modern-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.save-btn.modern-btn:hover {
+  background-color: #3e9142;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.cancel-btn.modern-btn {
+  background-color: #f44336;
+  color: white;
+}
+
+.cancel-btn.modern-btn:hover {
+  background-color: #d32f2f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.save-icon, .cancel-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.loading-dots {
+  font-size: 16px;
+  letter-spacing: 1px;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+.modern-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 } 

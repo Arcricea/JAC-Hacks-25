@@ -9,28 +9,13 @@ const Dashboard = ({ userType = 'foodbank' }) => {
   const renderDashboard = () => {
     switch(userType) {
       case 'supplier':
-        return (
-          <>
-            <h2>Restaurant/Grocer Dashboard</h2>
-            <SupplierDashboard />
-          </>
-        );
+        return <SupplierDashboard />;
       case 'foodbank':
-        return (
-          <>
-            <h2>Food Bank Dashboard</h2>
-            <FoodBankDashboard />
-          </>
-        );
+        return <FoodBankDashboard />;
       case 'individual':
-        return (
-          <>
-            <h2>Individual Dashboard</h2>
-            <IndividualDashboard />
-          </>
-        );
+        return <IndividualDashboard />;
       default:
-        return <div>Unknown user type</div>;
+        return <FoodBankDashboard />; // Default to food bank dashboard
     }
   };
 
