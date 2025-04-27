@@ -90,6 +90,7 @@ const AdminDashboard = () => {
   });
   const [addRequestError, setAddRequestError] = useState('');
   const [previewDashboardType, setPreviewDashboardType] = useState(null);
+  const [adminRefreshTrigger, setAdminRefreshTrigger] = useState(0);
 
   // --- Fetch Initial Data (Users, Food Banks, Donations) ---
   useEffect(() => {
@@ -141,7 +142,7 @@ const AdminDashboard = () => {
       setError('Access Denied. You do not have permission to view this page.');
       setIsLoading(false);
     }
-  }, [userData]);
+  }, [userData, adminRefreshTrigger]);
 
   // --- Action Handlers ---
 
@@ -446,6 +447,8 @@ const AdminDashboard = () => {
         setDonations(prev => ({ ...prev, available: [result.data, ...prev.available] }));
         setShowAddDonationForm(false);
         setNewDonationData({ itemName: '', category: 'other', quantity: '', expirationDate: '', pickupInfo: '' });
+        // <<< TRIGGER REFRESH AFTER ADDING DONATION >>>
+        setAdminRefreshTrigger(prev => prev + 1);
       } else {
         throw new Error(result.message || 'Failed to add donation');
       }
@@ -508,6 +511,37 @@ const AdminDashboard = () => {
   };
   // <<< END OF ADDED RENDER FUNCTION >>>
 
+  // <<< RESTORE RENDER FUNCTION (was renderPreviewDashboard) >>>
+  const renderRoleView = () => {
+    const previewUserData = { 
+      ...userData,
+      accountType: previewDashboardType 
+    };
+    const commonProps = {
+      allDonations: donations, 
+      allFoodBanks: foodBanks,
+      // <<< Add isAdminView prop >>>
+      isAdminView: true 
+    };
+    const wrapInPreviewContext = (Component) => (
+      <UserContext.Provider value={{ userData: previewUserData }}>
+        <Component {...commonProps} />
+      </UserContext.Provider>
+    );
+    switch (previewDashboardType) {
+      case 'individual':
+        return wrapInPreviewContext(IndividualDashboard);
+      case 'business':
+        return wrapInPreviewContext(SupplierDashboard);
+      case 'distributor':
+        return wrapInPreviewContext(FoodBankDashboard);
+      case 'volunteer':
+        return wrapInPreviewContext(VolunteerDashboard);
+      default:
+        return null; 
+    }
+  };
+
   // --- Render Logic ---
 
   if (isLoading) {
@@ -533,74 +567,36 @@ const AdminDashboard = () => {
      return <div className="dashboard-error">Access Denied. Organizers only.</div>;
   }
 
-  // --- Function to render the selected preview dashboard --- 
-  const renderPreviewDashboard = () => {
-    // Create a simulated userData object for the context provider
-    const previewUserData = { 
-      ...userData, // Copy existing admin data (ID, username)
-      accountType: previewDashboardType // Override the account type
-    };
-    
-    // Pass relevant data as props where needed
-    const commonProps = {
-      // Example: Pass donations if the previewed dashboard might use it
-      // Note: Specific dashboards might need different props checked/added here
-      allDonations: donations, 
-      allFoodBanks: foodBanks,
-    };
-
-    // Use a temporary context provider for the preview
-    const wrapInPreviewContext = (Component) => (
-      <UserContext.Provider value={{ userData: previewUserData }}>
-        <Component {...commonProps} isPreview={true} />
-      </UserContext.Provider>
-    );
-
-    switch (previewDashboardType) {
-      case 'individual':
-        return wrapInPreviewContext(IndividualDashboard);
-      case 'business': // Assuming 'business' maps to SupplierDashboard
-        return wrapInPreviewContext(SupplierDashboard);
-      case 'distributor': // Assuming 'distributor' maps to FoodBankDashboard
-        return wrapInPreviewContext(FoodBankDashboard);
-      case 'volunteer':
-        return wrapInPreviewContext(VolunteerDashboard);
-      default:
-        return null; // Should not happen if selection is controlled
-    }
-  };
-
   return (
     <div className="dashboard-content admin-dashboard">
       <h1>Admin Dashboard</h1>
 
-      {/* <<< ADD DASHBOARD PREVIEW SELECTOR >>> */}
+      {/* Dashboard Role View Selector */}
       <div className="preview-selector" style={{ marginBottom: '20px', padding: '15px', backgroundColor: '#f0f0f0', borderRadius: '8px' }}>
-        <label htmlFor="previewType" style={{ marginRight: '10px', fontWeight: 'bold' }}>Preview Dashboard As:</label>
+        <label htmlFor="previewType" style={{ marginRight: '10px', fontWeight: 'bold' }}>View Dashboard As:</label>
         <select 
           id="previewType"
-          value={previewDashboardType || 'admin'} // Default to 'admin' view
+          value={previewDashboardType || 'admin'} 
           onChange={(e) => setPreviewDashboardType(e.target.value === 'admin' ? null : e.target.value)}
         >
           <option value="admin">Admin View (Default)</option>
-          <option value="individual">Individual User</option>
           <option value="business">Business/Supplier</option>
           <option value="distributor">Food Bank/Distributor</option>
           <option value="volunteer">Volunteer</option>
+          <option value="individual">Individual</option>
         </select>
         {previewDashboardType && (
           <p style={{ marginTop: '10px', fontStyle: 'italic' }}>
-            Showing a preview of the {formatAccountType(previewDashboardType)} dashboard. Data shown may be limited or based on admin context.
+            Displaying {formatAccountType(previewDashboardType)} dashboard layout using Admin data context.
           </p>
         )}
       </div>
-      {/* <<< END OF PREVIEW SELECTOR >>> */}
 
       {error && <div className="dashboard-error" style={{ marginBottom: '15px' }}>Error: {error}</div>}
 
-      {/* --- CONDITIONAL RENDERING: PREVIEW OR ADMIN VIEW --- */} 
+      {/* --- RESTORE CONDITIONAL RENDERING: ROLE VIEW OR ADMIN VIEW --- */} 
       {previewDashboardType ? (
-         renderPreviewDashboard() // Render the selected preview
+         renderRoleView() // Render the selected role view
       ) : (
         <> {/* Render the standard Admin sections */} 
           <section className="admin-section"> 
@@ -786,66 +782,65 @@ const AdminDashboard = () => {
             </div>
           </section>
 
-          {/* Modals are kept outside the conditional rendering, 
-              but their trigger buttons are within the standard admin view sections */}
+          {/* Modals remain accessible */} 
           {showAddRequestForm && (
-             <div className="modal-overlay">
-               <div className="modal-content">
-                 <form onSubmit={handleAddNewRequest} className="modal-form">
-                   <h3>Set Food Bank Request/Status</h3>
-                   <button type="button" className="modal-close-button" onClick={() => setShowAddRequestForm(false)}>&times;</button>
-                   {addRequestError && <p className="error-message">{addRequestError}</p>}
-                   <div className="form-group">
-                     <label>Select Food Bank*</label>
-                     <select name="targetFoodBankId" value={newRequestData.targetFoodBankId} onChange={handleNewRequestChange} required>
-                       <option value="" disabled>-- Select a Food Bank --</option>
-                       {foodBanks.map(fb => (
-                         <option key={fb.auth0Id} value={fb.auth0Id}>{fb.username || fb.businessName || fb.auth0Id}</option>
-                       ))}
-                     </select>
-                   </div>
-                   <div className="form-row">
-                      <div className="form-group">
-                         <label>Priority Level*</label>
-                         <select name="priorityLevel" value={newRequestData.priorityLevel} onChange={handleNewRequestChange} required>
-                            {priorityLevels.map(p => (<option key={p.level} value={p.level}>{p.level} - {p.label}</option>))}
-                         </select>
-                      </div>
-                   </div>
-                   <div className="form-group">
-                     <label>Request Details / Status Message*</label>
-                     <textarea name="customMessage" value={newRequestData.customMessage} onChange={handleNewRequestChange} required></textarea>
-                   </div>
-                   <div className="form-actions">
-                     <button type="submit" className="action-button save-button">Set Request/Status</button>
-                     <button type="button" onClick={() => setShowAddRequestForm(false)} className="action-button cancel-button">Cancel</button>
-                   </div>
-                 </form>
-               </div>
-             </div>
+              <div className="modal-overlay">
+                <div className="modal-content">
+                  <form onSubmit={handleAddNewRequest} className="modal-form">
+                    <h3>Set Food Bank Request/Status</h3>
+                    <button type="button" className="modal-close-button" onClick={() => setShowAddRequestForm(false)}>&times;</button>
+                    {addRequestError && <p className="error-message">{addRequestError}</p>}
+                    <div className="form-group">
+                      <label>Select Food Bank*</label>
+                      <select name="targetFoodBankId" value={newRequestData.targetFoodBankId} onChange={handleNewRequestChange} required>
+                        <option value="" disabled>-- Select a Food Bank --</option>
+                        {foodBanks.map(fb => (
+                          <option key={fb.auth0Id} value={fb.auth0Id}>{fb.username || fb.businessName || fb.auth0Id}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-row">
+                       <div className="form-group">
+                          <label>Priority Level*</label>
+                          <select name="priorityLevel" value={newRequestData.priorityLevel} onChange={handleNewRequestChange} required>
+                             {priorityLevels.map(p => (<option key={p.level} value={p.level}>{p.level} - {p.label}</option>))}
+                          </select>
+                       </div>
+                    </div>
+                    <div className="form-group">
+                      <label>Request Details / Status Message*</label>
+                      <textarea name="customMessage" value={newRequestData.customMessage} onChange={handleNewRequestChange} required></textarea>
+                    </div>
+                    <div className="form-actions">
+                      <button type="submit" className="action-button save-button">Set Request/Status</button>
+                      <button type="button" onClick={() => setShowAddRequestForm(false)} className="action-button cancel-button">Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
           )}
 
           {showAddDonationForm && (
-             <div className="modal-overlay">
-               <div className="modal-content">
-                 <form onSubmit={handleAddNewDonation} className="modal-form">
-                   <h3>Add New Donation (as Admin)</h3>
-                   <button type="button" className="modal-close-button" onClick={() => setShowAddDonationForm(false)}>&times;</button>
-                   {addDonationError && <p className="error-message">{addDonationError}</p>}
-                   {/* Form content copied from OrganizerDashboard */}
-                   <div className="form-row">
-                      <div className="form-group"><label>Item Name*</label><input type="text" name="itemName" value={newDonationData.itemName} onChange={handleNewDonationChange} required /></div>
-                      <div className="form-group"><label>Quantity*</label><input type="text" name="quantity" value={newDonationData.quantity} onChange={handleNewDonationChange} required /></div>
-                   </div>
-                   <div className="form-row">
-                      <div className="form-group"><label>Category*</label><select name="category" value={newDonationData.category} onChange={handleNewDonationChange} required><option value="produce">Produce</option><option value="bakery">Bakery</option><option value="dairy">Dairy</option><option value="meat">Meat</option><option value="canned">Canned Goods</option><option value="dry">Dry Goods</option><option value="frozen">Frozen</option><option value="prepared">Prepared Meals</option><option value="other">Other</option></select></div>
-                      <div className="form-group"><label>Expiration Date*</label><input type="date" name="expirationDate" value={newDonationData.expirationDate} onChange={handleNewDonationChange} required /></div>
-                   </div>
-                   <div className="form-group"><label>Pickup Information*</label><textarea name="pickupInfo" value={newDonationData.pickupInfo} onChange={handleNewDonationChange} required></textarea></div>
-                   <div className="form-actions"><button type="submit" className="action-button save-button">Add Donation</button><button type="button" onClick={() => setShowAddDonationForm(false)} className="action-button cancel-button">Cancel</button></div>
-                 </form>
-               </div>
-             </div>
+              <div className="modal-overlay">
+                <div className="modal-content">
+                  <form onSubmit={handleAddNewDonation} className="modal-form">
+                    <h3>Add New Donation (as Admin)</h3>
+                    <button type="button" className="modal-close-button" onClick={() => setShowAddDonationForm(false)}>&times;</button>
+                    {addDonationError && <p className="error-message">{addDonationError}</p>}
+                    {/* Form content copied from OrganizerDashboard */}
+                    <div className="form-row">
+                       <div className="form-group"><label>Item Name*</label><input type="text" name="itemName" value={newDonationData.itemName} onChange={handleNewDonationChange} required /></div>
+                       <div className="form-group"><label>Quantity*</label><input type="text" name="quantity" value={newDonationData.quantity} onChange={handleNewDonationChange} required /></div>
+                    </div>
+                    <div className="form-row">
+                       <div className="form-group"><label>Category*</label><select name="category" value={newDonationData.category} onChange={handleNewDonationChange} required><option value="produce">Produce</option><option value="bakery">Bakery</option><option value="dairy">Dairy</option><option value="meat">Meat</option><option value="canned">Canned Goods</option><option value="dry">Dry Goods</option><option value="frozen">Frozen</option><option value="prepared">Prepared Meals</option><option value="other">Other</option></select></div>
+                       <div className="form-group"><label>Expiration Date*</label><input type="date" name="expirationDate" value={newDonationData.expirationDate} onChange={handleNewDonationChange} required /></div>
+                    </div>
+                    <div className="form-group"><label>Pickup Information*</label><textarea name="pickupInfo" value={newDonationData.pickupInfo} onChange={handleNewDonationChange} required></textarea></div>
+                    <div className="form-actions"><button type="submit" className="action-button save-button">Add Donation</button><button type="button" onClick={() => setShowAddDonationForm(false)} className="action-button cancel-button">Cancel</button></div>
+                  </form>
+                </div>
+              </div>
           )}
         </>
       )}
