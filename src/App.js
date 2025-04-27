@@ -10,6 +10,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import UsernameSetupModal from './components/auth/UsernameSetupModal';
 import UserTypeModal from './components/auth/UserTypeModal';
+import ChatbotWrapper from './components/ChatbotWrapper';
 
 // Pages
 import Home from './pages/Home';
@@ -174,6 +175,9 @@ function App() {
               </Routes>
             </main>
             <Footer />
+            
+            {/* Chatbot */}
+            <ChatbotWrapper />
             
             {/* Modals */}
             <UsernameSetupModal 
