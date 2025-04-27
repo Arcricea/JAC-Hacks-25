@@ -142,4 +142,97 @@
 
 .verification-result.pending .fas {
   color: #383d41;
+}
+
+/* New styles for verification steps */
+.verification-steps {
+  display: flex;
+  flex-direction: column; /* Stack steps initially */
+  gap: 1.5rem;
+}
+
+.scanner-area,
+.code-input-area {
+  padding: 1.5rem;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background-color: #fafafa;
+  transition: all 0.3s ease-in-out;
+}
+
+.scanner-area h4,
+.code-input-area h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #1b5e20; /* Dark green */
+  font-size: 1.1rem;
+}
+
+.scanner-area.scanned,
+.code-input-area.visible {
+  border-color: #c8e6c9; /* Light green border when active/visible */
+}
+
+#qr-reader-container {
+  border: none;
+  background-color: transparent;
+  padding: 0;
+  margin-top: 1rem;
+}
+
+.scanned-id-display {
+  margin-top: 1rem;
+  padding: 0.8rem 1rem;
+  background-color: #e9f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 4px;
+  color: #155724;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.scanned-id-display .fas {
+  color: #155724;
+  margin-right: 0.5rem;
+}
+
+.scanned-id-display strong {
+  margin-left: 0.3rem;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #2e7d32;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.link-button:hover {
+  color: #1b5e20;
+}
+
+.code-input.large {
+  font-size: 2rem; /* Make code input larger */
+  padding: 0.6rem;
+  width: 180px;
+}
+
+.verify-button {
+  padding: 0.9rem 1.5rem; /* Match height */
+  font-size: 1rem;
+}
+
+/* Layout for wider screens */
+@media (min-width: 768px) {
+  .verification-steps {
+    flex-direction: row; /* Side-by-side */
+    align-items: flex-start;
+  }
+  .scanner-area,
+  .code-input-area {
+     flex: 1; /* Each takes half */
+  }
 } 

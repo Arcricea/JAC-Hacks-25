@@ -99,51 +99,52 @@ const VolunteerDashboard = () => {
 
       <div className="dashboard-content">
         {activeTab === 'qrcode' && (
-          <div className="qr-code-section card-style">
-            <h3><i className="fas fa-id-badge"></i> Your Volunteer ID & Code</h3>
+          <div className="qr-code-section card-style volunteer-id-card">
+            <h3><i className="fas fa-id-badge"></i> Your Volunteer Verification</h3>
+            <p>Instructions: Ask the location to scan your ID QR code, then provide the 6-digit code below.</p>
             
-            {/* Section for Static ID QR Code */} 
-            <div className="static-id-section">
-              <p>Let the business scan this QR code to identify you:</p>
-              {userData?.username ? (
-                 <div className="qr-code-container">
-                    <div className="qr-code-display">
-                      <QRCodeSVG 
-                        value={userData.username} // QR Code now contains the username
-                        size={180} 
-                        level={"H"} 
-                        includeMargin={true}
-                      />
-                    </div>
-                    <p className="token-info">ID: {userData.username}</p> 
-                 </div>
-              ) : (
-                 <div className="alert alert-warning">Username not found. Cannot display ID QR code.</div>
-              )}
-            </div>
-            
-            <hr className="divider" />
-
-            {/* Section for Dynamic TOTP Code */} 
-             <div className="dynamic-code-section">
-                <p>Then, provide the following 6-digit code:</p>
-                {userData?.volunteerSecret ? (
-                  <div className="totp-display">
-                    <div className="totp-code">{currentCode}</div>
-                    <div className="totp-timer">
-                      <span>Refreshes in: {timeRemaining}s</span>
-                      <div className="timer-bar-container">
-                         <div 
-                            className="timer-bar" 
-                            style={{ width: `${(timeRemaining / 30) * 100}%` }}
-                         ></div>
+            <div className="verification-details-container">
+              {/* Left Side: Static ID QR Code */} 
+              <div className="static-id-section">
+                <h4>Step 1: Scan ID</h4>
+                {userData?.username ? (
+                  <div className="qr-code-container">
+                      <div className="qr-code-display">
+                        <QRCodeSVG 
+                          value={userData.username} 
+                          size={150} // Slightly smaller for side-by-side
+                          level={"H"} 
+                          includeMargin={true}
+                        />
                       </div>
-                    </div>
+                      <p className="token-info">Your ID: {userData.username}</p> 
                   </div>
                 ) : (
-                  <div className="alert alert-warning">Volunteer secret not set up. Cannot generate code.</div>
+                  <div className="alert alert-warning">Username not found.</div>
                 )}
-             </div>
+              </div>
+              
+              {/* Right Side: Dynamic TOTP Code */} 
+              <div className="dynamic-code-section">
+                  <h4>Step 2: Provide Code</h4>
+                  {userData?.volunteerSecret ? (
+                    <div className="totp-display">
+                      <div className="totp-code">{currentCode}</div>
+                      <div className="totp-timer">
+                        <span>Refreshes in: {timeRemaining}s</span>
+                        <div className="timer-bar-container">
+                          <div 
+                              className="timer-bar" 
+                              style={{ width: `${(timeRemaining / 30) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="alert alert-warning">Code generation unavailable.</div>
+                  )}
+              </div>
+            </div> 
           </div>
         )}
 
