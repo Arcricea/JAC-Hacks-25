@@ -39,6 +39,11 @@ const donationSchema = new mongoose.Schema({
     enum: ['available', 'scheduled', 'completed', 'cancelled'],
     default: 'available'
   },
+  volunteerId: {
+    type: String,
+    ref: 'User',
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now
