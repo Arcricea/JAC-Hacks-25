@@ -5,7 +5,7 @@ const User = require('../models/User');
 // Create or update a user
 exports.saveUser = async (req, res) => {
   try {
-    const { auth0Id, username, accountType } = req.body;
+    const { auth0Id, username, accountType, needStatus } = req.body;
 
     // Validate required fields
     if (!auth0Id || !username || !accountType) {
@@ -34,12 +34,23 @@ exports.saveUser = async (req, res) => {
       // Update existing user
       user.username = username;
       user.accountType = accountType;
+      
+      // Update needStatus if provided and user is a distributor (food bank)
+      if (needStatus && (accountType === 'distributor')) {
+        user.needStatus = {
+          ...user.needStatus || {},
+          ...(needStatus.priorityLevel !== undefined && { priorityLevel: needStatus.priorityLevel }),
+          ...(needStatus.customMessage !== undefined && { customMessage: needStatus.customMessage })
+        };
+      }
     } else {
       // Create new user
       user = new User({
         auth0Id,
         username,
-        accountType
+        accountType,
+        // Add needStatus if provided and user is a distributor (food bank)
+        ...(needStatus && accountType === 'distributor' && { needStatus })
       });
     }
 

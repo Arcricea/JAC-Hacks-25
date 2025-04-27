@@ -112,4 +112,33 @@ export const verifyVolunteerCode = async (username, code) => {
     console.error('Error verifying volunteer code:', error);
     return { success: false, isValid: false, message: error.message || 'Network error or failed to verify code.' };
   }
+};
+
+// Update need status for a food bank
+export const updateNeedStatus = async (auth0Id, statusData) => {
+  try {
+    // First get the user data
+    const userData = await getUserByAuth0Id(auth0Id);
+    
+    if (!userData.success) {
+      throw new Error('Failed to get user data');
+    }
+    
+    // Update the need status
+    const updatedUserData = {
+      ...userData.data,
+      needStatus: {
+        priorityLevel: statusData.priorityLevel,
+        customMessage: statusData.customMessage
+      }
+    };
+    
+    // Save the updated user data
+    const response = await saveUser(updatedUserData);
+    
+    return response;
+  } catch (error) {
+    console.error('Error updating need status:', error);
+    throw error;
+  }
 }; 
