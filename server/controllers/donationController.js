@@ -70,14 +70,40 @@ exports.createDonation = async (req, res) => {
 
 exports.getAvailableDonations = async (req, res) => {
   try {
+    // First get all available donations
     const donations = await Donation.find({ status: 'available' })
-      .sort({ createdAt: -1 }); // Most recent first
+      .sort({ createdAt: -1 });
+
+    // Get all unique user IDs from the donations
+    const userIds = [...new Set(donations.map(d => d.userId))];
+
+    // Get all users for these donations
+    const users = await User.find({ auth0Id: { $in: userIds } });
+
+    // Create a map of user details
+    const userMap = users.reduce((map, user) => {
+      map[user.auth0Id] = {
+        businessName: user.businessName,
+        username: user.username,
+        accountType: user.accountType
+      };
+      return map;
+    }, {});
+
+    // Add business names to donations
+    const donationsWithBusinessNames = donations.map(donation => {
+      const user = userMap[donation.userId];
+      const donationObj = donation.toObject();
+      donationObj.businessName = user?.businessName || user?.username || 'Anonymous';
+      return donationObj;
+    });
 
     res.status(200).json({
       success: true,
-      data: donations
+      data: donationsWithBusinessNames
     });
   } catch (error) {
+    console.error('Error fetching available donations:', error);
     res.status(500).json({
       success: false,
       message: 'Error fetching available donations',

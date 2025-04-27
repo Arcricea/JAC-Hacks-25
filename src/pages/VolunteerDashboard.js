@@ -248,63 +248,62 @@ const VolunteerDashboard = () => {
                   />
                   <select className="task-filter">
                     <option value="">All Categories</option>
-                    <option value="produce">Fresh Produce</option>
-                    <option value="bakery">Bakery</option>
-                    <option value="dairy">Dairy</option>
-                    <option value="other">Other</option>
                   </select>
                 </div>
 
-                <div className="available-tasks-grid">
-                  {availableTasks.map(task => (
-                    <div key={task._id} className="task-card">
-                      <div className="task-card-header">
-                        <h4>Food Delivery Task</h4>
-                        <span className="task-category">{task.category}</span>
-                      </div>
-                      
-                      <div className="task-card-body">
-                        <div className="task-details">
-                          <h5>Items to Pickup:</h5>
-                          <p className="item-details">
-                            <span className="item-name">{task.itemName}</span>
-                            <span className="item-quantity">({task.quantity})</span>
-                          </p>
-                          
-                          <h5>Pickup Information:</h5>
-                          <p className="pickup-info">{task.pickupInfo}</p>
-                          
-                          <div className="task-metadata">
-                            <p className="expiry-date">
-                              <span className="material-icons">Expiration Date: </span>
-                              {formatDate(task.expirationDate)}
-                            </p>
-                            <p className="created-date">
-                              <span className="material-icons">Listed Time:</span>
-                              {formatDate(task.createdAt)}
-                            </p>
+                {availableTasks.length > 0 ? (
+                  <div className="task-list">
+                    {availableTasks.map(task => (
+                      <div key={task._id} className="task-card">
+                        <div className="task-header">
+                          <span className="task-title">
+                            {task.businessName || task.donorName || 'Anonymous'} Food Delivery Task
+                          </span>
+                          <span className="task-category">{task.category}</span>
+                        </div>
+                        
+                        <div className="task-content">
+                          <div className="task-section">
+                            <h4>Items to Pickup:</h4>
+                            <p>{task.itemName} ({task.quantity})</p>
+                          </div>
+
+                          <div className="task-section">
+                            <h4>Pickup Information:</h4>
+                            <p>{task.pickupInfo}</p>
+                          </div>
+
+                          <div className="task-dates">
+                            <div className="date-info">
+                              <span className="date-label">Expiration Date:</span>
+                              <span className="date-value">{formatDate(task.expirationDate)}</span>
+                            </div>
+                            <div className="date-info">
+                              <span className="date-label">Listed Time:</span>
+                              <span className="date-value">{formatDate(task.createdAt)}</span>
+                            </div>
+                          </div>
+
+                          <div className="task-actions">
+                            <button
+                              onClick={() => handleAcceptTask(task._id)}
+                              disabled={isAssigning}
+                              className="accept-pickup-btn"
+                            >
+                              Accept Pickup
+                            </button>
+                            <button className="view-details-btn">
+                              View Details
+                            </button>
                           </div>
                         </div>
                       </div>
-
-                      <div className="task-card-footer">
-                        <button 
-                          className="primary-btn"
-                          onClick={() => handleAcceptTask(task._id)}
-                          disabled={isAssigning}
-                        >
-                          {isAssigning ? 'Scheduling...' : 'Accept Pickup'}
-                        </button>
-                        <button className="secondary-btn">View Details</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {availableTasks.length === 0 && (
+                    ))}
+                  </div>
+                ) : (
                   <div className="no-tasks-message">
-                    <p>No pickups available at the moment.</p>
-                    <p>Please check back later for new opportunities.</p>
+                    <p>No available pickups at the moment.</p>
+                    <p>Check back later for new opportunities!</p>
                   </div>
                 )}
               </>

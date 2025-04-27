@@ -255,4 +255,155 @@
   color: #2e7d32;
   font-weight: 600;
   margin: 0;
+}
+
+.task-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+  padding: 20px 0;
+}
+
+.task-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  height: 100%; /* Ensure all cards have the same height */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Make the content area fill available space */
+.task-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+/* Push the action buttons to the bottom */
+.task-actions {
+  margin-top: auto;
+  display: flex;
+  gap: 10px;
+}
+
+/* Adjust the container width */
+.dashboard-content {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* Keep the search and filter on one row */
+.task-filters {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.task-search {
+  flex: 1;
+}
+
+.task-filter {
+  width: auto;
+  min-width: 150px;
+}
+
+.task-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.task-title {
+  color: #28a745;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.task-category {
+  color: #007bff;
+  font-size: 0.9rem;
+  padding: 4px 12px;
+  background: #e7f5ff;
+  border-radius: 4px;
+}
+
+.task-section {
+  margin-bottom: 20px;
+}
+
+.task-section h4 {
+  color: #343a40;
+  margin-bottom: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.task-section p {
+  color: #495057;
+  margin: 0;
+}
+
+.task-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.date-info {
+  display: flex;
+  align-items: center;
+}
+
+.date-label {
+  color: #28a745;
+  font-weight: 500;
+  margin-right: 8px;
+}
+
+.date-value {
+  color: #6c757d;
+}
+
+.accept-pickup-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.accept-pickup-btn:hover {
+  background: #218838;
+}
+
+.accept-pickup-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.view-details-btn {
+  background: #e9ecef;
+  color: #495057;
+  border: none;
+  padding: 8px 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.view-details-btn:hover {
+  background: #dee2e6;
 } 

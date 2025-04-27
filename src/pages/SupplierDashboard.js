@@ -315,21 +315,21 @@ const SupplierDashboard = ({ isPreview = false }) => {
 
   return (
     <div className="dashboard-container">
-      <div className="dashboard-content">
-        <div className="dashboard-nav">
-          <button 
-            className={activeTab === 'overview' ? 'active' : ''} 
-            onClick={() => setActiveTab('overview')}
-          >
-            Overview
-          </button>
-          <button 
-            className={activeTab === 'donate' ? 'active' : ''} 
-            onClick={() => setActiveTab('donate')}
-          >
-            Donate
-          </button>
-          <button 
+    <div className="dashboard-content">
+      <div className="dashboard-nav">
+        <button 
+          className={activeTab === 'overview' ? 'active' : ''} 
+          onClick={() => setActiveTab('overview')}
+        >
+          Overview
+        </button>
+        <button 
+          className={activeTab === 'donate' ? 'active' : ''} 
+          onClick={() => setActiveTab('donate')}
+        >
+          Donate
+        </button>
+        <button 
             className={activeTab === 'receipts' ? 'active' : ''} 
             onClick={() => setActiveTab('receipts')}
           >
@@ -340,8 +340,8 @@ const SupplierDashboard = ({ isPreview = false }) => {
             onClick={() => setActiveTab('confirm-pickup')}
           >
             Confirm Pickup
-          </button>
-        </div>
+        </button>
+      </div>
 
       {activeTab === 'overview' && (
         <div className="overview-section">
@@ -514,7 +514,7 @@ const SupplierDashboard = ({ isPreview = false }) => {
             </div>
             
             <div className="form-buttons-container">
-              <div className="form-buttons">
+            <div className="form-buttons">
                 <button
                   type="submit"
                   className="primary-btn"
