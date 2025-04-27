@@ -1,9 +1,88 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
+import { UserContext } from '../App';
+import { createDonation } from '../services/donationService';
 import '../assets/styles/Dashboard.css';
 
 const SupplierDashboard = () => {
+  const { userData } = useContext(UserContext);
   const [activeTab, setActiveTab] = useState('overview');
-  
+  const [formData, setFormData] = useState({
+    itemName: '',
+    category: '',
+    quantity: '',
+    expirationDate: '',
+    pickupInfo: '',
+    imageUrl: ''
+  });
+  const [formErrors, setFormErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Clear error for this field when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.itemName.trim()) errors.itemName = 'Item name is required';
+    if (!formData.category) errors.category = 'Category is required';
+    if (!formData.quantity.trim()) errors.quantity = 'Quantity is required';
+    if (!formData.expirationDate) errors.expirationDate = 'Expiration date is required';
+    if (!formData.pickupInfo.trim()) errors.pickupInfo = 'Pickup information is required';
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitError('');
+    setSubmitSuccess(false);
+
+    if (!validateForm()) {
+      setSubmitError('Please fill in all required fields');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await createDonation({
+        ...formData,
+        userId: userData.auth0Id
+      });
+
+      if (response.success) {
+        setSubmitSuccess(true);
+        setFormData({
+          itemName: '',
+          category: '',
+          quantity: '',
+          expirationDate: '',
+          pickupInfo: '',
+          imageUrl: ''
+        });
+        // Optionally, refresh the available items list here
+      }
+    } catch (error) {
+      setSubmitError(error.message || 'Failed to create donation. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   // Demo data
   const supplierData = {
     donatedItems: 152,
@@ -97,15 +176,33 @@ const SupplierDashboard = () => {
       {activeTab === 'donate' && (
         <div className="donate-section">
           <h3>Donate Food Items</h3>
-          <div className="donate-form">
+          {submitError && (
+            <div className="error-message">
+              {submitError}
+            </div>
+          )}
+          <form className="donate-form" onSubmit={handleSubmit}>
             <div className="form-group">
-              <label>Item Name</label>
-              <input type="text" placeholder="e.g., Fresh Produce" />
+              <label>Item Name *</label>
+              <input
+                type="text"
+                name="itemName"
+                value={formData.itemName}
+                onChange={handleInputChange}
+                placeholder="e.g., Fresh Produce"
+              />
+              {formErrors.itemName && (
+                <span className="error-text">{formErrors.itemName}</span>
+              )}
             </div>
             
             <div className="form-group">
-              <label>Category</label>
-              <select>
+              <label>Category *</label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+              >
                 <option value="">Select a category</option>
                 <option value="produce">Fresh Produce</option>
                 <option value="bakery">Bakery</option>
@@ -117,38 +214,91 @@ const SupplierDashboard = () => {
                 <option value="prepared">Prepared Meals</option>
                 <option value="other">Other</option>
               </select>
+              {formErrors.category && (
+                <span className="error-text">{formErrors.category}</span>
+              )}
             </div>
             
             <div className="form-row">
               <div className="form-group">
-                <label>Quantity</label>
-                <input type="text" placeholder="e.g., 5 kg or 10 packages" />
+                <label>Quantity *</label>
+                <input
+                  type="text"
+                  name="quantity"
+                  value={formData.quantity}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 5 kg or 10 packages"
+                />
+                {formErrors.quantity && (
+                  <span className="error-text">{formErrors.quantity}</span>
+                )}
               </div>
               
               <div className="form-group">
-                <label>Expiration Date</label>
-                <input type="date" />
+                <label>Expiration Date *</label>
+                <input
+                  type="date"
+                  name="expirationDate"
+                  value={formData.expirationDate}
+                  onChange={handleInputChange}
+                />
+                {formErrors.expirationDate && (
+                  <span className="error-text">{formErrors.expirationDate}</span>
+                )}
               </div>
             </div>
             
             <div className="form-group">
-              <label>Pickup Information</label>
-              <textarea placeholder="Details about pickup availability, storage requirements, or other important information"></textarea>
+              <label>Pickup Information *</label>
+              <textarea
+                name="pickupInfo"
+                value={formData.pickupInfo}
+                onChange={handleInputChange}
+                placeholder="Details about pickup availability, storage requirements, or other important information"
+              />
+              {formErrors.pickupInfo && (
+                <span className="error-text">{formErrors.pickupInfo}</span>
+              )}
             </div>
             
             <div className="form-group">
               <label>Upload Image (Optional)</label>
               <div className="file-upload">
-                <input type="file" id="food-image" accept="image/*" />
+                <input
+                  type="file"
+                  id="food-image"
+                  accept="image/*"
+                  onChange={(e) => {
+                    // Handle file upload here
+                    // For now, we'll just store the file name
+                    setFormData(prev => ({
+                      ...prev,
+                      imageUrl: e.target.value
+                    }));
+                  }}
+                />
                 <label htmlFor="food-image">Choose File</label>
               </div>
             </div>
             
-            <div className="form-buttons">
-              <button className="primary-btn">List Donation</button>
-              <button className="secondary-btn">Save Draft</button>
+            <div className="form-buttons-container">
+              <div className="form-buttons">
+                <button
+                  type="submit"
+                  className="primary-btn"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Listing...' : 'List Donation'}
+                </button>
+              </div>
+              {submitSuccess && (
+                <div className="success-message-inline">
+                  <span className="success-icon">✓</span>
+                  Donation listed successfully!
+                </div>
+              )}
             </div>
-          </div>
+          </form>
           
           <div className="current-inventory">
             <h3>Current Available Items</h3>
