@@ -23,6 +23,7 @@ import FoodBankDashboard from './pages/FoodBankDashboard';
 import IndividualDashboard from './pages/IndividualDashboard';
 import VolunteerDashboard from './pages/VolunteerDashboard';
 import Profile from './components/auth/Profile';
+import OrganizerDashboard from './pages/OrganizerDashboard';
 
 // Create a context for user data
 export const UserContext = createContext(null);
@@ -154,6 +155,7 @@ function App() {
                     userData?.accountType === 'distributor' || userData?.accountType === 'foodbank' ? <FoodBankDashboard /> :
                     userData?.accountType === 'individual' ? <IndividualDashboard /> :
                     userData?.accountType === 'volunteer' ? <VolunteerDashboard /> :
+                    userData?.accountType === 'organizer' ? <OrganizerDashboard /> :
                     isLoading || isCheckingUser || !userData ? <div>Loading dashboard...</div> : 
                     <div>Loading... Determining dashboard type...</div>
                   ) : (

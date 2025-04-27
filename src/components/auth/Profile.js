@@ -463,7 +463,8 @@ function formatAccountType(type) {
     individual: "Individual User",
     business: "Business / Restaurant",
     distributor: "Food Bank / Distributor",
-    volunteer: "Volunteer"
+    volunteer: "Volunteer",
+    organizer: "Event Organizer"
   };
   return types[type] || type;
 }

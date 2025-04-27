@@ -129,14 +129,15 @@ const SupplierDashboard = () => {
       }
       // Call the new function to confirm pickup
       // --- Extract volunteer ID from scanned text --- START
+      console.log("Raw Scanned Text:", decodedText);
       const parts = decodedText.split(':');
       let scannedVolunteerId = null;
-      if (parts.length === 2 && parts[0].trim() === 'volunteerId') {
+      if (parts.length === 2 && parts[0].trim().toLowerCase() === 'volunteerid' && parts[1]) {
         scannedVolunteerId = parts[1].trim();
       } 
       
       if (!scannedVolunteerId) {
-        throw new Error("Invalid QR code format. Expected 'volunteerId:value'.");
+        throw new Error("Invalid QR code format. Expected 'volunteerid:value'.");
       }
       // --- Extract volunteer ID from scanned text --- END
       
@@ -208,8 +209,8 @@ const SupplierDashboard = () => {
         } finally {
           setIsLoadingListedItems(false);
         }
-      }
-    };
+        }
+      };
 
     fetchListedItems();
   }, [userData, submitSuccess, refreshTrigger]); // Re-fetch if userData, submitSuccess, or refreshTrigger changes
@@ -339,52 +340,52 @@ const SupplierDashboard = () => {
           
           {overviewData && !isLoadingOverview && (
             <>
-              <div className="stats-cards">
-                <div className="stat-card">
+          <div className="stats-cards">
+            <div className="stat-card">
                   <h3>{overviewData.donatedItems !== null ? overviewData.donatedItems : 'N/A'}</h3>
-                  <p>Items Donated</p>
-                </div>
-                <div className="stat-card">
+              <p>Items Donated</p>
+            </div>
+            <div className="stat-card">
                   <h3>{overviewData.upcomingPickups !== null ? overviewData.upcomingPickups : 'N/A'}</h3>
-                  <p>Upcoming Pickups</p>
-                </div>
-                <div className="stat-card">
+              <p>Upcoming Pickups</p>
+            </div>
+            <div className="stat-card">
                   <h3>{overviewData.impactStats.mealsSaved !== null ? overviewData.impactStats.mealsSaved : 'N/A'}</h3>
                   <p>Meals Saved (Est.)</p>
-                </div>
-                <div className="stat-card">
+            </div>
+            <div className="stat-card">
                   <h3>{overviewData.impactStats.co2Prevented !== null ? overviewData.impactStats.co2Prevented : 'N/A'} kg</h3>
                   <p>CO₂ Prevented (Est.)</p>
-                </div>
-              </div>
-              
-              <div className="recent-activity">
-                <h3>Recent Donations</h3>
+            </div>
+          </div>
+          
+          <div className="recent-activity">
+            <h3>Recent Donations</h3>
                 {overviewData.recentDonations && overviewData.recentDonations.length > 0 ? (
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th>Item</th>
-                        <th>Quantity</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Quantity</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
                       {overviewData.recentDonations.map(donation => (
-                        <tr key={donation.id}>
-                          <td>{donation.name}</td>
-                          <td>{donation.quantity}</td>
+                  <tr key={donation.id}>
+                    <td>{donation.name}</td>
+                    <td>{donation.quantity}</td>
                           <td>{formatDate(donation.date)}</td>
-                          <td><span className={`status ${donation.status.toLowerCase().replace(' ', '-')}`}>{donation.status}</span></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                    <td><span className={`status ${donation.status.toLowerCase().replace(' ', '-')}`}>{donation.status}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
                 ) : (
                   <p>No recent donation activity found.</p>
                 )}
-              </div>
+          </div>
             </>
           )}
         </div>
@@ -436,31 +437,31 @@ const SupplierDashboard = () => {
               )}
             </div>
             
-            <div className="form-group">
-              <label>Quantity *</label>
-              <input
-                type="text"
-                name="quantity"
-                value={formData.quantity}
-                onChange={handleInputChange}
+              <div className="form-group">
+                <label>Quantity *</label>
+                <input
+                  type="text"
+                  name="quantity"
+                  value={formData.quantity}
+                  onChange={handleInputChange}
                 placeholder="e.g., 10 kg, 5 loaves, 3 boxes"
-              />
-              {formErrors.quantity && (
-                <span className="error-text">{formErrors.quantity}</span>
-              )}
-            </div>
-            
-            <div className="form-group">
-              <label>Expiration Date *</label>
-              <input
-                type="date"
-                name="expirationDate"
-                value={formData.expirationDate}
-                onChange={handleInputChange}
-              />
-              {formErrors.expirationDate && (
-                <span className="error-text">{formErrors.expirationDate}</span>
-              )}
+                />
+                {formErrors.quantity && (
+                  <span className="error-text">{formErrors.quantity}</span>
+                )}
+              </div>
+              
+              <div className="form-group">
+                <label>Expiration Date *</label>
+                <input
+                  type="date"
+                  name="expirationDate"
+                  value={formData.expirationDate}
+                  onChange={handleInputChange}
+                />
+                {formErrors.expirationDate && (
+                  <span className="error-text">{formErrors.expirationDate}</span>
+                )}
             </div>
             
             <div className="form-group">
@@ -515,7 +516,7 @@ const SupplierDashboard = () => {
               )}
             </div>
           </form>
-
+          
           <hr style={{ margin: '2rem 0' }}/>
 
           {/* Display Current Listed Items */}
@@ -525,34 +526,34 @@ const SupplierDashboard = () => {
           
           {!isLoadingListedItems && !listedItemsError && (
              supplierListedItems.length > 0 ? (
-              <table className="data-table">
-                <thead>
-                  <tr>
+            <table className="data-table">
+              <thead>
+                <tr>
                     <th>Item Name</th>
-                    <th>Quantity</th>
+                  <th>Quantity</th>
                     <th>Expires</th>
                     <th>Status</th>
                     <th>Actions</th> {/* Optional actions column */} 
-                  </tr>
-                </thead>
-                <tbody>
+                </tr>
+              </thead>
+              <tbody>
                   {supplierListedItems.map(item => (
-                    <tr key={item.id}>
-                      <td>{item.name}</td>
-                      <td>{item.quantity}</td>
+                  <tr key={item.id}>
+                    <td>{item.name}</td>
+                    <td>{item.quantity}</td>
                       <td>{formatDate(item.expiry)}</td>
                       <td>
                         <span className={`status ${item.status.toLowerCase()}`}>{item.status}</span>
                       </td>
-                      <td>
+                    <td>
                         {/* Add actions like Edit/Cancel later if needed */}
-                        <button className="small-btn">Edit</button>
+                      <button className="small-btn">Edit</button> 
                         <button className="small-btn danger" style={{marginLeft: '5px'}}>Cancel</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
              ) : (
               <p>You have no items currently listed as available or scheduled for pickup.</p>
              )
@@ -587,7 +588,7 @@ const SupplierDashboard = () => {
                         onChange={(e) => setEndDate(e.target.value)}
                     />
                 </div>
-             </div>
+              </div>
             <button 
               className="primary-btn" 
               onClick={handleFetchReceipt} 
@@ -596,7 +597,7 @@ const SupplierDashboard = () => {
               {isLoadingReceipt ? 'Generating...' : 'Generate Receipt'}
             </button>
           </div>
-
+          
           {receiptError && (
             <div className="error-message" style={{ marginTop: '1rem' }}>
               Error: {receiptError}
@@ -617,8 +618,8 @@ const SupplierDashboard = () => {
                 <strong>Total Completed Donations:</strong> {receiptData.summary.totalDonations}<br />
                 <strong>Total Estimated Value:</strong> ${receiptData.summary.totalEstimatedValue.toFixed(2)}<br />
                 <strong>Generated On:</strong> {formatDate(receiptData.summary.generatedAt)}
-              </div>
-
+          </div>
+          
               <h5>Donation Details:</h5>
               {receiptData.donations.length > 0 ? (
                 <table className="data-table" style={{marginBottom: '1rem'}}>
@@ -660,8 +661,8 @@ const SupplierDashboard = () => {
           <h3>Confirm Donation Pickup</h3>
           <p>Scan the QR code presented by the volunteer/driver to confirm they have picked up your available donations. This will mark the items as 'completed'.</p>
 
-          {!showScanner && (
-            <button 
+                 {!showScanner && (
+                    <button 
               className="primary-btn" 
               onClick={() => {
                 setShowScanner(true); 
@@ -670,8 +671,8 @@ const SupplierDashboard = () => {
               disabled={isConfirming}
             >
               Start Camera Scan
-            </button>
-          )}
+                    </button>
+                 )}
 
           {showScanner && (
             <> 
@@ -690,10 +691,10 @@ const SupplierDashboard = () => {
             >
               {confirmationResult.success ? '✅ ' : '❌ '}
               {confirmationResult.message}
-            </div>
-          )}
-        </div>
-      )}
+                </div>
+             )}
+          </div>
+        )}
       </div>
     </div>
   );

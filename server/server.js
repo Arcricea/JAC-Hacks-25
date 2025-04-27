@@ -4,6 +4,7 @@ const cors = require('cors');
 const userRoutes = require('./routes/userRoutes');
 const donationRoutes = require('./routes/donationRoutes');
 const addressRoutes = require('./routes/addressRoutes');
+const organizerRoutes = require('./routes/organizerRoutes');
 
 // Import MongoDB URI from test-mongodb.js
 const { mongoURI } = require('./config/db');
@@ -15,10 +16,17 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Log all incoming requests
+app.use((req, res, next) => {
+  console.log(`Incoming Request: ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/donations', donationRoutes);
 app.use('/api/address', addressRoutes);
+app.use('/api/organizer', organizerRoutes);
 
 // Health check route
 app.get('/api/health', (req, res) => {

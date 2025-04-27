@@ -36,7 +36,7 @@
   position: relative;
   background-color: #f9f9f9;
   border-radius: 8px;
-  padding: 0.8rem 3rem 0.8rem 1rem;
+  padding: 0;
   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   min-height: 50px;
   max-height: 50px;
@@ -47,12 +47,32 @@
   overflow: hidden;
 }
 
+.editable-content {
+  width: 100%;
+  padding: 0.8rem 3rem 0.8rem 1rem;
+  margin: 0;
+  line-height: 1.5;
+  color: #444;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-height: 100%;
+  outline: none;
+}
+
+.editable-content[contenteditable="true"] {
+  white-space: pre-wrap;
+  cursor: text;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
 .status-message-display p {
   margin: 0;
   line-height: 1.5;
   color: #444;
   width: 100%;
-  padding: 0;
+  padding: 0.8rem 3rem 0.8rem 1rem;
   box-sizing: border-box;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -63,15 +83,14 @@
   width: 100%;
   border: none;
   background: transparent;
-  padding: 0;
+  padding: 0.8rem 3rem 0.8rem 1rem;
   margin: 0;
   font-size: inherit;
   font-family: inherit;
   color: inherit;
-  line-height: inherit;
+  line-height: 1.5;
   resize: none;
   outline: none;
-  height: 36px;
   box-sizing: border-box;
   appearance: none;
   -webkit-appearance: none;

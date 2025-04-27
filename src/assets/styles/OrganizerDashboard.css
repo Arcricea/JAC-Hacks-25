@@ -1,0 +1,76 @@
+.organizer-dashboard {
+  padding: 20px;
+}
+
+.organizer-section {
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 30px;
+}
+
+.organizer-section h2 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 10px;
+}
+
+.data-table.organizer-foodbank-table,
+.data-table.organizer-donation-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 12px 15px;
+  border-bottom: 1px solid #ddd;
+}
+
+.data-table th {
+  background-color: #f8f8f8;
+  font-weight: bold;
+  color: #555;
+}
+
+.priority-badge-inline {
+  padding: 4px 8px;
+  border-radius: 12px;
+  color: white;
+  font-size: 0.9em;
+  display: inline-block;
+}
+
+.donation-tabs {
+  margin-bottom: 20px;
+  border-bottom: 1px solid #ccc;
+}
+
+.donation-tabs button {
+  background: none;
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-size: 1em;
+  margin-right: 5px;
+  border-bottom: 3px solid transparent;
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.donation-tabs button:hover {
+  color: #007bff;
+}
+
+.donation-tabs button.active {
+  border-bottom-color: #007bff;
+  color: #007bff;
+  font-weight: bold;
+}
+
+.donation-tab-content {
+  margin-top: 20px;
+} 

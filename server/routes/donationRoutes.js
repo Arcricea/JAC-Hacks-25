@@ -24,5 +24,12 @@ router.post('/supplier/confirm-pickup/:userId', donationController.confirmSuppli
 
 // Volunteer Routes
 router.get('/volunteer/scheduled/:volunteerId', donationController.getVolunteerScheduledDonations);
+router.get('/volunteer/completed-count/:volunteerId', donationController.getVolunteerCompletedDonationCount);
+
+router.post('/assign-volunteer', donationController.assignVolunteerToDonation);
+
+// DELETE /api/donations/:id - Delete a specific donation (Organizer only)
+// TODO: Add middleware to check if user is an organizer
+router.delete('/:id', donationController.deleteDonationById);
 
 module.exports = router; 

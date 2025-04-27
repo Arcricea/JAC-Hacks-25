@@ -20,11 +20,6 @@ const FoodBankDashboard = () => {
       email: 'info@communityfoodbank.org',
       hours: 'Mon-Fri: 9am-5pm, Sat: 10am-2pm'
     },
-    availableDonations: [
-      { id: 1, supplier: 'Garden Fresh', item: 'Vegetables', quantity: '12 kg', distance: '3.2 km' },
-      { id: 2, supplier: 'Baker Bros', item: 'Bread', quantity: '10 loaves', distance: '1.5 km' },
-      { id: 3, supplier: 'Farm Foods', item: 'Eggs', quantity: '5 dozen', distance: '4.7 km' },
-    ],
     recentActivity: [
       { id: 1, action: 'Donation Received', details: '15 kg of rice from Metro Grocery', date: '2025-04-25' },
       { id: 2, action: 'Food Distribution', details: 'Served 45 families', date: '2025-04-23' },
@@ -94,7 +89,6 @@ const FoodBankDashboard = () => {
             customMessage: customStatusMessage
           }
         }));
-        // User wants to stay in edit mode after saving
         console.log('Need status saved successfully');
       } else {
         console.error('Failed to save need status:', response);
@@ -145,18 +139,6 @@ const FoodBankDashboard = () => {
           Overview
         </button>
         <button 
-          className={activeTab === 'settings' ? 'active' : ''} 
-          onClick={() => setActiveTab('settings')}
-        >
-          Food Bank Settings
-        </button>
-        <button 
-          className={activeTab === 'available' ? 'active' : ''} 
-          onClick={() => setActiveTab('available')}
-        >
-          Available Donations
-        </button>
-        <button 
           className={activeTab === 'donation-history' ? 'active' : ''} 
           onClick={() => setActiveTab('donation-history')}
         >
@@ -177,47 +159,45 @@ const FoodBankDashboard = () => {
             <div className="priority-indicator">
               {renderPriorityBadge(priorityLevel)}
               <div className="status-message-display">
+                <div 
+                  className="editable-content"
+                  contentEditable={isEditingStatus}
+                  suppressContentEditableWarning={true}
+                  onBlur={(e) => setCustomStatusMessage(e.target.innerText)}
+                >
+                  {customStatusMessage || priorityLevels.find(p => p.level === priorityLevel).description}
+                </div>
+                
                 {isEditingStatus ? (
-                  <>
-                    <textarea
-                      value={customStatusMessage || priorityLevels.find(p => p.level === priorityLevel).description}
-                      onChange={(e) => setCustomStatusMessage(e.target.value)}
-                      placeholder="Describe your current needs..."
-                    />
-                    <div className="status-edit-buttons">
-                      <button 
-                        className="save-btn modern-btn" 
-                        onClick={async () => {
-                          await handleSaveStatus();
-                          // Close the editor after saving
-                          setIsEditingStatus(false);
-                        }}
-                        disabled={isSavingStatus}
-                      >
-                        {isSavingStatus ? 
-                          <span className="loading-dots">•••</span> : 
-                          <span className="save-icon">✓</span>
-                        }
-                      </button>
-                      <button 
-                        className="cancel-btn modern-btn" 
-                        onClick={() => {
-                          setIsEditingStatus(false);
-                          setCustomStatusMessage(userData?.needStatus?.customMessage || '');
-                        }}
-                        disabled={isSavingStatus}
-                      >
-                        <span className="cancel-icon">×</span>
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <p>{customStatusMessage || priorityLevels.find(p => p.level === priorityLevel).description}</p>
-                    <button className="edit-status-btn" onClick={() => setIsEditingStatus(true)}>
-                      <span className="edit-icon">✏️</span>
+                  <div className="status-edit-buttons">
+                    <button 
+                      className="save-btn modern-btn" 
+                      onClick={async () => {
+                        await handleSaveStatus();
+                        setIsEditingStatus(false);
+                      }}
+                      disabled={isSavingStatus}
+                    >
+                      {isSavingStatus ? 
+                        <span className="loading-dots">•••</span> : 
+                        <span className="save-icon">✓</span>
+                      }
                     </button>
-                  </>
+                    <button 
+                      className="cancel-btn modern-btn" 
+                      onClick={() => {
+                        setIsEditingStatus(false);
+                        setCustomStatusMessage(userData?.needStatus?.customMessage || '');
+                      }}
+                      disabled={isSavingStatus}
+                    >
+                      <span className="cancel-icon">×</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button className="edit-status-btn" onClick={() => setIsEditingStatus(true)}>
+                    <span className="edit-icon">✏️</span>
+                  </button>
                 )}
               </div>
             </div>
@@ -348,126 +328,6 @@ const FoodBankDashboard = () => {
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'settings' && (
-        <div className="settings-section">
-          <h3>Food Bank Settings</h3>
-          
-          <div className="settings-card">
-            <h4>Need Priority Level</h4>
-            <p>Set your current need level to communicate your donation requirements to the community</p>
-            
-            <div className="priority-selector">
-              {priorityLevels.map((priority) => (
-                <div 
-                  key={priority.level}
-                  className={`priority-option ${priorityLevel === priority.level ? 'selected' : ''}`}
-                  onClick={() => setPriorityLevel(priority.level)}
-                  style={{ borderColor: priority.color }}
-                >
-                  <div className="priority-header">
-                    <span className="priority-level" style={{ backgroundColor: priority.color }}>
-                      Level {priority.level}
-                    </span>
-                    <span className="priority-label">{priority.label}</span>
-                  </div>
-                  <p className="priority-description">{priority.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          <div className="settings-card">
-            <h4>Contact Information</h4>
-            <div className="contact-form">
-              <div className="form-group">
-                <label>Address</label>
-                <input 
-                  type="text" 
-                  value={address} 
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Street address, City, State, ZIP"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Phone Number</label>
-                <input 
-                  type="tel" 
-                  value={phone} 
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Phone number"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Email</label>
-                <input 
-                  type="email" 
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Contact email"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Opening Hours</label>
-                <input 
-                  type="text" 
-                  value={openingHours} 
-                  onChange={(e) => setOpeningHours(e.target.value)}
-                  placeholder="e.g., Mon-Fri: 9am-5pm, Sat: 10am-2pm"
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Additional Information</label>
-                <textarea 
-                  value={additionalInfo} 
-                  onChange={(e) => setAdditionalInfo(e.target.value)}
-                  placeholder="Any additional information about your food bank"
-                  rows={4}
-                ></textarea>
-              </div>
-            </div>
-          </div>
-          
-          <div className="form-buttons">
-            <button className="primary-btn" onClick={handleSaveInfo}>Save Changes</button>
-            <button className="secondary-btn" onClick={() => setActiveTab('overview')}>Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'available' && (
-        <div className="available-section">
-          <h3>Available Donations</h3>
-          <div className="donation-filters">
-            <input type="text" placeholder="Search by item or supplier" />
-            <select>
-              <option>Sort by distance</option>
-              <option>Sort by expiry date</option>
-              <option>Sort by quantity</option>
-            </select>
-          </div>
-          
-          <div className="available-donations">
-            {foodBankData.availableDonations.map(donation => (
-              <div key={donation.id} className="donation-card">
-                <div className="donation-info">
-                  <h4>{donation.item}</h4>
-                  <p><strong>Supplier:</strong> {donation.supplier}</p>
-                  <p><strong>Quantity:</strong> {donation.quantity}</p>
-                  <p><strong>Distance:</strong> {donation.distance}</p>
-                </div>
-                <div className="donation-actions">
-                  <button className="primary-btn">Request Pickup</button>
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       )}
