@@ -144,6 +144,55 @@ const OrganizerDashboard = () => {
     }
   };
 
+  const handleResetFoodBankRequests = async (foodBankUserId) => {
+    // Optional: Add confirmation dialog
+    if (!window.confirm('Are you sure you want to RESET all requests/needs for this food bank? Existing needs will be cleared.')) {
+      return;
+    }
+    try {
+      // TODO: Implement the backend endpoint for this
+      const response = await fetch(`http://localhost:5000/api/users/reset-requests/${foodBankUserId}`, {
+        method: 'PUT', // Or POST, depending on backend implementation
+        // No body needed usually for this reset
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        console.log('Food bank requests reset successfully');
+        // Refresh data by potentially updating the food bank state
+        // For now, just refetch all data to be safe
+        // TODO: Optimize this later if needed by updating state directly
+        const fetchData = async () => {
+          setIsLoading(true);
+          setError('');
+          try {
+            const response = await fetch('http://localhost:5000/api/organizer/dashboard');
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const result = await response.json();
+            if (result.success) {
+              setFoodBanks(result.data.foodBanks || []);
+              setDonations(result.data.donations || { available: [], scheduled: [], completed: [] });
+            } else {
+              throw new Error(result.message || 'Failed to fetch data');
+            }
+          } catch (err) {
+            console.error("Error refetching data after reset:", err);
+            setError(err.message || 'An error occurred while refreshing data.');
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        fetchData();
+      } else {
+        throw new Error(result.message || 'Failed to reset food bank requests');
+      }
+    } catch (err) {
+      console.error("Error resetting food bank requests:", err);
+      setError(err.message || 'An error occurred while resetting requests.');
+    }
+  };
+
   const handleSetFoodBankStatus = async (foodBankUserId) => {
     // Find the edited data from the state
     const foodBankToSave = foodBanks.find(fb => fb.auth0Id === foodBankUserId && fb.isEditing);
@@ -490,6 +539,13 @@ const OrganizerDashboard = () => {
                         ) : (
                           <>
                             <button onClick={() => handleEditClick(fb)} className="action-button edit-button">Edit Status</button>
+                            <button 
+                              onClick={() => handleResetFoodBankRequests(fb.auth0Id)}
+                              className="action-button reset-button"
+                              title="Reset all need requests for this food bank"
+                            >
+                              Reset Requests
+                            </button>
                             <button 
                               onClick={() => handleDeleteFoodBank(fb.auth0Id)} 
                               className="action-button delete-button"

@@ -6,6 +6,25 @@ const donationRoutes = require('./routes/donationRoutes');
 const addressRoutes = require('./routes/addressRoutes');
 const organizerRoutes = require('./routes/organizerRoutes');
 
+// <<< REMOVE THESE FRONTEND IMPORTS >>>
+// import React, { useState, useEffect, useContext } from 'react';
+// import { UserContext } from '../App'; // To check if current user is organizer
+// import '../assets/styles/Dashboard.css'; // Reuse general dashboard styles
+// import '../assets/styles/OrganizerDashboard.css'; // <<< ADD ORGANIZER STYLES
+// import IndividualDashboard from './IndividualDashboard';
+// import SupplierDashboard from './SupplierDashboard';
+// import FoodBankDashboard from './FoodBankDashboard';
+// import VolunteerDashboard from './VolunteerDashboard';
+
+// <<< REMOVE PRIORITY LEVEL CONSTANTS - Belongs in Frontend >>>
+// const priorityLevels = [
+//   { level: 1, label: 'Do not need', color: '#4CAF50' },
+//   { level: 2, label: 'Low need', color: '#8BC34A' },
+//   { level: 3, label: 'Moderate need', color: '#FFC107' },
+//   { level: 4, label: 'High need', color: '#FF9800' },
+//   { level: 5, label: 'URGENT NEED', color: '#F44336' }
+// ];
+
 // Import MongoDB URI from test-mongodb.js
 const { mongoURI } = require('./config/db');
 

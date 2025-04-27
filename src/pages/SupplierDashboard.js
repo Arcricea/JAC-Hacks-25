@@ -4,7 +4,7 @@ import { createDonation, getDonationReceipt, getSupplierOverviewData, getSupplie
 import '../assets/styles/Dashboard.css';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
-const SupplierDashboard = () => {
+const SupplierDashboard = ({ isPreview = false }) => {
   const { userData } = useContext(UserContext);
   const [activeTab, setActiveTab] = useState('overview');
   const [formData, setFormData] = useState({
@@ -167,6 +167,11 @@ const SupplierDashboard = () => {
   // --- Fetch Overview Data --- START
   useEffect(() => {
     const fetchOverview = async () => {
+      if (isPreview) {
+        setIsLoadingOverview(false);
+        return;
+      }
+
       if (userData && userData.auth0Id) {
         setIsLoadingOverview(true);
         setOverviewError('');
@@ -187,12 +192,17 @@ const SupplierDashboard = () => {
     };
 
     fetchOverview();
-  }, [userData, refreshTrigger]); // Re-fetch if userData or refreshTrigger changes
+  }, [userData, refreshTrigger, isPreview]); // Re-fetch if userData or refreshTrigger changes
   // --- Fetch Overview Data --- END
 
   // --- Fetch Supplier's Listed Items --- START
   useEffect(() => {
     const fetchListedItems = async () => {
+      if (isPreview) {
+        setIsLoadingListedItems(false);
+        return;
+      }
+      
       if (userData && userData.auth0Id) {
         setIsLoadingListedItems(true);
         setListedItemsError('');
@@ -209,11 +219,11 @@ const SupplierDashboard = () => {
         } finally {
           setIsLoadingListedItems(false);
         }
-        }
-      };
+      }
+    };
 
     fetchListedItems();
-  }, [userData, submitSuccess, refreshTrigger]); // Re-fetch if userData, submitSuccess, or refreshTrigger changes
+  }, [userData, submitSuccess, refreshTrigger, isPreview]); // Re-fetch if userData, submitSuccess, or refreshTrigger changes
   // --- Fetch Supplier's Listed Items --- END
 
   // Effect to setup scanner (keep as is, just ensure element ID matches)
@@ -335,58 +345,63 @@ const SupplierDashboard = () => {
 
       {activeTab === 'overview' && (
         <div className="overview-section">
-          {isLoadingOverview && <p>Loading overview...</p>}
-          {overviewError && <div className="error-message">Error: {overviewError}</div>}
-          
-          {overviewData && !isLoadingOverview && (
+          {isPreview ? (
+            <p><i>Preview mode: Overview data is not loaded.</i></p>
+          ) : isLoadingOverview ? (
+            <p>Loading overview...</p>
+          ) : overviewError ? (
+            <div className="error-message">Error: {overviewError}</div>
+          ) : overviewData ? (
             <>
-          <div className="stats-cards">
-            <div className="stat-card">
-                  <h3>{overviewData.donatedItems !== null ? overviewData.donatedItems : 'N/A'}</h3>
-              <p>Items Donated</p>
-            </div>
-            <div className="stat-card">
-                  <h3>{overviewData.upcomingPickups !== null ? overviewData.upcomingPickups : 'N/A'}</h3>
-              <p>Upcoming Pickups</p>
-            </div>
-            <div className="stat-card">
-                  <h3>{overviewData.impactStats.mealsSaved !== null ? overviewData.impactStats.mealsSaved : 'N/A'}</h3>
+              <div className="stats-cards">
+                <div className="stat-card">
+                  <h3>{overviewData.donatedItems ?? 'N/A'}</h3>
+                  <p>Items Donated</p>
+                </div>
+                <div className="stat-card">
+                  <h3>{overviewData.upcomingPickups ?? 'N/A'}</h3>
+                  <p>Upcoming Pickups</p>
+                </div>
+                <div className="stat-card">
+                  <h3>{overviewData.impactStats?.mealsSaved ?? 'N/A'}</h3>
                   <p>Meals Saved (Est.)</p>
-            </div>
-            <div className="stat-card">
-                  <h3>{overviewData.impactStats.co2Prevented !== null ? overviewData.impactStats.co2Prevented : 'N/A'} kg</h3>
+                </div>
+                <div className="stat-card">
+                  <h3>{overviewData.impactStats?.co2Prevented ?? 'N/A'} kg</h3>
                   <p>CO₂ Prevented (Est.)</p>
-            </div>
-          </div>
-          
-          <div className="recent-activity">
-            <h3>Recent Donations</h3>
+                </div>
+              </div>
+              
+              <div className="recent-activity">
+                <h3>Recent Donations</h3>
                 {overviewData.recentDonations && overviewData.recentDonations.length > 0 ? (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Item</th>
-                  <th>Quantity</th>
-                  <th>Date</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
                       {overviewData.recentDonations.map(donation => (
-                  <tr key={donation.id}>
-                    <td>{donation.name}</td>
-                    <td>{donation.quantity}</td>
+                        <tr key={donation.id}>
+                          <td>{donation.name}</td>
+                          <td>{donation.quantity}</td>
                           <td>{formatDate(donation.date)}</td>
-                    <td><span className={`status ${donation.status.toLowerCase().replace(' ', '-')}`}>{donation.status}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                          <td><span className={`status ${donation.status.toLowerCase().replace(' ', '-')}`}>{donation.status}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 ) : (
                   <p>No recent donation activity found.</p>
                 )}
-          </div>
+              </div>
             </>
+          ) : (
+            <p>No overview data available.</p>
           )}
         </div>
       )}
@@ -521,11 +536,13 @@ const SupplierDashboard = () => {
 
           {/* Display Current Listed Items */}
           <h3>Your Currently Listed Items (Available/Scheduled)</h3>
-          {isLoadingListedItems && <p>Loading listed items...</p>}
-          {listedItemsError && <div className="error-message">Error: {listedItemsError}</div>}
-          
-          {!isLoadingListedItems && !listedItemsError && (
-             supplierListedItems.length > 0 ? (
+          {isPreview ? (
+            <p><i>Preview mode: Listed items data is not loaded.</i></p>
+          ) : isLoadingListedItems ? (
+            <p>Loading listed items...</p>
+          ) : listedItemsError ? (
+            <div className="error-message">Error: {listedItemsError}</div>
+          ) : supplierListedItems.length > 0 ? (
             <table className="data-table">
               <thead>
                 <tr>
@@ -554,9 +571,8 @@ const SupplierDashboard = () => {
                 ))}
               </tbody>
             </table>
-             ) : (
-              <p>You have no items currently listed as available or scheduled for pickup.</p>
-             )
+          ) : (
+            <p>You have no items currently listed as available or scheduled for pickup.</p>
           )}
         </div>
       )}

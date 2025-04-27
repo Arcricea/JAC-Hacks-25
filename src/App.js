@@ -24,6 +24,7 @@ import IndividualDashboard from './pages/IndividualDashboard';
 import VolunteerDashboard from './pages/VolunteerDashboard';
 import Profile from './components/auth/Profile';
 import OrganizerDashboard from './pages/OrganizerDashboard';
+import AdminDashboard from './pages/AdminDashboard';
 
 // Create a context for user data
 export const UserContext = createContext(null);
@@ -164,6 +165,7 @@ function App() {
                 } 
               />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/admin" element={<AdminDashboard />} />
               {/* Add more routes as needed */}
             </Routes>
           </main>
