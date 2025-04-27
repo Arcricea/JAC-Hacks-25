@@ -68,6 +68,11 @@ const VolunteerDashboard = () => {
     };
   }, [userData?.volunteerSecret, userData?.username]); // Rerun if secret or username changes
 
+  // Combine username and code for the QR code value
+  const qrCodeValue = (userData?.username && currentCode && currentCode !== '------' && currentCode !== 'Error') 
+                      ? `${userData.username}:${currentCode}` 
+                      : 'loading'; // Fallback value
+
   // Basic volunteer data - can be expanded later
   const volunteerData = {
     tasksCompleted: 12, // Example data
@@ -100,37 +105,31 @@ const VolunteerDashboard = () => {
       <div className="dashboard-content">
         {activeTab === 'qrcode' && (
           <div className="qr-code-section card-style volunteer-id-card">
-            <h3><i className="fas fa-id-badge"></i> Your Volunteer Verification</h3>
-            <p>Instructions: Ask the location to scan your ID QR code, then provide the 6-digit code below.</p>
+            <h3><i className="fas fa-qrcode"></i> Your Volunteer Code</h3>
+            <p>Ask the location to scan this QR code. It updates automatically.</p>
             
-            <div className="verification-details-container">
-              {/* Left Side: Static ID QR Code */} 
-              <div className="static-id-section">
-                <h4>Step 1: Scan ID</h4>
-                {userData?.username ? (
-                  <div className="qr-code-container">
-                      <div className="qr-code-display">
-                        <QRCodeSVG 
-                          value={userData.username} 
-                          size={150} // Slightly smaller for side-by-side
-                          level={"H"} 
-                          includeMargin={true}
-                        />
-                      </div>
-                      <p className="token-info">Your ID: {userData.username}</p> 
-                  </div>
-                ) : (
-                  <div className="alert alert-warning">Username not found.</div>
-                )}
-              </div>
-              
-              {/* Right Side: Dynamic TOTP Code */} 
-              <div className="dynamic-code-section">
-                  <h4>Step 2: Provide Code</h4>
-                  {userData?.volunteerSecret ? (
-                    <div className="totp-display">
-                      <div className="totp-code">{currentCode}</div>
-                      <div className="totp-timer">
+            <div className="verification-details-container single-qr-display">
+              {/* Combined QR Code and Timer */} 
+              <div className="dynamic-code-section full-width">
+                  {userData?.volunteerSecret && userData?.username ? (
+                    <div className="totp-display-combined">
+                       <div className="qr-code-container">
+                          <div className="qr-code-display">
+                            {qrCodeValue !== 'loading' ? (
+                               <QRCodeSVG 
+                                value={qrCodeValue} // Combined value
+                                size={200} 
+                                level={"H"} 
+                                includeMargin={true}
+                              />
+                            ) : (
+                               <div className="qr-loading">Generating code...</div>
+                            )}
+                           
+                          </div>
+                       </div>
+                       <div className="totp-timer">
+                        <span>Code: <strong>{currentCode}</strong></span>
                         <span>Refreshes in: {timeRemaining}s</span>
                         <div className="timer-bar-container">
                           <div 
@@ -141,7 +140,7 @@ const VolunteerDashboard = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="alert alert-warning">Code generation unavailable.</div>
+                    <div className="alert alert-warning">Code generation unavailable. Ensure profile is complete.</div>
                   )}
               </div>
             </div> 

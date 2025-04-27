@@ -86,11 +86,9 @@ const SupplierDashboard = () => {
   };
 
   const [showScanner, setShowScanner] = useState(false);
-  const [scannedUsername, setScannedUsername] = useState(null); // Store scanned username
-  const [inputCode, setInputCode] = useState(''); // Store code input by business
-  const [verificationResult, setVerificationResult] = useState(null); // Renamed scanResult
+  const [verificationResult, setVerificationResult] = useState(null);
   const [isVerifying, setIsVerifying] = useState(false);
-  const scannerRef = useRef(null); // Ref for scanner instance
+  const scannerRef = useRef(null);
   
   // Demo data
   const supplierData = {
@@ -114,24 +112,43 @@ const SupplierDashboard = () => {
 
   useEffect(() => {
     if (showScanner) {
-      // Clear previous state when opening scanner
-      setScannedUsername(null);
-      setInputCode('');
-      setVerificationResult(null);
+      // Clear previous result when opening scanner
+      setVerificationResult(null); 
       
-      const onScanSuccess = (decodedText, decodedResult) => {
-        console.log(`ID Scanned = ${decodedText}`);
-        setScannedUsername(decodedText); // Store the scanned username
-        setShowScanner(false); // Hide scanner UI
+      // Updated Scan Success Handler
+      const onScanSuccess = async (decodedText, decodedResult) => {
+        console.log(`Combined Code Scanned = ${decodedText}`);
+        setShowScanner(false); // Hide scanner UI after scan
         
         // Clear the scanner instance
         if (scannerRef.current && typeof scannerRef.current.clear === 'function') {
-          scannerRef.current.clear().catch(error => {
-             if (error.name !== 'NotRunning') { 
-                console.error("Failed to clear html5QrcodeScanner:", error);
-             }
-           });
-           scannerRef.current = null;
+           scannerRef.current.clear().catch(error => {
+              if (error.name !== 'NotRunning') { console.error("Scanner clear error:", error); }
+            });
+            scannerRef.current = null;
+        }
+
+        // Parse the scanned data (expecting "username:code")
+        const parts = decodedText.split(':');
+        if (parts.length !== 2 || !parts[0] || !/^[0-9]{6}$/.test(parts[1])) {
+            setVerificationResult({ success: false, isValid: false, message: 'Invalid QR code format. Expected username:code.'});
+            return;
+        }
+        const username = parts[0];
+        const code = parts[1];
+
+        // Immediately attempt verification
+        setIsVerifying(true);
+        setVerificationResult({ message: 'Verifying...' }); 
+
+        try {
+          const result = await verifyVolunteerCode(username, code); // Use extracted parts
+          setVerificationResult(result);
+        } catch (error) {
+          console.error("Verification API call failed:", error);
+          setVerificationResult({ success: false, isValid: false, message: 'Verification failed. Please try again.' });
+        } finally {
+          setIsVerifying(false);
         }
       };
 
@@ -171,34 +188,10 @@ const SupplierDashboard = () => {
     };
   }, [showScanner]);
 
-  // Handle verification submission
-  const handleVerificationSubmit = async (e) => {
-    e.preventDefault();
-    if (!scannedUsername || inputCode.length !== 6 || !/^[0-9]{6}$/.test(inputCode)) {
-       setVerificationResult({ success: false, isValid: false, message: 'Please scan a valid ID and enter the 6-digit code.'});
-       return;
-    }
-    
-    setIsVerifying(true);
-    setVerificationResult({ message: 'Verifying...' }); // Show intermediate state
-
-    try {
-      const result = await verifyVolunteerCode(scannedUsername, inputCode);
-      setVerificationResult(result);
-    } catch (error) {
-      console.error("Verification API call failed:", error);
-      setVerificationResult({ success: false, isValid: false, message: 'Verification failed. Please try again.' });
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
   // Reset state to allow scanning again
   const handleScanAgain = () => {
-      setScannedUsername(null);
-      setInputCode('');
       setVerificationResult(null);
-      setShowScanner(true);
+      setShowScanner(true); // Just show scanner again
   };
 
   return (
@@ -529,89 +522,54 @@ const SupplierDashboard = () => {
           <div className="verify-volunteer-section card-style"> 
             <h3><i className="fas fa-user-check"></i> Verify Volunteer</h3>
 
-            {/* Show Scanner or Code Input Form */} 
-            {!verificationResult ? ( // Show scanner/form until verification is attempted
-              <div className="verification-steps">
-                {/* Step 1: Scanner Area */} 
-                <div className={`scanner-area ${showScanner ? 'active' : ''} ${scannedUsername ? 'scanned' : ''}`}>
-                   <h4>Step 1: Scan Volunteer ID</h4>
-                   {!scannedUsername && !showScanner && (
-                      <button 
-                        className="primary-btn scan-button" 
-                        onClick={() => setShowScanner(true)} 
-                      >
-                        <i className="fas fa-qrcode"></i> Start Scanning
-                      </button>
-                   )} 
-                   {showScanner && (
-                     <div id="qr-reader-container">
-                       <div id="qr-reader"></div> 
-                       <button 
-                          className="secondary-btn cancel-scan-btn" 
-                          onClick={() => setShowScanner(false)} 
-                        >
-                         Cancel Scan
-                        </button>
-                    </div>
-                   )} 
-                   {scannedUsername && (
-                     <div className="scanned-id-display">
-                        <i className="fas fa-check-circle"></i> ID Scanned: <strong>{scannedUsername}</strong>
-                        <button 
-                          className="link-button" 
-                          onClick={() => { setScannedUsername(null); setShowScanner(true); }} // Allow re-scan
-                        >
-                          Scan Again?
-                        </button>
-                     </div>
-                   )}
-                 </div>
-
-                {/* Step 2: Code Input Area (Conditionally RENDERED after scan) */} 
-                 {scannedUsername && (
-                   <div className={`code-input-area visible`}> {/* Keep visible class for potential styling, remove opacity logic from CSS */} 
-                    <h4>Step 2: Enter Code</h4>
-                     <form onSubmit={handleVerificationSubmit} className="verify-code-form">
-                       <p>Enter the 6-digit code from the volunteer:</p>
-                       <div className="form-group code-input-group">
-                         <input 
-                           type="text" 
-                           inputMode="numeric" 
-                           pattern="[0-9]*" 
-                           maxLength="6"
-                           value={inputCode}
-                           onChange={(e) => setInputCode(e.target.value.replace(/[^0-9]/g, ''))} 
-                           className="code-input large" // Added 'large' class
-                           placeholder="_ _ _ _ _ _"
-                           required
-                           disabled={isVerifying || !scannedUsername}
-                         />
-                         <button 
-                           type="submit" 
-                           className="primary-btn verify-button" 
-                           disabled={isVerifying || !scannedUsername || inputCode.length !== 6}
-                         >
-                           {isVerifying ? 'Verifying...' : 'Verify'}
-                         </button>
-                       </div>
-                     </form>
-                   </div>
+            {/* Show Scan Button or Result */} 
+            {!verificationResult ? ( 
+              <div className="scanner-area single-step">
+                 <p>Scan the volunteer's dynamic QR code directly.</p>
+                 {!showScanner && (
+                    <button 
+                      className="primary-btn scan-button large" // Added large class
+                      onClick={() => setShowScanner(true)} 
+                      disabled={isVerifying} // Disable while verifying previous scan
+                    >
+                      <i className="fas fa-qrcode"></i> Scan Volunteer Code
+                    </button>
                  )}
-               </div>
+                 {/* Scanner container */} 
+                 <div id="qr-reader-container" style={{ display: showScanner ? 'block' : 'none' }}>
+                   <div id="qr-reader"></div> 
+                   <button 
+                      className="secondary-btn cancel-scan-btn" 
+                      onClick={() => setShowScanner(false)} 
+                      disabled={isVerifying}
+                    >
+                     Cancel Scan
+                    </button>
+                 </div>
+              </div>
              ) : ( 
-               // Show only the result after verification attempt
+               // Show the result after verification attempt
                <div className={`verification-result ${verificationResult.isValid === true ? 'valid' : verificationResult.isValid === false ? 'invalid' : 'pending'}`}>
-                  {/* ... existing result display ... */} 
+                 {/* Display Verification Status Icon/Text */}
+                  <h4>
+                   {verificationResult.isValid === true 
+                     ? <><i className="fas fa-check-circle"></i> Verification Successful</>
+                     : verificationResult.isValid === false
+                     ? <><i className="fas fa-times-circle"></i> Verification Failed</>
+                     : <><i className="fas fa-spinner fa-spin"></i> Verifying...</>
+                   }
+                 </h4>
                  <p>{verificationResult.message}</p>
                   {verificationResult.isValid && verificationResult.volunteer && (
                    <p><strong>Volunteer:</strong> {verificationResult.volunteer.username}</p>
                   )}
+                  {/* Button to scan again */} 
                   <button 
                       className="primary-btn scan-again-btn" 
                       onClick={handleScanAgain} 
-                      disabled={isVerifying || showScanner} // Keep disabled state logic
+                      disabled={isVerifying || showScanner} 
                     >
-                      Verify Another Volunteer
+                      Scan Another Volunteer
                     </button>
                 </div>
              )}
