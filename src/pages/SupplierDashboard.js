@@ -1,10 +1,9 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { UserContext } from '../App';
 import { createDonation } from '../services/donationService';
-import React, { useState, useEffect } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
 import { verifyVolunteerToken } from '../services/userService'; // Import the service function
 import '../assets/styles/Dashboard.css';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 const SupplierDashboard = () => {
   const { userData } = useContext(UserContext);

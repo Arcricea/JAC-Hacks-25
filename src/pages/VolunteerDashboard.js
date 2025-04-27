@@ -1,5 +1,5 @@
 import React, { useState, useContext } from 'react';
-import { QRCodeSVG } from 'qrcode.react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { UserContext } from '../App';
 import '../assets/styles/Dashboard.css'; // Reuse existing dashboard styles for now
 
@@ -43,10 +43,10 @@ const VolunteerDashboard = () => {
             <p>Present this QR code at participating locations for verification.</p>
             {userData?.volunteerToken ? (
               <div className="qr-code-display">
-                <QRCodeSVG 
+                <QRCodeCanvas 
                   value={userData.volunteerToken} 
-                  size={256} // Adjust size as needed
-                  level={"H"} // Error correction level
+                  size={256}
+                  level={"H"}
                   includeMargin={true}
                 />
                 <p className="token-info">Token: {userData.volunteerToken.substring(0, 8)}...</p> 
