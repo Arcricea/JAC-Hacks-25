@@ -1,0 +1,145 @@
+/* Styles specific to QR Code Verification */
+
+.verify-volunteer-section {
+  text-align: center;
+}
+
+.verify-volunteer-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #1b5e20; /* Dark green */
+  display: inline-flex; /* Align icon and text */
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.verify-volunteer-section p {
+  margin-bottom: 1.5rem;
+  color: #555;
+}
+
+.scan-prompt {
+  margin-bottom: 1.5rem;
+}
+
+.scan-button {
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+}
+
+.scan-button .fas {
+  margin-right: 0.5rem;
+  color: white; /* Icon color on button */
+}
+
+#qr-reader-container {
+  margin: 20px auto;
+  max-width: 400px; /* Adjust as needed */
+  padding: 1rem;
+  border: 1px dashed #ccc;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+}
+
+#qr-reader {
+  border: none !important; /* Override default border if any */
+  margin-bottom: 1rem;
+}
+
+.cancel-scan-btn {
+  margin-top: 1rem;
+}
+
+.verification-result {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid;
+  text-align: left;
+}
+
+.verification-result.valid {
+  background-color: #d4edda;
+  border-color: #c3e6cb;
+  color: #155724;
+}
+
+.verification-result.invalid {
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+  color: #721c24;
+}
+
+.verification-result h4 {
+  margin-top: 0;
+  margin-bottom: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.verification-result.valid .fas {
+  color: #155724; /* Dark green for valid icon */
+}
+
+.verification-result.invalid .fas {
+  color: #721c24; /* Dark red for invalid icon */
+}
+
+.verification-result p {
+  margin-bottom: 0.5rem;
+  color: inherit; /* Inherit color from parent */
+}
+
+.verification-result strong {
+  font-weight: 600;
+}
+
+.scan-again-btn {
+  margin-top: 1rem;
+}
+
+/* Styles for code input form */
+.verify-code-form {
+  margin-top: 1.5rem;
+}
+
+.verify-code-form p {
+  margin-bottom: 1rem;
+}
+
+.code-input-group {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.code-input {
+  padding: 0.8rem;
+  font-size: 1.5rem; /* Larger input */
+  font-family: 'monospace';
+  text-align: center;
+  letter-spacing: 4px; /* Match TOTP display */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 150px; /* Adjust width as needed */
+}
+
+.verify-button {
+  padding: 0.8rem 1.2rem;
+  font-size: 1rem;
+}
+
+/* Style for pending verification result */
+.verification-result.pending {
+  background-color: #e2e3e5;
+  border-color: #d6d8db;
+  color: #383d41;
+}
+
+.verification-result.pending .fas {
+  color: #383d41;
+} 

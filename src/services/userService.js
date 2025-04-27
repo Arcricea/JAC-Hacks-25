@@ -62,4 +62,28 @@ export const verifyVolunteerToken = async (token) => {
     // Return a generic error structure or re-throw
     return { success: false, isValid: false, message: error.message || 'Network error or failed to verify token.' };
   }
+};
+
+// Verify volunteer code (replaces verifyVolunteerToken)
+export const verifyVolunteerCode = async (username, code) => {
+  try {
+    const response = await fetch(`${API_URL}/users/verify-volunteer`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, code }),
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok && !data) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return data; // Contains success, isValid, message, etc.
+  } catch (error) {
+    console.error('Error verifying volunteer code:', error);
+    return { success: false, isValid: false, message: error.message || 'Network error or failed to verify code.' };
+  }
 }; 

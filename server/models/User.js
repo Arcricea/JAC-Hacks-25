@@ -19,10 +19,8 @@ const userSchema = new mongoose.Schema({
     enum: ['individual', 'business', 'distributor', 'volunteer'],
     default: 'individual'
   },
-  volunteerToken: {
+  volunteerSecret: {
     type: String,
-    unique: true,
-    sparse: true // Allows multiple nulls, but token must be unique if present
   },
   createdAt: {
     type: Date,
