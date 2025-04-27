@@ -207,7 +207,7 @@ const PickupDetailsModal = ({ isOpen, onClose, pickup, onAccept, onCancel }) => 
               </button>
             )}
             
-            {pickup.status !== 'assigned' && (
+            {pickup.status !== 'assigned' && pickup.status !== 'completed' && pickup.status !== 'delivered' && (
               <button 
                 className="accept-pickup-btn"
                 onClick={handleAcceptTask}
@@ -215,6 +215,12 @@ const PickupDetailsModal = ({ isOpen, onClose, pickup, onAccept, onCancel }) => 
               >
                 {isAssigning ? 'Processing...' : 'Accept Pickup'}
               </button>
+            )}
+            
+            {(pickup.status === 'completed' || pickup.status === 'delivered') && (
+              <span className="delivery-status-badge">
+                Delivery Completed
+              </span>
             )}
           </div>
         </div>

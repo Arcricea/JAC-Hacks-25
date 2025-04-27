@@ -128,6 +128,7 @@
   border-top: 1px solid #e0e0e0;
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 10px;
 }
 
@@ -181,4 +182,15 @@
 
 .close-btn-modal:hover {
   background: #dee2e6;
+}
+
+/* Added styling for the delivery completed badge */
+.delivery-status-badge {
+  background: #28a745;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-weight: 500;
+  display: inline-block;
+  text-align: center;
 } 
