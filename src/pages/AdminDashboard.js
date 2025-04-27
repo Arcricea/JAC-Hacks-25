@@ -644,55 +644,45 @@ const AdminDashboard = () => {
   // --- Action Handlers ---
   // We need a consolidated save function for the editable components
   const handleInlineSave = async (accountId, dataToSave) => {
-      // Determine if it's a status save or contact field save
-      if (dataToSave.hasOwnProperty('priorityLevel') || dataToSave.hasOwnProperty('customMessage')) {
-          // Need Status Save
-          try {
-              const response = await fetch(`http://localhost:5000/api/users/set-need/${accountId}`, {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json', 'X-Requesting-User-Id': userData.auth0Id },
-                  body: JSON.stringify(dataToSave),
-              });
-              const result = await response.json();
-              if (!response.ok || !result.success) {
-                  throw new Error(result.message || 'Failed to save status');
-              }
-              // Update local state on success
-              setUsers(prevUsers => prevUsers.map(u => 
-                  u.auth0Id === accountId ? { ...u, needStatus: result.data.needStatus } : u
-              ));
-              // Also clear edit state if tracked in distributorData
-              setDistributorData(prevDists => prevDists.map(d => 
-                  d.auth0Id === accountId ? { ...d, isEditing: false, editData: undefined } : d
-              ));
-          } catch (err) {
-              console.error("Error saving need status:", err);
-              setError(`Save failed for ${accountId}: ${err.message}`); 
-              throw err; // Re-throw for the component to handle
-          }
-      } else {
-          // Contact Field Save (using POST /api/users)
-          try {
-             const payload = { auth0Id: accountId, ...dataToSave };
-             const response = await fetch(`http://localhost:5000/api/users`, {
-                  method: 'POST', // Uses the saveUser endpoint
-                  headers: { 'Content-Type': 'application/json', 'X-Requesting-User-Id': userData.auth0Id },
-                  body: JSON.stringify(payload),
-              });
-              const result = await response.json();
-              if (!response.ok || !result.success) {
-                  throw new Error(result.message || 'Failed to save contact field');
-              }
-              // Update local state on success
-              setUsers(prevUsers => prevUsers.map(u => 
-                  u.auth0Id === accountId ? { ...u, ...result.data } : u // Merge full updated user
-              ));
-          } catch (err) {
-              console.error("Error saving contact field:", err);
-              setError(`Save failed for ${accountId}: ${err.message}`); 
-              throw err; // Re-throw for the component to handle
-          }
+    // Simplify: Always use the general saveUser endpoint
+    // No need to check for field type as saveUser handles selective updates
+    console.log(`AdminDashboard: Saving inline data for ${accountId}`, dataToSave);
+    setError(''); // Clear previous errors
+    try {
+      const payload = { auth0Id: accountId, ...dataToSave };
+      const response = await fetch(`http://localhost:5000/api/users`, {
+        method: 'POST', // Use POST which maps to saveUser controller
+        headers: { 
+          'Content-Type': 'application/json', 
+          'X-Requesting-User-Id': userData.auth0Id // Pass requesting user ID for auth/logging
+        },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        // Log the specific error from the backend if available
+        console.error(`Error saving data for ${accountId}:`, result.message || response.statusText);
+        throw new Error(result.message || `Failed to save field (HTTP ${response.status})`);
       }
+      console.log(`AdminDashboard: Successfully saved data for ${accountId}`, result.data);
+      // Update local state on success using the returned user data
+      setUsers(prevUsers => prevUsers.map(u =>
+        u.auth0Id === accountId ? { ...u, ...result.data } : u // Merge full updated user
+      ));
+      
+       // Also update distributorData if the user is a distributor/organizer
+       // This ensures the 'Managed Accounts' table reflects changes immediately
+       if (result.data.accountType === 'distributor' || result.data.accountType === 'organizer') {
+           setDistributorData(prevDists => prevDists.map(d => 
+               d.auth0Id === accountId ? { ...d, ...result.data } : d
+           ));
+       }
+
+    } catch (err) {
+      console.error(`Error during inline save for ${accountId}:`, err);
+      setError(`Save failed for ${accountId}: ${err.message}`);
+      throw err; // Re-throw for the EditableContactField component to potentially handle (e.g., stop loading state)
+    }
   };
 
   // --- Render Logic ---
