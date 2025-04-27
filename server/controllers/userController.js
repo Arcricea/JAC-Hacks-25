@@ -37,7 +37,11 @@ exports.saveUser = async (req, res) => {
        const createData = {
         username,
           accountType: finalAccountType,
-          ...(req.body.address !== undefined && { address: req.body.address.trim() }),
+          ...(req.body.address !== undefined && { 
+            address: typeof req.body.address === 'string' ?
+              req.body.address.trim() : // Use address as-is if it's a string
+              req.body.address // Otherwise use the object structure
+          }),
           ...(req.body.email !== undefined && { email: req.body.email.trim() }),
           ...(req.body.phone !== undefined && { phone: req.body.phone.trim() }),
           ...(req.body.openingHours !== undefined && finalAccountType === 'distributor' && { openingHours: req.body.openingHours.trim() }),
@@ -84,14 +88,16 @@ exports.saveUser = async (req, res) => {
         ...(username && { username }), // Only update username if provided
         
         // Expect address to be an object from the request now
-        ...(req.body.address !== undefined && typeof req.body.address === 'object' && { 
-          address: { // Assign the nested object directly
+        ...(req.body.address !== undefined && { 
+          address: typeof req.body.address === 'string' ?
+            req.body.address.trim() : // Use address as-is if it's a string
+            { // Otherwise assign the nested object 
               street: req.body.address.street?.trim(),
               city: req.body.address.city?.trim(),
               state: req.body.address.state?.trim(),
               zip: req.body.address.zip?.trim()
               // Add other fields like country if needed
-          }
+            }
         }),
         
         ...(req.body.email !== undefined && { email: req.body.email.trim() }),

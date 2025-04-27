@@ -25,4 +25,28 @@ export const getMyDonations = async (requestingUserId) => {
   }
 };
 
+// Function to confirm pickup for individuals
+export const confirmIndividualPickup = async (userId, codePayload, requestingUserId) => {
+  try {
+    const response = await fetch(`${API_URL}/confirm-pickup/${userId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
+      },
+      body: JSON.stringify(codePayload)
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to confirm pickup');
+    }
+
+    return data; // Contains success message and modifiedCount
+  } catch (error) {
+    console.error('Error confirming individual pickup:', error);
+    throw error;
+  }
+};
+
 // Add other individual-specific service functions here if needed 
