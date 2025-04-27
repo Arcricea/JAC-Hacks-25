@@ -24,7 +24,7 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [dataError, setDataError] = useState('');
   const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
-
+  
   // State for editing UI
   const [priorityLevel, setPriorityLevel] = useState(3);
   const [customStatusMessage, setCustomStatusMessage] = useState('');
@@ -77,7 +77,7 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
       setPriorityLevel(displayUserData.needStatus?.priorityLevel || 3);
       setCustomStatusMessage(displayUserData.needStatus?.customMessage || '');
       setAddress(displayUserData.address || '');
-      setEmail(displayUserData.email || auth0User?.email || '');
+      setEmail(displayUserData.email || auth0User?.email || ''); 
       setPhone(displayUserData.phone || '');
       setOpeningHours(displayUserData.openingHours || '');
       // Reset editing state when data reloads
@@ -113,11 +113,11 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
 
     const response = await fetch(apiUrl, {
         method: method,
-        headers: { 'Content-Type': 'application/json', 'X-Requesting-User-Id': requestingUserId },
-        body: JSON.stringify(payload),
-    });
-    const result = await response.json();
-    if (!response.ok || !result.success) {
+            headers: { 'Content-Type': 'application/json', 'X-Requesting-User-Id': requestingUserId },
+            body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
         throw new Error(result.message || 'Failed to save data');
     }
 
@@ -130,7 +130,7 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
     }
     return result.data; // Return updated data
   };
-
+  
   const handleGoogleMapsLoad = () => {
     setIsGoogleLoaded(true);
   };
@@ -139,7 +139,7 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
   const handleSaveStatus = async () => {
     const targetUserId = previewTargetUserId || adminUserData?.auth0Id;
     if (!targetUserId) return;
-
+    
     setIsSavingStatus(true);
     try {
       const dataToSave = {
@@ -160,7 +160,7 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
   const handleSaveContact = async (fieldName) => {
     const targetUserId = previewTargetUserId || adminUserData?.auth0Id;
     if (!targetUserId) return;
-
+    
     setIsSavingContact(true);
     setContactSaveStatus({ message: 'Saving...', type: 'info' });
     setAddressError('');
@@ -192,7 +192,7 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
         console.error(`Error saving ${fieldName}:`, error);
         setContactSaveStatus({ message: error.message || `Failed to save ${fieldName}.`, type: 'error' });
     } finally {
-        setIsSavingContact(false);
+      setIsSavingContact(false);
     }
   };
 
@@ -201,14 +201,14 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
      let listener = null;
     if (isGoogleLoaded && autocompleteInputRef.current && editingField === 'address' && !autocompleteRef.current) {
       try {
-          autocompleteRef.current = new window.google.maps.places.Autocomplete(
-            autocompleteInputRef.current,
+        autocompleteRef.current = new window.google.maps.places.Autocomplete(
+          autocompleteInputRef.current,
             { types: ['address'], componentRestrictions: { country: 'us' } }
           );
           listener = autocompleteRef.current.addListener('place_changed', () => {
-            const place = autocompleteRef.current.getPlace();
+          const place = autocompleteRef.current.getPlace();
             if (place && place.formatted_address) {
-              setAddress(place.formatted_address);
+            setAddress(place.formatted_address);
               setAddressError('');
             } else {
               setAddressError('Please select a valid address from suggestions.');
@@ -220,14 +220,14 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
       }
     }
      // Cleanup function
-    return () => {
-      if (listener) {
-         window.google.maps.event.removeListener(listener);
-      }
+        return () => {
+          if (listener) {
+            window.google.maps.event.removeListener(listener);
+          }
       if (autocompleteRef.current && typeof window.google.maps.event.clearInstanceListeners === 'function') {
           // Check if element still exists before clearing
           if (document.body.contains(autocompleteInputRef.current)) {
-             window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
+            window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
           }
          autocompleteRef.current = null;
       }
@@ -243,10 +243,10 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
   const currentDisplayPriorityLevel = displayUserData.needStatus?.priorityLevel || 3;
   const currentDisplayCustomMessage = displayUserData.needStatus?.customMessage || '';
   const currentPriorityInfo = getPriorityInfo(currentDisplayPriorityLevel);
-
+  
   return (
     <>
-      <GoogleMapsScript onLoad={handleGoogleMapsLoad} />
+     <GoogleMapsScript onLoad={handleGoogleMapsLoad} />
 
       {/* ----- Need Status Card ----- */}
       <div className="fbd-card need-status-card">
@@ -279,12 +279,12 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
         {isEditingStatus && (
           <div className="need-status-edit-area">
             <label htmlFor="customStatusMessageInput" className="fbd-label">Optional Message:</label>
-            <input
+                    <input 
               id="customStatusMessageInput"
-              type="text"
+                        type="text" 
               className="fbd-input"
-              value={customStatusMessage}
-              onChange={(e) => setCustomStatusMessage(e.target.value)}
+                        value={customStatusMessage}
+                        onChange={(e) => setCustomStatusMessage(e.target.value)}
               placeholder="e.g., Need canned vegetables, low on pasta"
             />
 
@@ -293,21 +293,21 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
               {priorityLevels.map((p) => {
                 const isSelected = p.level === priorityLevel;
                 return (
-                  <button
-                    key={p.level}
+                        <button 
+                            key={p.level}
                     className={`priority-selector-button ${isSelected ? 'selected' : ''}`}
                     style={{
                         '--priority-color': p.color, // Use CSS variable for dynamic color
                         '--priority-color-light': `${p.color}20` // Lighter version for background
                       }}
-                    onClick={() => setPriorityLevel(p.level)}
-                  >
+                            onClick={() => setPriorityLevel(p.level)}
+                        >
                     <span className="selector-level">{p.level}</span>
                     <span className="selector-label">{p.label}</span>
-                  </button>
+                        </button>
                 );
               })}
-            </div>
+                </div>
 
             <div className="fbd-form-actions">
               <button className="fbd-button secondary" onClick={() => {
@@ -316,8 +316,8 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
                   setPriorityLevel(currentDisplayPriorityLevel);
                   setCustomStatusMessage(currentDisplayCustomMessage);
                 }}
-                disabled={isSavingStatus}
-              >
+                    disabled={isSavingStatus}
+                >
                 Cancel
               </button>
               <button className="fbd-button primary" onClick={handleSaveStatus} disabled={isSavingStatus}>
@@ -394,7 +394,7 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
               <span className="value">{phone || 'Not set'}</span>
               <button className="fbd-edit-btn small" onClick={() => setEditingField('phone')} title="Edit Phone">
                 <span className="material-icons">edit</span>
-              </button>
+                </button>
             </div>
             <div className="contact-edit-input">
               <input
@@ -443,11 +443,11 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
          {contactSaveStatus.message && (
            <div className={`fbd-status-message ${contactSaveStatus.type}`}>
              {contactSaveStatus.message}
-           </div>
-         )}
-      </div>
+               </div>
+             )}
+     </div>
     </>
   );
 };
 
-export default FoodBankDashboard;
+export default FoodBankDashboard; 

@@ -43,7 +43,7 @@ function App() {
       setIsCheckingUser(true);
       
       // First, check the database for user data
-      getUserByAuth0Id(user.sub)
+      getUserByAuth0Id(user.sub, user.sub)
         .then(response => {
           if (response.success && response.data) {
             // User exists in database, update localStorage and don't show modals
