@@ -30,6 +30,18 @@ const userSchema = new mongoose.Schema({
   volunteerSecret: {
     type: String,
   },
+  needStatus: {
+    priorityLevel: {
+      type: Number,
+      min: 1,
+      max: 5,
+      default: 3
+    },
+    customMessage: {
+      type: String,
+      trim: true
+    }
+  },
   createdAt: {
     type: Date,
     default: Date.now
