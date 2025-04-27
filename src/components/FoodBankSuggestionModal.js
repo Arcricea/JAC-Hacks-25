@@ -1512,9 +1512,67 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
 
       setLoading(true);
       
-      // Determine the correct foodBankId to use (prefer Auth0 ID if available)
-      const foodBankId = selectedFoodBank.auth0Id || selectedFoodBank.userId || selectedFoodBank._id;
-      console.log('Using food bank ID:', foodBankId, 'Type:', typeof foodBankId);
+      // MongoDB IDs to Auth0 ID mapping for food banks - using REAL Auth0 IDs
+      const foodBankIdMap = {
+        // These are the MongoDB IDs mapped to their REAL Auth0 IDs
+        "680df6bdbe06fe5db7767dc9": "auth0|680df6aeaa8a0009d4e80f71", // WestIslandMission
+        "680df78cbe06fe5db7767de6": "auth0|680df772aa8a0009d4e80f6f", // OnRockCommunityService  
+        "680df810be06fe5db7767dfe": "auth0|680df7fbaa8a0009d4e80f73", // FamilleDeLileOuest
+        "680df863be06fe5db7767e22": "auth0|680df84caa8a0009d4e80f75", // CentreVertical
+        "680df89cbe06fe5db7767e37": "auth0|680df891aa8a0009d4e80f77", // LesSamaritains
+        "680df8e5be06fe5db7767e4a": "auth0|680df8ceaa8a0009d4e80f79", // MoissonSudOuest
+        "680df99cbe06fe5db7767e68": "auth0|680df973aa8a0009d4e80f7b", // ExtendedHands
+      };
+      
+      // Get the selected food bank's ID
+      const selectedId = selectedFoodBank._id.toString();
+      console.log('Selected food bank MongoDB ID:', selectedId);
+      
+      // Look up the Auth0 ID from the mapping - use the REAL Auth0 ID
+      let foodBankId = foodBankIdMap[selectedId];
+      
+      // If we don't have a mapping, fall back to fetching the data
+      if (!foodBankId) {
+        try {
+          // Try to get a fresh token if needed
+          let currentToken = token;
+          if (!currentToken) {
+            try {
+              currentToken = await getAccessTokenSilently();
+              setToken(currentToken);
+            } catch (tokenError) {
+              console.warn('Could not get Auth0 token:', tokenError);
+            }
+          }
+          
+          // Fetch the actual user data from the API to get the correct Auth0 ID
+          const userResponse = await axios.get(
+            `${apiBaseUrl}/api/users/${selectedId}`, 
+            { 
+              headers: { 
+                'Authorization': currentToken ? `Bearer ${currentToken}` : '',
+                'Accept': 'application/json'
+              },
+              timeout: 5000
+            }
+          );
+          
+          if (userResponse.data && userResponse.data.auth0Id) {
+            foodBankId = userResponse.data.auth0Id;
+            console.log('Retrieved REAL Auth0 ID from user data:', foodBankId);
+          } else {
+            // Last resort: use MongoDB ID
+            foodBankId = selectedId;
+            console.warn('No Auth0 ID found, using MongoDB ID as fallback');
+          }
+        } catch (fetchError) {
+          console.error('Error fetching food bank user data:', fetchError);
+          // Last resort: use MongoDB ID
+          foodBankId = selectedId;
+        }
+      }
+      
+      console.log('Using REAL food bank Auth0 ID:', foodBankId);
       
       // Use the foodBankService directly with the proper payload
       // Including all fields that might be required by the server
@@ -1526,7 +1584,7 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
         body: JSON.stringify({ 
           donationId: donation._id, 
           volunteerId: userId,
-          foodBankId: foodBankId, // Use Auth0 ID if available
+          foodBankId: foodBankId, // Use the REAL Auth0 ID
           // Include additional donation fields from original donation
           donorType: donation.donorType || 'individual',
           status: 'picked_up',  // Match the expected initial status in the server

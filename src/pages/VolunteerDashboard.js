@@ -706,7 +706,11 @@ const VolunteerDashboard = () => {
 
                           <div className="task-section">
                             <h4>Address:</h4>
-                            <p>{task.businessAddress || 'No address provided'}</p>
+                            <p>{typeof task.businessAddress === 'object' ? 
+                              (task.businessAddress?.street ? 
+                                `${task.businessAddress.street}${task.businessAddress.city ? `, ${task.businessAddress.city}` : ''}${task.businessAddress.state ? `, ${task.businessAddress.state}` : ''}${task.businessAddress.postalCode ? ` ${task.businessAddress.postalCode}` : ''}` 
+                                : 'No address details') 
+                              : task.businessAddress || 'No address provided'}</p>
                           </div>
 
                           <div className="task-section">
@@ -778,7 +782,11 @@ const VolunteerDashboard = () => {
                         <p><strong>Category:</strong> {task.category}</p>
                         <p><strong>Delivery Date:</strong> {formatDate(task.deliveryDate || task.updatedAt)}</p>
                         <p><strong>Donor:</strong> {task.businessName || 'Anonymous'}</p>
-                        <p><strong>Address:</strong> {task.businessAddress || 'No address provided'}</p>
+                        <p><strong>Address:</strong> {typeof task.businessAddress === 'object' ? 
+                          (task.businessAddress?.street ? 
+                            `${task.businessAddress.street}${task.businessAddress.city ? `, ${task.businessAddress.city}` : ''}${task.businessAddress.state ? `, ${task.businessAddress.state}` : ''}${task.businessAddress.postalCode ? ` ${task.businessAddress.postalCode}` : ''}` 
+                            : 'No address details') 
+                          : task.businessAddress || 'No address provided'}</p>
                         <div className="task-actions">
                           <button 
                             className="view-details-btn"
