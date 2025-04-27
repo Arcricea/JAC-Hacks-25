@@ -54,7 +54,7 @@ export const getUserByAuth0Id = async (auth0Id, requestingUserId) => {
 export const updateUserAccountType = async (auth0Id, accountType) => {
   try {
     // First get the user data
-    const userData = await getUserByAuth0Id(auth0Id);
+    const userData = await getUserByAuth0Id(auth0Id, auth0Id);
     
     if (!userData.success) {
       throw new Error('Failed to get user data');
@@ -67,7 +67,7 @@ export const updateUserAccountType = async (auth0Id, accountType) => {
     };
     
     // Save the updated user data
-    const response = await saveUser(updatedUserData);
+    const response = await saveUser(updatedUserData, auth0Id);
     
     return response;
   } catch (error) {
@@ -142,7 +142,7 @@ export const updateNeedStatus = async (userId, statusData) => {
     };
     
     // Use the regular saveUser endpoint which doesn't require organizer privileges
-    const response = await saveUser(updatedUserData);
+    const response = await saveUser(updatedUserData, userId);
     
     return response;
   } catch (error) {
@@ -159,6 +159,7 @@ export const updateFoodBankInfo = async (auth0Id, foodBankInfo) => {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
+        'X-Requesting-User-Id': auth0Id
       },
       body: JSON.stringify(foodBankInfo),
     });

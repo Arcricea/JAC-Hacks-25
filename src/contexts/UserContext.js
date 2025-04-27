@@ -20,7 +20,7 @@ export const UserProvider = ({ children }) => {
 
         try {
           // Try to get user data from the database
-          const response = await getUserByAuth0Id(user.sub);
+          const response = await getUserByAuth0Id(user.sub, user.sub);
           
           if (response.success && response.data) {
             setUserDetails(response.data);

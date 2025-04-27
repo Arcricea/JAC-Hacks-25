@@ -27,7 +27,7 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
       setInitialLoading(true);
       
       // Try to get existing user data
-      getUserByAuth0Id(user.sub)
+      getUserByAuth0Id(user.sub, user.sub)
         .then(userData => {
           if (userData.success && userData.data && userData.data.accountType !== 'error') {
             // If user exists with valid account type, use it and complete setup

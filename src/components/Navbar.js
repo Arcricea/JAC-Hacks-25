@@ -48,6 +48,10 @@ const Navbar = () => {
         return 'Business';
       case 'distributor':
         return 'Food Bank';
+      case 'volunteer':
+        return 'Volunteer';
+      case 'organizer':
+        return 'Organizer';
       default:
         return '';
     }

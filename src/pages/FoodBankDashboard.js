@@ -101,7 +101,9 @@ const FoodBankDashboard = () => {
         auth0Id: userData.auth0Id,
         username: userData.username,
         accountType: userData.accountType || 'distributor',
-        address: address.trim(),
+        address: {
+          street: address.trim()
+        },
         email: email.trim(),
         phone: phone.trim(),
         openingHours: openingHours.trim(),
@@ -110,7 +112,7 @@ const FoodBankDashboard = () => {
       
       console.log('Saving contact information:', updatedUserData);
       
-      const response = await saveUser(updatedUserData);
+      const response = await saveUser(updatedUserData, userData.auth0Id);
       
       if (response && response.success) {
         // Update local userData with the new contact info
@@ -152,7 +154,15 @@ const FoodBankDashboard = () => {
         setCustomStatusMessage(userData.needStatus.customMessage || '');
       }
       
-      if (userData.address) setAddress(userData.address);
+      // Handle address, which could be an object or string
+      if (userData.address) {
+        if (typeof userData.address === 'object' && userData.address.street) {
+          setAddress(userData.address.street);
+        } else if (typeof userData.address === 'string') {
+          setAddress(userData.address);
+        }
+      }
+      
       // For email, prefer userData.email if available, otherwise fallback to Auth0 email
       setEmail(userData.email || (user?.email || ''));
       if (userData.phone) setPhone(userData.phone);
@@ -202,6 +212,30 @@ const FoodBankDashboard = () => {
     setIsGoogleLoaded(true);
   };
 
+  // Add a helper function to format address objects for display
+  const displayAddress = (addr) => {
+    if (!addr) return '';
+    // If it's a string, return as is
+    if (typeof addr === 'string') return addr;
+    // If it's an object with street property
+    if (typeof addr === 'object') {
+      if (addr.street) {
+        const parts = [
+          addr.street,
+          addr.city,
+          addr.state,
+          addr.zip
+        ];
+        return parts.filter(part => part).join(', '); // Join non-empty parts
+      }
+      // In case it's just using the street field directly
+      if (typeof addr.street === 'string') {
+        return addr.street;
+      }
+    }
+    return 'No address provided';
+  };
+
   const renderPriorityBadge = (level) => {
     const priorityInfo = priorityLevels.find(p => p.level === level);
     return (
@@ -217,6 +251,9 @@ const FoodBankDashboard = () => {
   const renderContactField = (fieldName, label, value, placeholder) => {
     const isEditing = editingField === fieldName;
     
+    // If this is the address field and it's an object, format it for display
+    const displayValue = fieldName === 'address' ? displayAddress(value) : value;
+    
     return (
       <div className="contact-field">
         <h4>{label}</h4>
@@ -228,7 +265,7 @@ const FoodBankDashboard = () => {
                   ref={autocompleteInputRef}
                   className="editable-content"
                   type="text"
-                  value={value}
+                  value={displayValue}
                   onChange={(e) => {
                     switch(fieldName) {
                       case 'address': setAddress(e.target.value); break;
@@ -297,7 +334,7 @@ const FoodBankDashboard = () => {
           ) : (
             <>
               <div className="editable-content" style={{ padding: '0.8rem 3rem 0.8rem 1rem' }}>
-                {value || placeholder}
+                {displayValue || placeholder}
               </div>
               <button className="edit-status-btn" onClick={() => setEditingField(fieldName)}>
                 <span className="edit-icon">✏️</span>
