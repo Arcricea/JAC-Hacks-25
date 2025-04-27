@@ -4,6 +4,7 @@ import '../assets/styles/Home.css';
 import freshFruit from '../assets/fresh_fruit.jpg';
 import freshVegetables from '../assets/fresh_vegetables.jpg';
 import freshCooked from '../assets/fresh_cooked.webp';
+import AuthSignupButton from '../components/auth/AuthSignupButton';
 
 const Home = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -30,7 +31,7 @@ const Home = () => {
               before it's wasted. Join us in creating a more sustainable future.
             </p>
             <div className="hero-buttons">
-              <Link to="/signup" className="primary-btn">Get Started</Link>
+              <AuthSignupButton className="primary-btn">Get Started</AuthSignupButton>
             </div>
           </div>
           <div className="hero-image">
@@ -115,9 +116,11 @@ const Home = () => {
 
       {/* CTA Section */}
       <section className="cta-section">
-        <h2>Join the Food Waste Revolution</h2>
-        <p>Together, we can build a more sustainable and equitable food system</p>
-        <Link to="/signup" className="cta-button">Sign Up Now</Link>
+        <div className="cta-content">
+          <h2>Ready to make a difference?</h2>
+          <p>Join MealNet today and help us build a more sustainable food system.</p>
+          <AuthSignupButton className="cta-button">Sign Up Now</AuthSignupButton>
+        </div>
       </section>
     </div>
   );

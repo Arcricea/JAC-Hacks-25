@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import '../assets/styles/Auth.css';
+import AuthSignupButton from '../components/auth/AuthSignupButton';
 
 const Login = () => {
   const [userType, setUserType] = useState('individual');
@@ -69,7 +70,7 @@ const Login = () => {
         </form>
         
         <div className="auth-footer">
-          <p>Don't have an account? <Link to="/signup">Sign Up</Link></p>
+          <p>Don't have an account? <AuthSignupButton className="auth-link" style={{ border: 'none', background: 'transparent', padding: 0, color: '#2e7d32', textDecoration: 'none', cursor: 'pointer', fontWeight: 'inherit', fontSize: 'inherit' }}>Sign Up</AuthSignupButton></p>
         </div>
       </div>
     </div>

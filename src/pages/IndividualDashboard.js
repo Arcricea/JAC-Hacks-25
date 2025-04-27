@@ -1,8 +1,53 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../assets/styles/Dashboard.css';
+import { useAuth0 } from "@auth0/auth0-react"; // Import the hook
+import { getMyDonations } from '../services/individualService'; // Import the new service
 
 const IndividualDashboard = () => {
-  const [activeTab, setActiveTab] = useState('overview');
+  const { user, isAuthenticated, isLoading } = useAuth0();
+  const [activeTab, setActiveTab] = useState('donate'); // Reintroduce activeTab state
+
+  // State for donation form
+  const [donationItemsText, setDonationItemsText] = useState('');
+  const [pickupInstructions, setPickupInstructions] = useState('');
+  const [donationStatus, setDonationStatus] = useState({ message: '', type: '' });
+
+  // State for contributions tab
+  const [contributions, setContributions] = useState([]);
+  const [contributionsLoading, setContributionsLoading] = useState(false);
+  const [contributionsError, setContributionsError] = useState('');
+
+  // --- Fetch Contributions Effect ---
+  useEffect(() => {
+    if (activeTab === 'contributions' && isAuthenticated && user?.sub) {
+      fetchContributions();
+    }
+    // Reset error when switching tabs
+    if (activeTab !== 'contributions') {
+        setContributionsError('');
+    }
+  }, [activeTab, isAuthenticated, user?.sub]);
+
+  const fetchContributions = async () => {
+    setContributionsLoading(true);
+    setContributionsError('');
+    setContributions([]); // Clear previous contributions
+    console.log("Fetching contributions for user:", user.sub);
+    try {
+        // Use the actual service function
+        const response = await getMyDonations(user.sub); 
+        if (response.success) {
+          setContributions(response.data);
+        } else {
+          setContributionsError(response.message || 'Failed to load contributions.');
+        }
+    } catch (err) {
+      console.error("Error fetching contributions:", err);
+      setContributionsError(err.message || 'An error occurred while loading contributions.');
+    } finally {
+      setContributionsLoading(false);
+    }
+  };
 
   const individualData = {
     availableAssistance: [
@@ -18,116 +63,197 @@ const IndividualDashboard = () => {
     ]
   };
 
+  // --- Function to handle donation submission ---
+  const handleDonationSubmit = async (event) => {
+    event.preventDefault();
+    setDonationStatus({ message: '', type: '' });
+
+    // Check the real isAuthenticated status and if user object exists
+    if (!isAuthenticated || !user?.sub) {
+      setDonationStatus({ message: 'You must be logged in to donate.', type: 'error' });
+      return;
+    }
+
+    // Validate the new items text area
+    if (!donationItemsText.trim()) { 
+      setDonationStatus({ message: 'Please describe the items you wish to donate.', type: 'error' });
+      return;
+    }
+
+    // TODO: Get access token if needed (using getAccessTokenSilently)
+    // const token = await getAccessTokenSilently(); 
+
+    let response;
+    try {
+      // Use the absolute URL for the backend server
+      const apiUrl = 'http://localhost:5000/api/individuals/donate'; 
+      response = await fetch(apiUrl, { 
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Use the real user.sub from Auth0
+          'x-requesting-user-id': user.sub, 
+          // Example for adding token if needed:
+          // 'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({
+          // Send the text directly
+          itemsDescriptionFromUser: donationItemsText, 
+          pickupInstructions: pickupInstructions,
+        }),
+      });
+
+      // Read the body as text first (consumes the body once)
+      const responseText = await response.text();
+      let data;
+
+      if (response.ok) {
+        try {
+          // Try to parse the text as JSON for successful responses
+          data = JSON.parse(responseText);
+          setDonationStatus({ message: data.message || 'Donation submitted successfully!', type: 'success' });
+          setDonationItemsText('');
+          setPickupInstructions('');
+        } catch (jsonError) {
+          // Handle case where backend sent success status but non-JSON body (unlikely but possible)
+          console.error('Error parsing JSON from successful response:', jsonError, responseText);
+          setDonationStatus({ message: 'Donation submitted, but unexpected response format received.', type: 'warning' });
+        }
+      } else {
+        // Handle error responses (non-2xx status)
+        console.error('Donation API Error Status:', response.status, responseText); 
+        try {
+          // Try to parse the error response text as JSON
+          data = JSON.parse(responseText);
+          setDonationStatus({ 
+            message: data.message || `Error: ${response.status} - Failed to submit donation.`, 
+            type: 'error' 
+          });
+        } catch (jsonError) {
+          // If the error response wasn't JSON, use the raw text
+          setDonationStatus({ 
+            message: `Error: ${response.status} - ${responseText.substring(0, 150)}...`, 
+            type: 'error' 
+          });
+        }
+      }
+    } catch (error) {
+      // Handle network errors or errors before/during fetch
+      console.error('Network or other error submitting donation:', error);
+      // Ensure response object exists before trying to access status
+      const status = response ? response.status : 'N/A'; 
+      setDonationStatus({ message: `An error occurred (Status: ${status}): ${error.message}. Please check connection or try again.`, type: 'error' });
+    }
+  };
+
+  // Optional: Handle loading state from Auth0
+  if (isLoading) {
+    return <div className="dashboard-content"><p>Loading user information...</p></div>;
+  }
+
+  // Optional: Handle case where user is not logged in
+  if (!isAuthenticated) {
+     return <div className="dashboard-content"><p>Please log in to access the dashboard.</p></div>;
+  }
+
   return (
     <div className="dashboard-content">
+      {/* Reintroduce Tab Navigation */}
       <div className="dashboard-nav">
         <button 
-          className={activeTab === 'overview' ? 'active' : ''} 
-          onClick={() => setActiveTab('overview')}
+          className={activeTab === 'donate' ? 'active' : ''} 
+          onClick={() => setActiveTab('donate')}
         >
-          Overview
+          Make Donation / Request Pickup
         </button>
         <button 
-          className={activeTab === 'history' ? 'active' : ''} 
-          onClick={() => setActiveTab('history')}
+          className={activeTab === 'contributions' ? 'active' : ''} 
+          onClick={() => setActiveTab('contributions')}
         >
-          Assistance History
-        </button>
-        <button 
-          className={activeTab === 'resources' ? 'active' : ''} 
-          onClick={() => setActiveTab('resources')}
-        >
-          Resources
+          My Contributions
         </button>
       </div>
 
-      {activeTab === 'overview' && (
-        <div className="overview-section">
-          <h3>Available Assistance</h3>
-          <div className="assistance-cards">
-            {individualData.availableAssistance.map(assistance => (
-              <div key={assistance.id} className="assistance-card">
-                <h4>{assistance.type}</h4>
-                <p><strong>Provider:</strong> {assistance.provider}</p>
-                <p><strong>Location:</strong> {assistance.location}</p>
-                <p><strong>Date:</strong> {assistance.date}</p>
-                <button className="primary-btn">Request Assistance</button>
+      {/* Donate Tab Content */}
+      {activeTab === 'donate' && (
+        <>
+          <div className="donate-section">
+            <h3>Make a Donation</h3>
+            <p>Offer food items for pickup from your registered address.</p>
+            
+            <form onSubmit={handleDonationSubmit} className="donation-form">
+              <div className="form-group">
+                <label htmlFor="donation-items-text">Items to Donate (Description):</label>
+                <textarea 
+                  id="donation-items-text"
+                  value={donationItemsText}
+                  onChange={(e) => setDonationItemsText(e.target.value)}
+                  required 
+                  rows="2" // <--- Reduced rows
+                ></textarea>
               </div>
-            ))}
+              <div className="form-group">
+                <label htmlFor="pickup-instructions">Pickup Instructions (optional):</label>
+                <textarea 
+                  id="pickup-instructions"
+                  value={pickupInstructions}
+                  onChange={(e) => setPickupInstructions(e.target.value)}
+                  rows="2" // <--- Reduced rows
+                ></textarea>
+              </div>
+
+              {donationStatus.message && (
+                <p className={`status-message ${donationStatus.type}`}>
+                  {donationStatus.message}
+                </p>
+              )}
+
+              <button type="submit" className="primary-btn">Submit Donation</button>
+            </form>
           </div>
-          
-          <h3>Upcoming Appointments</h3>
-          {individualData.upcomingAppointments.length > 0 ? (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Provider</th>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {individualData.upcomingAppointments.map(appointment => (
-                  <tr key={appointment.id}>
-                    <td>{appointment.provider}</td>
-                    <td>{appointment.date}</td>
-                    <td>{appointment.time}</td>
-                    <td>{appointment.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="no-data-message">No upcoming appointments</p>
-          )}
-        </div>
+
+          {/* Volunteer Request Section */}
+          <div className="volunteer-request-section" style={{marginTop: '40px'}}>
+              <h3>Request Volunteer Pickup</h3>
+              <p>If you don't have specific items now but want to request a general pickup from your address, use the button below.</p>
+              {/* TODO: Add button and handler for volunteer request API call */}
+              <button className="secondary-btn" onClick={() => alert('Volunteer request functionality to be added.')}>Request Pickup</button>
+          </div>
+        </>
       )}
 
-      {activeTab === 'history' && (
-        <div className="history-section">
-          <h3>Assistance History</h3>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Provider</th>
-                <th>Date</th>
-                <th>Items Received</th>
-              </tr>
-            </thead>
-            <tbody>
-              {individualData.assistanceHistory.map(history => (
-                <tr key={history.id}>
-                  <td>{history.provider}</td>
-                  <td>{history.date}</td>
-                  <td>{history.items}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      
-      {activeTab === 'resources' && (
-        <div className="resources-section">
-          <h3>Additional Resources</h3>
-          <div className="resource-cards">
-            <div className="resource-card">
-              <h4>Nutrition Information</h4>
-              <p>Access guides on balanced meals and nutrition with limited resources.</p>
-              <button className="secondary-btn">View Resources</button>
-            </div>
-            <div className="resource-card">
-              <h4>Financial Assistance</h4>
-              <p>Information on additional support programs and financial assistance.</p>
-              <button className="secondary-btn">Learn More</button>
-            </div>
-            <div className="resource-card">
-              <h4>Volunteer Opportunities</h4>
-              <p>Give back to the community by volunteering at local food banks.</p>
-              <button className="secondary-btn">Find Opportunities</button>
-            </div>
-          </div>
+      {/* Contributions Tab Content */}
+      {activeTab === 'contributions' && (
+        <div className="contributions-section">
+          <h3>My Donation History</h3>
+          {contributionsLoading && <p>Loading your contributions...</p>}
+          {contributionsError && <p className="error-message">{contributionsError}</p>}
+          {!contributionsLoading && !contributionsError && (
+            contributions.length > 0 ? (
+              <table className="data-table contributions-table">
+                <thead>
+                  <tr>
+                    <th>Items Donated</th>
+                    <th>Date Submitted</th>
+                    <th>Status</th>
+                    {/* Add other relevant columns if needed, e.g., Volunteer Assigned */}
+                  </tr>
+                </thead>
+                <tbody>
+                  {contributions.map(donation => (
+                    <tr key={donation._id}>
+                      {/* Accessing items array */}
+                      <td>{donation.items && donation.items.length > 0 ? donation.items[0].name : 'N/A'}</td> 
+                      <td>{new Date(donation.createdAt).toLocaleDateString()}</td>
+                      <td>{donation.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>You haven't made any donations yet.</p>
+            )
+          )}
         </div>
       )}
     </div>

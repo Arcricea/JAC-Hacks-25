@@ -581,8 +581,8 @@ const AdminDashboard = () => {
                               : donation.userId?.username;
             return (
               <tr key={donation._id}>
-                <td>{donation.itemName}</td>
-                <td>{donation.quantity}</td>
+                <td>{donation.items && donation.items.length > 0 ? donation.items[0].name : donation.itemName || 'N/A'}</td>
+                <td>{donation.items && donation.items.length > 0 ? donation.items[0].quantity : donation.quantity || 'N/A'}</td>
                 <td>{donorName || 'N/A'}</td>
                 <td>{donation.status}</td>
                 <td>{new Date(donation.createdAt).toLocaleDateString()}</td>

@@ -59,12 +59,19 @@ const Profile = () => {
         const listener = autocompleteRef.current.addListener("place_changed", () => {
           const place = autocompleteRef.current.getPlace();
           if (place.formatted_address) {
-            setAddress(place.formatted_address);
-            setAddressSaveStatus({ 
-              message: "✓ Address selected", 
-              type: 'success' 
-            });
-            setTimeout(() => setAddressSaveStatus({ message: '', type: '' }), 3000);
+            const selectedAddressString = place.formatted_address;
+            // Update the input field display
+            setAddress(selectedAddressString); 
+            
+            // Now, automatically validate the selected address to get components
+            handleValidateAddress(selectedAddressString); 
+
+            // Show temporary feedback (optional, validation provides its own)
+            // setAddressSaveStatus({ 
+            //   message: "✓ Address selected, validating...", 
+            //   type: 'info' 
+            // });
+            // setTimeout(() => setAddressSaveStatus({ message: '', type: '' }), 3000);
           }
         });
 
@@ -91,6 +98,11 @@ const Profile = () => {
       // Default to the first type if user has no type yet
       setSelectedAccountType(accountTypes[0]); 
     }
+  }, [userData]);
+
+  // Monitor userData changes from context
+  useEffect(() => {
+    console.log('UserContext userData changed:', userData);
   }, [userData]);
 
   const handleGoogleMapsLoad = () => {
@@ -255,6 +267,10 @@ const Profile = () => {
         }
       });
 
+      // --- Add Logging --- 
+      console.log("Extracted Address Components:", addressComponents);
+      // --- End Logging ---
+
       setValidatedAddress(addressComponents);
       setAddress(result.formatted_address);
     } catch (error) {
@@ -267,37 +283,80 @@ const Profile = () => {
   };
 
   const handleSaveAddress = async () => {
-    if (!address.trim()) {
-      setAddressError('Please enter an address');
+    // Use the validated address data if available
+    if (!validatedAddress || !validatedAddress.validated) { 
+      setAddressSaveStatus({
+          message: '⚠ Please select a valid address from suggestions first.',
+          type: 'error'
+      });
+      // Optionally re-trigger validation if desired
+      // handleValidateAddress(address);
       return;
     }
 
     setIsSaving(true);
+    setAddressSaveStatus({ message: '', type: '' }); // Clear previous status
+
+    // Prepare the address object in the format the backend expects
+    const addressData = {
+        street: `${validatedAddress.street_number || ''} ${validatedAddress.street_name || ''}`.trim(),
+        city: validatedAddress.city || '',
+        state: validatedAddress.state || '',
+        zip: validatedAddress.zip || ''
+        // country: validatedAddress.country || '' // Add if needed
+    };
+    
+    // Check if essential parts are present after extraction
+    if (!addressData.street || !addressData.city || !addressData.zip) {
+        setAddressSaveStatus({
+          message: '⚠ Validation result missing required fields (street, city, zip). Please try again.',
+          type: 'error'
+        });
+        setIsSaving(false);
+        return;
+    }
+
+    // --- Add Logging before sending --- 
+    console.log('Attempting to save address with data:', addressData);
+    const payload = {
+      auth0Id: userData.auth0Id,
+      username: userData.username,
+      accountType: userData.accountType || 'individual',
+      address: addressData, // Send the structured object
+      ...(userData.needStatus && { needStatus: userData.needStatus })
+    };
+    console.log('Payload being sent to saveUser:', payload);
+    // --- End Logging ---
+
     try {
-      // Make sure we're sending all required fields
-      const response = await saveUser({
-        auth0Id: userData.auth0Id,
-        username: userData.username,
-        accountType: userData.accountType || 'individual',
-        address: address.trim(),
-        ...(userData.needStatus && { needStatus: userData.needStatus })
-      });
+      // Send the structured addressData object
+      const response = await saveUser(payload); // Pass the constructed payload
+
+      // --- Add Logging for response --- 
+      console.log('Response received from saveUser:', response);
+      // --- End Logging ---
 
       if (response.success) {
+        // --- Add Logging before state update --- 
+        console.log('Save successful, updating userData context with:', response.data);
+        // --- End Logging ---
         setUserData(response.data);
         setIsEditingAddress(false);
+        setValidatedAddress(null); // Clear validation state after successful save
         setAddressSaveStatus({
           message: "✓ Address saved successfully!",
           type: 'success'
         });
         setTimeout(() => setAddressSaveStatus({ message: '', type: '' }), 3000);
       } else {
-        throw new Error(response.message || 'Failed to save address');
+         // Log specific failure message from backend
+        console.error('Backend indicated save failure:', response.message);
+        throw new Error(response.message || 'Failed to save address (backend)');
       }
     } catch (error) {
-      console.error('Save address error:', error);
+      console.error('Save address error (catch block):', error);
       setAddressSaveStatus({
-        message: '⚠ Error saving address. Please try again.',
+        message: `⚠ Error saving address: ${error.message}. Please try again.`,
         type: 'error'
       });
     } finally {
@@ -311,6 +370,20 @@ const Profile = () => {
     if (autocompleteInputRef.current) {
       autocompleteInputRef.current.value = exampleAddress;
     }
+  };
+
+  // Improve address display when not editing
+  const displayAddress = (addr) => {
+    if (!addr) return "No address set";
+    if (typeof addr === 'string') return addr; // Handle old string addresses
+    // Format the address object for display
+    const parts = [
+      addr.street,
+      addr.city,
+      addr.state,
+      addr.zip
+    ];
+    return parts.filter(part => part).join(', '); // Join non-empty parts
   };
 
   return (
@@ -422,9 +495,11 @@ const Profile = () => {
             <h3>Address Information</h3>
             {!isEditingAddress ? (
               <div className="address-display">
-                {userData?.address ? (
+                {/* Refine check: Ensure address object exists AND has a street property */}
+                {userData?.address?.street ? ( 
                   <>
-                    <p>{userData.address}</p>
+                    {/* Use the display helper function */}
+                    <p>{displayAddress(userData.address)}</p> 
                     <button 
                       className="edit-btn"
                       onClick={() => setIsEditingAddress(true)}
@@ -437,7 +512,7 @@ const Profile = () => {
                     className="primary-btn"
                     onClick={() => setIsEditingAddress(true)}
                   >
-                    Add Address
+                    Add Address 
                   </button>
                 )}
               </div>

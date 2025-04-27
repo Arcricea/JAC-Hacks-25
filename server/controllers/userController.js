@@ -82,7 +82,18 @@ exports.saveUser = async (req, res) => {
       const updateData = {
         ...(finalAccountType !== user.accountType && { accountType: finalAccountType }), // Only include if changed
         ...(username && { username }), // Only update username if provided
-        ...(req.body.address !== undefined && { address: req.body.address.trim() }),
+        
+        // Expect address to be an object from the request now
+        ...(req.body.address !== undefined && typeof req.body.address === 'object' && { 
+          address: { // Assign the nested object directly
+              street: req.body.address.street?.trim(),
+              city: req.body.address.city?.trim(),
+              state: req.body.address.state?.trim(),
+              zip: req.body.address.zip?.trim()
+              // Add other fields like country if needed
+          }
+        }),
+        
         ...(req.body.email !== undefined && { email: req.body.email.trim() }),
         ...(req.body.phone !== undefined && { phone: req.body.phone.trim() }),
         // Apply role-specific fields if type is distributor OR organizer
@@ -172,16 +183,26 @@ exports.saveUser = async (req, res) => {
 // Get user by auth0Id
 exports.getUserByAuth0Id = async (req, res) => {
   try {
-    const { auth0Id } = req.params;
+    const requestedAuth0Id = req.params.auth0Id;
+    const requestingUser = req.user; // From isAuthenticated middleware
     
-    if (!auth0Id) {
+    if (!requestedAuth0Id) {
       return res.status(400).json({
         success: false,
-        message: 'auth0Id is required'
+        message: 'auth0Id URL parameter is required'
       });
     }
     
-    const user = await User.findOne({ auth0Id });
+    // Check permissions: Allow if requesting self OR if requester is organizer
+    if (requestingUser.auth0Id !== requestedAuth0Id && requestingUser.accountType !== 'organizer') {
+        return res.status(403).json({
+            success: false,
+            message: 'Forbidden: You do not have permission to view this user profile.'
+        });
+    }
+    
+    // If permission check passes, find the user
+    const user = await User.findOne({ auth0Id: requestedAuth0Id });
     
     if (!user) {
       return res.status(404).json({
@@ -190,11 +211,10 @@ exports.getUserByAuth0Id = async (req, res) => {
       });
     }
     
-    // Return user data - include secret ONLY if they are a volunteer
-    // SECURITY NOTE: Sending the secret to the client is necessary for client-side TOTP generation
-    // Ensure your frontend handles this securely and doesn't expose it unnecessarily.
+    // Return user data
     const userResponse = user.toObject();
-    if (user.accountType !== 'volunteer') {
+    // Only include secret if requesting user is the volunteer themselves
+    if (user.accountType !== 'volunteer' || requestingUser.auth0Id !== requestedAuth0Id) {
       delete userResponse.volunteerSecret;
     }
     
@@ -203,9 +223,10 @@ exports.getUserByAuth0Id = async (req, res) => {
       data: userResponse
     });
   } catch (error) {
+    console.error("Error in getUserByAuth0Id controller:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error',
+      message: 'Server error retrieving user data',
       error: error.message
     });
   }
