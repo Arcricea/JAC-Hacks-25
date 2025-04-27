@@ -1512,6 +1512,10 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
 
       setLoading(true);
       
+      // Determine the correct foodBankId to use (prefer Auth0 ID if available)
+      const foodBankId = selectedFoodBank.auth0Id || selectedFoodBank.userId || selectedFoodBank._id;
+      console.log('Using food bank ID:', foodBankId, 'Type:', typeof foodBankId);
+      
       // Use the foodBankService directly with the proper payload
       // Including all fields that might be required by the server
       const response = await fetch(`http://localhost:5000/api/foodbanks/mark-delivery`, {
@@ -1522,7 +1526,7 @@ const FoodBankSuggestionModal = ({ show, onClose, donation, userLocation, onDeli
         body: JSON.stringify({ 
           donationId: donation._id, 
           volunteerId: userId,
-          foodBankId: selectedFoodBank._id,
+          foodBankId: foodBankId, // Use Auth0 ID if available
           // Include additional donation fields from original donation
           donorType: donation.donorType || 'individual',
           status: 'picked_up',  // Match the expected initial status in the server
