@@ -256,10 +256,21 @@ const VolunteerDashboard = () => {
       if (response.success) {
         // Update UI by removing the task from scheduled donations
         setScheduledDonations(prev => prev.filter(task => task._id !== donationId));
+        
         // Close the modal if it's open with this task
         if (selectedPickup && selectedPickup._id === donationId) {
           setIsModalOpen(false);
         }
+        
+        // Refresh available tasks so the cancelled donation appears there
+        if (activeTab === 'available') {
+          fetchAvailableTasks();
+        } else {
+          // If not currently on available tab, refresh next time user navigates there
+          // by invalidating the current data
+          setAvailableTasks([]);
+        }
+        
         alert('Pickup cancelled successfully.');
       } else {
         setError(response.message || 'Failed to cancel pickup.');
@@ -803,12 +814,12 @@ const VolunteerDashboard = () => {
       )}
       
       {/* Modal for food bank suggestions */}
-      {isFoodBankModalOpen && selectedPickup && userLocation && (
+      {isFoodBankModalOpen && selectedPickup && (
         <FoodBankSuggestionModal
           show={isFoodBankModalOpen}
           onClose={handleFoodBankModalClose}
           donation={selectedPickup}
-          userLocation={userLocation}
+          userLocation={userLocation || { latitude: 0, longitude: 0 }}
           onDeliveryConfirmed={() => handleFoodBankModalClose(true)}
         />
       )}

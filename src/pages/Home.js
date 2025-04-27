@@ -4,6 +4,7 @@ import '../assets/styles/Home.css';
 import freshFruit from '../assets/fresh_fruit.jpg';
 import freshVegetables from '../assets/fresh_vegetables.jpg';
 import freshCooked from '../assets/fresh_cooked.webp';
+import mainBackground from '../assets/main_background2.jpg';
 import AuthSignupButton from '../components/auth/AuthSignupButton';
 
 const Home = () => {
@@ -22,7 +23,16 @@ const Home = () => {
   return (
     <div className="home-page">
       {/* Hero Section */}
-      <section className="hero-section">
+      <section 
+        className="hero-section" 
+        style={{ 
+          backgroundImage: `url(${mainBackground})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed'
+        }}
+      >
         <div className="hero-container">
           <div className="hero-content">
             <h1>Reduce Food Waste, Feed Communities</h1>

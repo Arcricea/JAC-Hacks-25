@@ -56,6 +56,13 @@ const Contact = () => {
             <p>+1 (514) 123-4567<br />Mon - Fri, 9am - 6pm EST</p>
           </div>
 
+          <div className="info-item">
+            <div className="info-icon">❤️</div>
+            <h3>We Care</h3>
+            <p>about every piece of feedback you give us. We promise to read every message sent to us!</p>
+
+          </div>
+
           
         </div>
 

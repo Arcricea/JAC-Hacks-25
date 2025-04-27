@@ -193,4 +193,100 @@
   font-weight: 500;
   display: inline-block;
   text-align: center;
+}
+
+.food-bank-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 15px;
+  width: 100%;
+}
+
+.food-bank-dropdown {
+  padding: 10px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  font-size: 14px;
+  background-color: #fff;
+}
+
+.choose-food-bank-button {
+  background-color: #ff9800;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s;
+}
+
+.choose-food-bank-button:hover {
+  background-color: #f57c00;
+}
+
+.choose-food-bank-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.cancel-button {
+  background-color: #f44336;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.2s;
+  margin-top: 15px;
+}
+
+.cancel-button:hover {
+  background-color: #d32f2f;
+}
+
+.cancel-button:disabled {
+  background-color: #ffcdd2;
+  cursor: not-allowed;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-right: 10px;
+}
+
+.status-badge.awaiting-action {
+  background-color: #ff9800;
+  color: white;
+}
+
+.status-badge.awaiting-transport {
+  background-color: #2196f3;
+  color: white;
+}
+
+.status-badge.completed {
+  background-color: #4caf50;
+  color: white;
+}
+
+.error-message {
+  color: #f44336;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.modal-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 15px;
+  border-top: 1px solid #eee;
 } 
