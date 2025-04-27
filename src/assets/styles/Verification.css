@@ -1,0 +1,303 @@
+/* Styles specific to QR Code Verification */
+
+.verify-volunteer-section {
+  text-align: center;
+}
+
+.verify-volunteer-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #1b5e20; /* Dark green */
+  display: inline-flex; /* Align icon and text */
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.verify-volunteer-section p {
+  margin-bottom: 1.5rem;
+  color: #555;
+}
+
+.scan-prompt {
+  margin-bottom: 1.5rem;
+}
+
+.scan-button {
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+}
+
+.scan-button .fas {
+  margin-right: 0.5rem;
+  color: white; /* Icon color on button */
+}
+
+#qr-reader-container {
+  margin: 20px auto;
+  max-width: 400px; /* Adjust as needed */
+  padding: 1rem;
+  border: 1px dashed #ccc;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+}
+
+#qr-reader {
+  border: none !important; /* Override default border if any */
+  margin-bottom: 1rem;
+}
+
+.cancel-scan-btn {
+  margin-top: 1rem;
+}
+
+.verification-result {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid;
+  text-align: left;
+}
+
+.verification-result.valid {
+  background-color: #d4edda;
+  border-color: #c3e6cb;
+  color: #155724;
+}
+
+.verification-result.invalid {
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+  color: #721c24;
+}
+
+.verification-result h4 {
+  margin-top: 0;
+  margin-bottom: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.verification-result.valid .fas {
+  color: #155724; /* Dark green for valid icon */
+}
+
+.verification-result.invalid .fas {
+  color: #721c24; /* Dark red for invalid icon */
+}
+
+.verification-result p {
+  margin-bottom: 0.5rem;
+  color: inherit; /* Inherit color from parent */
+}
+
+.verification-result strong {
+  font-weight: 600;
+}
+
+.scan-again-btn {
+  margin-top: 1rem;
+}
+
+/* Styles for code input form */
+.verify-code-form {
+  margin-top: 1.5rem;
+}
+
+.verify-code-form p {
+  margin-bottom: 1rem;
+}
+
+.code-input-group {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.code-input {
+  padding: 0.8rem;
+  font-size: 1.5rem; /* Larger input */
+  font-family: 'monospace';
+  text-align: center;
+  letter-spacing: 4px; /* Match TOTP display */
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 150px; /* Adjust width as needed */
+}
+
+.verify-button {
+  padding: 0.8rem 1.2rem;
+  font-size: 1rem;
+}
+
+/* Style for pending verification result */
+.verification-result.pending {
+  background-color: #e2e3e5;
+  border-color: #d6d8db;
+  color: #383d41;
+}
+
+.verification-result.pending .fas {
+  color: #383d41;
+}
+
+/* New styles for verification steps */
+.verification-steps {
+  display: flex;
+  flex-direction: column; /* Stack steps initially */
+  gap: 1.5rem;
+}
+
+.scanner-area,
+.code-input-area {
+  padding: 1.5rem;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background-color: #fafafa;
+  transition: all 0.3s ease-in-out;
+}
+
+.scanner-area h4,
+.code-input-area h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #1b5e20; /* Dark green */
+  font-size: 1.1rem;
+}
+
+.scanner-area.scanned,
+.code-input-area.visible {
+  border-color: #c8e6c9; /* Light green border when active/visible */
+}
+
+#qr-reader-container {
+  border: none;
+  background-color: transparent;
+  padding: 0;
+  margin-top: 1rem;
+}
+
+.scanned-id-display {
+  margin-top: 1rem;
+  padding: 0.8rem 1rem;
+  background-color: #e9f5e9;
+  border: 1px solid #c8e6c9;
+  border-radius: 4px;
+  color: #155724;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.scanned-id-display .fas {
+  color: #155724;
+  margin-right: 0.5rem;
+}
+
+.scanned-id-display strong {
+  margin-left: 0.3rem;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #2e7d32;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.link-button:hover {
+  color: #1b5e20;
+}
+
+.code-input.large {
+  font-size: 2rem; /* Make code input larger */
+  padding: 0.6rem;
+  width: 180px;
+}
+
+.verify-button {
+  padding: 0.9rem 1.5rem; /* Match height */
+  font-size: 1rem;
+}
+
+/* Layout for wider screens */
+@media (min-width: 768px) {
+  .verification-steps {
+    flex-direction: row; /* Side-by-side */
+    align-items: flex-start;
+  }
+  .scanner-area,
+  .code-input-area {
+     flex: 1; /* Each takes half */
+  }
+}
+
+.scanner-area.single-step {
+  padding: 1.5rem;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background-color: #fafafa;
+  max-width: 500px; /* Constrain width */
+  margin: 1rem auto; /* Center the area */
+}
+
+.scanner-area h4 { /* Removed */}
+.code-input-area h4 { /* Removed */}
+.scanner-area.scanned { /* Removed */}
+.code-input-area { /* Removed */}
+.code-input-area.visible { /* Removed */}
+
+.scan-button.large {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+}
+
+.scan-button .fas {
+  margin-right: 0.5rem;
+  color: white; 
+}
+
+#qr-reader-container {
+  border: none;
+  background-color: transparent;
+  padding: 0;
+  margin-top: 1rem;
+}
+
+#qr-reader {
+  /* ... existing ... */
+}
+
+.cancel-scan-btn {
+  margin-top: 1rem;
+}
+
+/* REMOVED .scanned-id-display */
+/* REMOVED .link-button */
+/* REMOVED .verify-code-form */
+/* REMOVED .code-input-group */
+/* REMOVED .code-input */
+/* REMOVED .verify-button */
+
+/* Styles for Verification Result (mostly unchanged) */
+.verification-result {
+  margin: 2rem auto;
+  max-width: 500px;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid;
+  text-align: left;
+}
+
+/* ... valid/invalid/pending result styles ... */
+
+.scan-again-btn {
+  margin-top: 1rem;
+}
+
+/* REMOVED media query for side-by-side layout */ 

@@ -1,0 +1,258 @@
+/* Styles specific to Volunteer Dashboard */
+
+.card-style {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  margin-bottom: 2rem;
+}
+
+.qr-code-section h3,
+.tasks-section h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #1b5e20; /* Dark green */
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.qr-code-section .qr-code-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 1.5rem;
+}
+
+.qr-code-display {
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  display: inline-block; /* Fit content */
+}
+
+.qr-code-display svg {
+  display: block; /* Prevent extra space below SVG */
+}
+
+.qr-loading {
+  width: 200px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8f9fa;
+  color: #666;
+  font-style: italic;
+}
+
+.qr-code-section .token-info {
+  font-size: 0.9rem;
+  color: #666;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+/* Basic alert styling (can be expanded) */
+.alert {
+  padding: 1rem;
+  border-radius: 4px;
+  margin-top: 1rem;
+}
+
+.alert-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  color: #856404;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.error-message {
+  color: #dc3545;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.primary-btn {
+  background-color: #2e7d32;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.7rem 1.2rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.primary-btn:hover {
+  background-color: #1b5e20;
+}
+
+.primary-btn:disabled {
+  background-color: #aaa;
+  cursor: not-allowed;
+}
+
+.secondary-btn {
+  background-color: #e9f5e9;
+  color: #2e7d32;
+  border: 1px solid #c8e6c9;
+  border-radius: 4px;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.secondary-btn:hover {
+  background-color: #c8e6c9;
+}
+
+/* Style Font Awesome icons */
+.fas {
+  color: #2e7d32; /* Medium green */
+}
+
+/* New styles for TOTP display */
+.static-id-section,
+.dynamic-code-section {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 2rem 0;
+}
+
+.totp-display-combined {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.totp-timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  width: 100%;
+  max-width: 250px;
+}
+
+.totp-timer span {
+  font-size: 1rem;
+  color: #555;
+  margin-bottom: 0.3rem;
+}
+
+.totp-timer strong {
+  font-size: 1.2rem;
+  color: #1b5e20;
+  letter-spacing: 1px;
+}
+
+.timer-bar-container {
+  height: 6px;
+  background-color: #ccc;
+  border-radius: 3px;
+  margin-top: 8px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.timer-bar {
+  height: 100%;
+  background-color: #4caf50; /* Green timer bar */
+  border-radius: 3px;
+  transition: width 1s linear; /* Smooth transition */
+}
+
+.volunteer-id-card p {
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: #555;
+  font-size: 0.95rem;
+}
+
+.verification-details-container {
+  display: flex;
+  flex-wrap: wrap; /* Allow wrapping on smaller screens */
+  gap: 2rem; /* Space between QR and Code sections */
+  justify-content: center; /* Center items */
+  align-items: flex-start; /* Align items to the top */
+  margin-top: 1rem;
+}
+
+.single-qr-display {
+  justify-content: center;
+  width: 100%;
+}
+
+/* Task table styling */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1.5rem;
+}
+
+.data-table th, .data-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.data-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+  color: #333;
+}
+
+.data-table tr:hover {
+  background-color: #f9f9f9;
+}
+
+/* Stats overview section */
+.stats-overview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.stat-card {
+  flex: 1;
+  min-width: 150px;
+  background-color: #f9f9f9;
+  border-radius: 6px;
+  padding: 1.2rem;
+  text-align: center;
+}
+
+.stat-card h4 {
+  margin: 0 0 0.5rem 0;
+  color: #555;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.stat-card .stat-value {
+  font-size: 2rem;
+  color: #2e7d32;
+  font-weight: 600;
+  margin: 0;
+} 

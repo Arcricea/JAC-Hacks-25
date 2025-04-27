@@ -148,6 +148,52 @@
   font-size: 0.9rem;
 }
 
+.profile-account-type {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.profile-account-type h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: #2e7d32;
+}
+
+.volunteer-option {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px dashed #ddd;
+}
+
+.volunteer-info {
+  font-size: 0.95rem;
+  color: #555;
+  margin-bottom: 1rem;
+}
+
+.become-volunteer-btn {
+  background-color: #2e7d32;
+  color: white;
+  border: none;
+  padding: 0.7rem 1.2rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+.become-volunteer-btn:hover {
+  background-color: #1b5e20;
+}
+
+.become-volunteer-btn:disabled {
+  background-color: #a5d6a7;
+  cursor: not-allowed;
+}
+
 .profile-details {
   border-top: 1px solid #eee;
   padding-top: 1.5rem;

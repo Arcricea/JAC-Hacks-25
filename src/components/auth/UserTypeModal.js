@@ -63,6 +63,12 @@ const UserTypeModal = ({ isOpen, onComplete }) => {
       title: 'Food Bank / Distributor',
       description: 'I represent a food bank or distribution organization',
       icon: '🍲'
+    },
+    {
+      id: 'volunteer',
+      title: 'Volunteer',
+      description: 'I want to help with food collection and distribution',
+      icon: '🤝' // Example icon, change if desired
     }
   ];
 

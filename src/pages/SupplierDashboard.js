@@ -1,8 +1,94 @@
-import React, { useState } from 'react';
+import React, { useState, useContext, useEffect, useRef } from 'react';
+import { UserContext } from '../App';
+import { createDonation } from '../services/donationService';
+import { verifyVolunteerCode } from '../services/userService';
 import '../assets/styles/Dashboard.css';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 const SupplierDashboard = () => {
+  const { userData } = useContext(UserContext);
   const [activeTab, setActiveTab] = useState('overview');
+  const [formData, setFormData] = useState({
+    itemName: '',
+    category: '',
+    quantity: '',
+    expirationDate: '',
+    pickupInfo: '',
+    imageUrl: ''
+  });
+  const [formErrors, setFormErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Clear error for this field when user starts typing
+    if (formErrors[name]) {
+      setFormErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
+
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.itemName.trim()) errors.itemName = 'Item name is required';
+    if (!formData.category) errors.category = 'Category is required';
+    if (!formData.quantity.trim()) errors.quantity = 'Quantity is required';
+    if (!formData.expirationDate) errors.expirationDate = 'Expiration date is required';
+    if (!formData.pickupInfo.trim()) errors.pickupInfo = 'Pickup information is required';
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitError('');
+    setSubmitSuccess(false);
+
+    if (!validateForm()) {
+      setSubmitError('Please fill in all required fields');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await createDonation({
+        ...formData,
+        userId: userData.auth0Id
+      });
+
+      if (response.success) {
+        setSubmitSuccess(true);
+        setFormData({
+          itemName: '',
+          category: '',
+          quantity: '',
+          expirationDate: '',
+          pickupInfo: '',
+          imageUrl: ''
+        });
+        // Optionally, refresh the available items list here
+      }
+    } catch (error) {
+      setSubmitError(error.message || 'Failed to create donation. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const [showScanner, setShowScanner] = useState(false);
+  const [verificationResult, setVerificationResult] = useState(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const scannerRef = useRef(null);
   
   // Demo data
   const supplierData = {
@@ -24,28 +110,119 @@ const SupplierDashboard = () => {
     ]
   };
 
+  useEffect(() => {
+    if (showScanner) {
+      // Clear previous result when opening scanner
+      setVerificationResult(null); 
+      
+      // Updated Scan Success Handler
+      const onScanSuccess = async (decodedText, decodedResult) => {
+        console.log(`Combined Code Scanned = ${decodedText}`);
+        setShowScanner(false); // Hide scanner UI after scan
+        
+        // Clear the scanner instance
+        if (scannerRef.current && typeof scannerRef.current.clear === 'function') {
+           scannerRef.current.clear().catch(error => {
+              if (error.name !== 'NotRunning') { console.error("Scanner clear error:", error); }
+            });
+            scannerRef.current = null;
+        }
+
+        // Parse the scanned data (expecting "username:code")
+        const parts = decodedText.split(':');
+        if (parts.length !== 2 || !parts[0] || !/^[0-9]{6}$/.test(parts[1])) {
+            setVerificationResult({ success: false, isValid: false, message: 'Invalid QR code format. Expected username:code.'});
+            return;
+        }
+        const username = parts[0];
+        const code = parts[1];
+
+        // Immediately attempt verification
+        setIsVerifying(true);
+        setVerificationResult({ message: 'Verifying...' }); 
+
+        try {
+          const result = await verifyVolunteerCode(username, code); // Use extracted parts
+          setVerificationResult(result);
+        } catch (error) {
+          console.error("Verification API call failed:", error);
+          setVerificationResult({ success: false, isValid: false, message: 'Verification failed. Please try again.' });
+        } finally {
+          setIsVerifying(false);
+        }
+      };
+
+      const onScanFailure = (error) => { /* Usually ignore */ };
+
+      // Ensure the container is visible before creating scanner
+      const qrReaderElement = document.getElementById("qr-reader-container");
+      if(qrReaderElement) qrReaderElement.style.display = 'block';
+
+      // Prevent duplicate scanners
+      if (!scannerRef.current) {
+          scannerRef.current = new Html5QrcodeScanner(
+            "qr-reader", 
+            { fps: 10, qrbox: { width: 250, height: 250 }, supportedScanTypes: [0] }, 
+            false
+          );
+          scannerRef.current.render(onScanSuccess, onScanFailure);
+      }
+    } else {
+        // Cleanup if scanner is explicitly closed
+        if (scannerRef.current && typeof scannerRef.current.clear === 'function') {
+          scannerRef.current.clear().catch(error => {
+             if (error.name !== 'NotRunning') { 
+                console.error("Failed to clear html5QrcodeScanner:", error);
+             }
+           });
+           scannerRef.current = null;
+        }
+    }
+
+    // General cleanup on unmount
+    return () => {
+      if (scannerRef.current && typeof scannerRef.current.clear === 'function') {
+         scannerRef.current.clear().catch(error => { /* ignore */ });
+         scannerRef.current = null;
+      }
+    };
+  }, [showScanner]);
+
+  // Reset state to allow scanning again
+  const handleScanAgain = () => {
+      setVerificationResult(null);
+      setShowScanner(true); // Just show scanner again
+  };
+
   return (
-    <div className="dashboard-content">
-      <div className="dashboard-nav">
-        <button 
-          className={activeTab === 'overview' ? 'active' : ''} 
-          onClick={() => setActiveTab('overview')}
-        >
-          Overview
-        </button>
-        <button 
-          className={activeTab === 'donate' ? 'active' : ''} 
-          onClick={() => setActiveTab('donate')}
-        >
-          Donate
-        </button>
-        <button 
-          className={activeTab === 'impact' ? 'active' : ''} 
-          onClick={() => setActiveTab('impact')}
-        >
-          Impact
-        </button>
-      </div>
+    <div className="dashboard-container">
+      <div className="dashboard-content">
+        <div className="dashboard-nav">
+          <button 
+            className={activeTab === 'overview' ? 'active' : ''} 
+            onClick={() => setActiveTab('overview')}
+          >
+            Overview
+          </button>
+          <button 
+            className={activeTab === 'donate' ? 'active' : ''} 
+            onClick={() => setActiveTab('donate')}
+          >
+            Donate
+          </button>
+          <button 
+            className={activeTab === 'impact' ? 'active' : ''} 
+            onClick={() => setActiveTab('impact')}
+          >
+            Impact
+          </button>
+          <button 
+            className={activeTab === 'verify' ? 'active' : ''} 
+            onClick={() => setActiveTab('verify')}
+          >
+            Verify Volunteer
+          </button>
+        </div>
 
       {activeTab === 'overview' && (
         <div className="overview-section">
@@ -97,15 +274,33 @@ const SupplierDashboard = () => {
       {activeTab === 'donate' && (
         <div className="donate-section">
           <h3>Donate Food Items</h3>
-          <div className="donate-form">
+          {submitError && (
+            <div className="error-message">
+              {submitError}
+            </div>
+          )}
+          <form className="donate-form" onSubmit={handleSubmit}>
             <div className="form-group">
-              <label>Item Name</label>
-              <input type="text" placeholder="e.g., Fresh Produce" />
+              <label>Item Name *</label>
+              <input
+                type="text"
+                name="itemName"
+                value={formData.itemName}
+                onChange={handleInputChange}
+                placeholder="e.g., Fresh Produce"
+              />
+              {formErrors.itemName && (
+                <span className="error-text">{formErrors.itemName}</span>
+              )}
             </div>
             
             <div className="form-group">
-              <label>Category</label>
-              <select>
+              <label>Category *</label>
+              <select
+                name="category"
+                value={formData.category}
+                onChange={handleInputChange}
+              >
                 <option value="">Select a category</option>
                 <option value="produce">Fresh Produce</option>
                 <option value="bakery">Bakery</option>
@@ -117,38 +312,91 @@ const SupplierDashboard = () => {
                 <option value="prepared">Prepared Meals</option>
                 <option value="other">Other</option>
               </select>
+              {formErrors.category && (
+                <span className="error-text">{formErrors.category}</span>
+              )}
             </div>
             
             <div className="form-row">
               <div className="form-group">
-                <label>Quantity</label>
-                <input type="text" placeholder="e.g., 5 kg or 10 packages" />
+                <label>Quantity *</label>
+                <input
+                  type="text"
+                  name="quantity"
+                  value={formData.quantity}
+                  onChange={handleInputChange}
+                  placeholder="e.g., 5 kg or 10 packages"
+                />
+                {formErrors.quantity && (
+                  <span className="error-text">{formErrors.quantity}</span>
+                )}
               </div>
               
               <div className="form-group">
-                <label>Expiration Date</label>
-                <input type="date" />
+                <label>Expiration Date *</label>
+                <input
+                  type="date"
+                  name="expirationDate"
+                  value={formData.expirationDate}
+                  onChange={handleInputChange}
+                />
+                {formErrors.expirationDate && (
+                  <span className="error-text">{formErrors.expirationDate}</span>
+                )}
               </div>
             </div>
             
             <div className="form-group">
-              <label>Pickup Information</label>
-              <textarea placeholder="Details about pickup availability, storage requirements, or other important information"></textarea>
+              <label>Pickup Information *</label>
+              <textarea
+                name="pickupInfo"
+                value={formData.pickupInfo}
+                onChange={handleInputChange}
+                placeholder="Details about pickup availability, storage requirements, or other important information"
+              />
+              {formErrors.pickupInfo && (
+                <span className="error-text">{formErrors.pickupInfo}</span>
+              )}
             </div>
             
             <div className="form-group">
               <label>Upload Image (Optional)</label>
               <div className="file-upload">
-                <input type="file" id="food-image" accept="image/*" />
+                <input
+                  type="file"
+                  id="food-image"
+                  accept="image/*"
+                  onChange={(e) => {
+                    // Handle file upload here
+                    // For now, we'll just store the file name
+                    setFormData(prev => ({
+                      ...prev,
+                      imageUrl: e.target.value
+                    }));
+                  }}
+                />
                 <label htmlFor="food-image">Choose File</label>
               </div>
             </div>
             
-            <div className="form-buttons">
-              <button className="primary-btn">List Donation</button>
-              <button className="secondary-btn">Save Draft</button>
+            <div className="form-buttons-container">
+              <div className="form-buttons">
+                <button
+                  type="submit"
+                  className="primary-btn"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Listing...' : 'List Donation'}
+                </button>
+              </div>
+              {submitSuccess && (
+                <div className="success-message-inline">
+                  <span className="success-icon">✓</span>
+                  Donation listed successfully!
+                </div>
+              )}
             </div>
-          </div>
+          </form>
           
           <div className="current-inventory">
             <h3>Current Available Items</h3>
@@ -269,6 +517,65 @@ const SupplierDashboard = () => {
           </div>
         </div>
       )}
+      
+      {activeTab === 'verify' && (
+          <div className="verify-volunteer-section card-style"> 
+            <h3><i className="fas fa-user-check"></i> Verify Volunteer</h3>
+
+            {/* Show Scan Button or Result */} 
+            {!verificationResult ? ( 
+              <div className="scanner-area single-step">
+                 <p>Scan the volunteer's dynamic QR code directly.</p>
+                 {!showScanner && (
+                    <button 
+                      className="primary-btn scan-button large" // Added large class
+                      onClick={() => setShowScanner(true)} 
+                      disabled={isVerifying} // Disable while verifying previous scan
+                    >
+                      <i className="fas fa-qrcode"></i> Scan Volunteer Code
+                    </button>
+                 )}
+                 {/* Scanner container */} 
+                 <div id="qr-reader-container" style={{ display: showScanner ? 'block' : 'none' }}>
+                   <div id="qr-reader"></div> 
+                   <button 
+                      className="secondary-btn cancel-scan-btn" 
+                      onClick={() => setShowScanner(false)} 
+                      disabled={isVerifying}
+                    >
+                     Cancel Scan
+                    </button>
+                 </div>
+              </div>
+             ) : ( 
+               // Show the result after verification attempt
+               <div className={`verification-result ${verificationResult.isValid === true ? 'valid' : verificationResult.isValid === false ? 'invalid' : 'pending'}`}>
+                 {/* Display Verification Status Icon/Text */}
+                  <h4>
+                   {verificationResult.isValid === true 
+                     ? <><i className="fas fa-check-circle"></i> Verification Successful</>
+                     : verificationResult.isValid === false
+                     ? <><i className="fas fa-times-circle"></i> Verification Failed</>
+                     : <><i className="fas fa-spinner fa-spin"></i> Verifying...</>
+                   }
+                 </h4>
+                 <p>{verificationResult.message}</p>
+                  {verificationResult.isValid && verificationResult.volunteer && (
+                   <p><strong>Volunteer:</strong> {verificationResult.volunteer.username}</p>
+                  )}
+                  {/* Button to scan again */} 
+                  <button 
+                      className="primary-btn scan-again-btn" 
+                      onClick={handleScanAgain} 
+                      disabled={isVerifying || showScanner} 
+                    >
+                      Scan Another Volunteer
+                    </button>
+                </div>
+             )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

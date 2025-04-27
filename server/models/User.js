@@ -16,8 +16,11 @@ const userSchema = new mongoose.Schema({
   accountType: {
     type: String,
     required: true,
-    enum: ['individual', 'business', 'distributor'],
+    enum: ['individual', 'business', 'distributor', 'volunteer'],
     default: 'individual'
+  },
+  volunteerSecret: {
+    type: String,
   },
   createdAt: {
     type: Date,

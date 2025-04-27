@@ -21,6 +21,7 @@ import Dashboard from './pages/Dashboard';
 import SupplierDashboard from './pages/SupplierDashboard';
 import FoodBankDashboard from './pages/FoodBankDashboard';
 import IndividualDashboard from './pages/IndividualDashboard';
+import VolunteerDashboard from './pages/VolunteerDashboard';
 import Profile from './components/auth/Profile';
 
 // Create a context for user data
@@ -148,14 +149,16 @@ function App() {
               <Route 
                 path="/dashboard" 
                 element={
-                  <Dashboard 
-                    userType={
-                      userData?.accountType === 'business' || userData?.accountType === 'supplier' ? 'supplier' :
-                      userData?.accountType === 'distributor' || userData?.accountType === 'foodbank' ? 'foodbank' :
-                      userData?.accountType === 'individual' ? 'individual' : 
-                      'foodbank' // Default fallback type
-                    }
-                  />
+                  isAuthenticated ? (
+                    userData?.accountType === 'business' || userData?.accountType === 'supplier' ? <SupplierDashboard /> :
+                    userData?.accountType === 'distributor' || userData?.accountType === 'foodbank' ? <FoodBankDashboard /> :
+                    userData?.accountType === 'individual' ? <IndividualDashboard /> :
+                    userData?.accountType === 'volunteer' ? <VolunteerDashboard /> :
+                    isLoading || isCheckingUser || !userData ? <div>Loading dashboard...</div> : 
+                    <div>Loading... Determining dashboard type...</div>
+                  ) : (
+                    <div>Please log in to view the dashboard.</div>
+                  )
                 } 
               />
               <Route path="/profile" element={<Profile />} />
