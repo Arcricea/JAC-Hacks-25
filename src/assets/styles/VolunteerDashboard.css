@@ -303,31 +303,96 @@
 }
 
 .status-badge {
-  font-size: 0.8rem;
-  padding: 4px 10px;
+  display: inline-block;
+  padding: 3px 8px;
   border-radius: 12px;
-  text-transform: capitalize;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+  margin-left: 10px;
+  background-color: #aaa;
 }
 
-.status-badge.assigned {
-  background-color: #e3f2fd;
-  color: #0d47a1;
+.status-badge.available {
+  background-color: #2196F3;
+}
+
+.status-badge.scheduled {
+  background-color: #FF9800;
+}
+
+.status-badge.picked_up {
+  background-color: #9C27B0;
+}
+
+.status-badge.delivered {
+  background-color: #4CAF50;
 }
 
 .status-badge.completed {
-  background-color: #e8f5e9;
-  color: #1b5e20;
-}
-
-.status-badge.pending {
-  background-color: #fff3e0;
-  color: #e65100;
+  background-color: #4CAF50;
 }
 
 .status-badge.cancelled {
-  background-color: #ffebee;
-  color: #b71c1c;
+  background-color: #F44336;
+}
+
+.scan-qr-btn {
+  padding: 8px 15px;
+  background-color: #9C27B0;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  margin: 0 5px;
+}
+
+.scan-qr-btn:hover {
+  background-color: #7B1FA2;
+}
+
+.scan-qr-btn:disabled {
+  background-color: #D1C4E9;
+  cursor: not-allowed;
+}
+
+.delivery-btn {
+  padding: 8px 15px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  margin: 0 5px;
+}
+
+.delivery-btn:hover {
+  background-color: #388E3C;
+}
+
+.volunteer-id-card {
+  text-align: center;
+  padding: 30px;
+}
+
+.qr-code-container {
+  margin: 20px auto;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  width: fit-content;
+  background-color: white;
+}
+
+.single-qr-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Make the content area fill available space */
