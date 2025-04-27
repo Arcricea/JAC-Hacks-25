@@ -241,70 +241,78 @@ const FoodBankDashboard = () => {
 
           <div className="food-bank-contact-card">
             <h3>Food Bank Information</h3>
-            {isEditingInfo ? (
-              <div className="contact-form inline">
-                <div className="form-group">
-                  <label>Address</label>
-                  <input 
-                    type="text" 
-                    value={address} 
-                    onChange={(e) => setAddress(e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Phone</label>
-                  <input 
-                    type="tel" 
-                    value={phone} 
-                    onChange={(e) => setPhone(e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Email</label>
-                  <input 
-                    type="email" 
-                    value={email} 
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Hours</label>
-                  <input 
-                    type="text" 
-                    value={openingHours} 
-                    onChange={(e) => setOpeningHours(e.target.value)}
-                  />
-                </div>
-                <div className="form-buttons">
-                  <button 
-                    className="primary-btn"
-                    onClick={handleSaveInfo}
-                  >
-                    Save
-                  </button>
-                  <button 
-                    className="secondary-btn"
-                    onClick={() => setIsEditingInfo(false)}
-                  >
-                    Cancel
-                  </button>
+            <div className="food-bank-info-container">
+              <div className="info-item">
+                <strong>Address:</strong>
+                <div 
+                  className="editable-field"
+                  contentEditable={isEditingInfo}
+                  suppressContentEditableWarning={true}
+                  onBlur={(e) => setAddress(e.target.innerText)}
+                >
+                  {address || <span className="placeholder-text">Enter your address here</span>}
                 </div>
               </div>
-            ) : (
-              <>
-                <div className="contact-info">
-                  <p><strong>Address:</strong> {address}</p>
-                  <p><strong>Phone:</strong> {phone}</p>
-                  <p><strong>Email:</strong> {email}</p>
-                  <p><strong>Hours:</strong> {openingHours}</p>
-                </div>
-                <button 
-                  className="edit-info-btn"
-                  onClick={() => setIsEditingInfo(true)}
+              
+              <div className="info-item">
+                <strong>Phone:</strong>
+                <div 
+                  className="editable-field"
+                  contentEditable={isEditingInfo}
+                  suppressContentEditableWarning={true}
+                  onBlur={(e) => setPhone(e.target.innerText)}
                 >
-                  Edit Information
+                  {phone || <span className="placeholder-text">Enter your phone number here</span>}
+                </div>
+              </div>
+              
+              <div className="info-item">
+                <strong>Email:</strong>
+                <div 
+                  className="editable-field"
+                  contentEditable={isEditingInfo}
+                  suppressContentEditableWarning={true}
+                  onBlur={(e) => setEmail(e.target.innerText)}
+                >
+                  {email || <span className="placeholder-text">Enter your email address here</span>}
+                </div>
+              </div>
+              
+              <div className="info-item">
+                <strong>Hours:</strong>
+                <div 
+                  className="editable-field"
+                  contentEditable={isEditingInfo}
+                  suppressContentEditableWarning={true}
+                  onBlur={(e) => setOpeningHours(e.target.innerText)}
+                >
+                  {openingHours || <span className="placeholder-text">Enter your operating hours here</span>}
+                </div>
+              </div>
+            </div>
+
+            {isEditingInfo ? (
+              <div className="edit-controls">
+                <button 
+                  className="save-btn modern-btn" 
+                  onClick={handleSaveInfo}
+                >
+                  <span className="save-icon">✓</span>
                 </button>
-              </>
+                <button 
+                  className="cancel-btn modern-btn" 
+                  onClick={() => setIsEditingInfo(false)}
+                >
+                  <span className="cancel-icon">×</span>
+                </button>
+              </div>
+            ) : (
+              <button 
+                className="edit-info-btn" 
+                onClick={() => setIsEditingInfo(true)}
+              >
+                <span className="edit-icon">✏️</span>
+              </button>
             )}
           </div>
 

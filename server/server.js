@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const userRoutes = require('./routes/userRoutes');
 const donationRoutes = require('./routes/donationRoutes');
+const addressRoutes = require('./routes/addressRoutes');
 const organizerRoutes = require('./routes/organizerRoutes');
 
 // Import MongoDB URI from test-mongodb.js
@@ -24,6 +25,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/users', userRoutes);
 app.use('/api/donations', donationRoutes);
+app.use('/api/address', addressRoutes);
 app.use('/api/organizer', organizerRoutes);
 
 // Health check route
