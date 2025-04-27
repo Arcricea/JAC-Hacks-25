@@ -25,12 +25,12 @@ const HowItWorks = () => {
       <section className="hero-section">
         <div className="hero-container">
           <div className="hero-content">
-            <h1>Making Food Rescue Easier and Faster</h1>
+            <h1>How MealNet Works</h1>
             <p>
-              At MealNet, we connect food suppliers with excess inventory to those who need it most. 
-              Our platform makes it easy to reduce food waste and help your community.
+              MealNet is a prototype platform connecting food suppliers with excess inventory to food banks 
+              and individuals in need. Our platform streamlines the donation process through a network of 
+              volunteers and organizers.
             </p>
-            <AuthSignupButton className="primary-btn">Get Started Now</AuthSignupButton>
           </div>
           <div className="hero-image">
             <div className="rotating-images">
@@ -47,97 +47,154 @@ const HowItWorks = () => {
         </div>
       </section>
 
-      {/* Process Steps */}
-      <section className="process-section">
-        <h2>Our Simple Process</h2>
-        <div className="steps-container">
-          <div className="step">
-            <div className="step-icon">📝</div>
-            <h3>1. Sign Up</h3>
-            <p>Create your account as a food supplier, food bank, or individual volunteer</p>
+      {/* Platform Flow Explanation */}
+      <section className="platform-flow">
+        <h2>The MealNet Ecosystem</h2>
+        <div className="flow-container">
+          <div className="flow-step">
+            <div className="flow-number">1</div>
+            <h3>Food Suppliers List Donations</h3>
+            <p>Restaurants, grocery stores, and food businesses with excess food can quickly list available 
+            items with details like food type, quantity, and pickup instructions.</p>
           </div>
-          <div className="step">
-            <div className="step-icon">🔍</div>
-            <h3>2. Connect</h3>
-            <p>Food banks and volunteers can find nearby food suppliers to donate to</p>
+          <div className="flow-step">
+            <div className="flow-number">2</div>
+            <h3>Food Banks Signal Needs</h3>
+            <p>Food banks and distribution centers can indicate their current need level (from low to urgent) 
+            and specify what types of donations they're seeking.</p>
           </div>
-          <div className="step">
-            <div className="step-icon">🤝</div>
-            <h3>3. Coordinate</h3>
-            <p>Arrange convenient pickup or delivery times through our platform</p>
+          <div className="flow-step">
+            <div className="flow-number">3</div>
+            <h3>Volunteers Bridge the Gap</h3>
+            <p>Volunteers browse available donation tasks, accept pickups, and coordinate delivery 
+            to food banks or individuals in need using our verification system.</p>
           </div>
-          <div className="step">
-            <div className="step-icon">♻️</div>
-            <h3>4. Make an Impact</h3>
-            <p>Track your contribution to reducing food waste and helping the community</p>
+          <div className="flow-step">
+            <div className="flow-number">4</div>
+            <h3>Organizers Manage the Network</h3>
+            <p>Organizers oversee the entire ecosystem, helping match donations with needs, 
+            tracking impact data, and ensuring the system runs efficiently.</p>
           </div>
         </div>
       </section>
 
-      {/* User Roles */}
-      <section className="user-types">
-        <h2>Who Can Use MealNet?</h2>
-        <div className="user-cards">
-          <div className="user-card">
-            <div className="user-icon">🏪</div>
+      {/* User Roles in Detail */}
+      <section className="user-roles">
+        <h2>Platform Participants</h2>
+        
+        <div className="role-card">
+          <div className="role-icon">🏪</div>
+          <div className="role-content">
             <h3>Food Suppliers</h3>
-            <p>Restaurants, grocery stores, and food businesses can easily donate surplus food items</p>
-            <ul className="feature-list">
-              <li>✓ Simple donation listing</li>
-              <li>✓ Flexible pickup scheduling</li>
-              <li>✓ Impact tracking dashboard</li>
-              <li>✓ Tax deduction documentation</li>
+            <p>Businesses with surplus food inventory that would otherwise go to waste.</p>
+            <h4>Key Features:</h4>
+            <ul>
+              <li>Simple donation listing system</li>
+              <li>Photo upload and food categorization</li>
+              <li>Pickup scheduling and tracking</li>
+              <li>Verification codes for secure handoffs</li>
+              <li>Impact tracking (meals saved, CO2 prevented)</li>
             </ul>
-            <Link to="/signup?type=supplier" className="learn-more">Join as Supplier</Link>
           </div>
-          <div className="user-card">
-            <div className="user-icon">🏢</div>
-            <h3>Food Banks & Shelters</h3>
-            <p>Food banks and charitable organizations can find and collect available donations</p>
-            <ul className="feature-list">
-              <li>✓ Real-time donation alerts</li>
-              <li>✓ Route optimization</li>
-              <li>✓ Inventory management</li>
-              <li>✓ Distribution tracking</li>
+        </div>
+        
+        <div className="role-card">
+          <div className="role-icon">🍲</div>
+          <div className="role-content">
+            <h3>Food Banks & Distributors</h3>
+            <p>Organizations that collect and distribute food to those in need.</p>
+            <h4>Key Features:</h4>
+            <ul>
+              <li>Need status signaling (priority levels)</li>
+              <li>Custom status messages for specific needs</li>
+              <li>Address and contact information management</li>
+              <li>Delivery verification system</li>
+              <li>Schedule management for open hours</li>
             </ul>
-            <Link to="/signup?type=foodbank" className="learn-more">Join as Food Bank</Link>
           </div>
-          <div className="user-card">
-            <div className="user-icon">👥</div>
+        </div>
+        
+        <div className="role-card">
+          <div className="role-icon">🤝</div>
+          <div className="role-content">
+            <h3>Volunteers</h3>
+            <p>Individuals who transport food from suppliers to food banks or those in need.</p>
+            <h4>Key Features:</h4>
+            <ul>
+              <li>Browse available donation tasks</li>
+              <li>Filter donations by location and category</li>
+              <li>QR code scanning for pickup verification</li>
+              <li>Task management for scheduled pickups</li>
+              <li>Food bank recommendations based on location</li>
+              <li>Impact tracking for completed deliveries</li>
+            </ul>
+          </div>
+        </div>
+        
+        <div className="role-card">
+          <div className="role-icon">👤</div>
+          <div className="role-content">
             <h3>Individuals</h3>
-            <p>People in need can find available food assistance programs and resources</p>
-            <ul className="feature-list">
-              <li>✓ Find nearby food banks</li>
-              <li>✓ Schedule pickups</li>
-              <li>✓ Access resources</li>
-              <li>✓ Community support</li>
+            <p>People in need of food assistance or who can offer small donations.</p>
+            <h4>Key Features:</h4>
+            <ul>
+              <li>Food assistance request system</li>
+              <li>Personal donation listing for smaller contributions</li>
+              <li>Pickup scheduling for receiving donations</li>
+              <li>History tracking of assistance received</li>
             </ul>
-            <Link to="/signup?type=individual" className="learn-more">Join as Individual</Link>
+          </div>
+        </div>
+        
+        <div className="role-card">
+          <div className="role-icon">📋</div>
+          <div className="role-content">
+            <h3>Organizers</h3>
+            <p>Administrators who oversee and manage the entire donation ecosystem.</p>
+            <h4>Key Features:</h4>
+            <ul>
+              <li>Food bank management dashboard</li>
+              <li>Donation oversight across all stages</li>
+              <li>System-wide data access and reporting</li>
+              <li>Manual donation creation and assignment</li>
+              <li>Food bank need status management</li>
+            </ul>
           </div>
         </div>
       </section>
 
-      {/* Impact Stats */}
-      <section className="stats-section">
-        <div className="stat-card">
-          <h3>10,000+</h3>
-          <p>Meals Rescued</p>
+      {/* Verification System */}
+      <section className="verification-section">
+        <h2>Our Verification System</h2>
+        <div className="verification-content">
+          <div className="verification-item">
+            <h3>QR Codes & 8-Digit Codes</h3>
+            <p>Each donation has a unique verification code that volunteers must scan or enter to confirm pickup and delivery, ensuring accountability throughout the process.</p>
+          </div>
+          <div className="verification-item">
+            <h3>Status Tracking</h3>
+            <p>Donations move through multiple statuses: Available → Scheduled → Picked Up → Delivered, with validation at each step.</p>
+          </div>
         </div>
-        <div className="stat-card">
-          <h3>500+</h3>
-          <p>Active Partners</p>
-        </div>
-        <div className="stat-card">
-          <h3>5,000+</h3>
-          <p>People Helped</p>
+      </section>
+
+      {/* Prototype Notice */}
+      <section className="prototype-notice">
+        <div className="prototype-content">
+          <h3>Early Development Stage</h3>
+          <p>MealNet is currently a prototype in development. The features described represent our vision for a fully functional platform.</p>
+          <p>We're seeking partners for testing and feedback to improve the system before wider release.</p>
         </div>
       </section>
 
       {/* CTA Section */}
       <section className="cta-section">
-        <h2>Ready to Make a Difference?</h2>
-        <p>Join MealNet today and be part of the solution to food waste and hunger in your community.</p>
-        <AuthSignupButton className="cta-button">Get Started</AuthSignupButton>
+        <h2>Join the MealNet Network</h2>
+        <p>Help us build a more efficient food rescue ecosystem.</p>
+        <div className="cta-buttons">
+          <AuthSignupButton className="cta-button">Join Our Beta</AuthSignupButton>
+          <Link to="/forum" className="secondary-cta">Visit Our Forum</Link>
+        </div>
       </section>
     </div>
   );

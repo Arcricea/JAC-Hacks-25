@@ -28,10 +28,12 @@ const Home = () => {
             <h1>Reduce Food Waste, Feed Communities</h1>
             <p>
               MealNet connects food suppliers with food banks and individuals in need to rescue surplus food 
-              before it's wasted. Join us in creating a more sustainable future.
+              before it's wasted.
             </p>
             <div className="hero-buttons">
               <AuthSignupButton className="primary-btn">Get Started</AuthSignupButton>
+              <Link to="/how-it-works" className="secondary-btn">Learn More</Link>
+              <Link to="/about" className="secondary-btn">About Us</Link>
             </div>
           </div>
           <div className="hero-image">
@@ -49,67 +51,23 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="stats-section">
-        <div className="stat-card">
-          <h3>1/3</h3>
-          <p>of all food produced globally is wasted</p>
-        </div>
-        <div className="stat-card">
-          <h3>$1 Trillion</h3>
-          <p>worth of food is lost or wasted annually</p>
-        </div>
-        <div className="stat-card">
-          <h3>Millions</h3>
-          <p>of people face food insecurity daily</p>
-        </div>
-      </section>
-
-      {/* How It Works Section */}
-      <section className="how-it-works">
-        <h2>How MealNet Works</h2>
-        <div className="steps-container">
-          <div className="step">
-            <div className="step-icon">📝</div>
-            <h3>Register</h3>
-            <p>Sign up as a food supplier, food bank, or individual seeking assistance</p>
-          </div>
-          <div className="step">
-            <div className="step-icon">🔄</div>
-            <h3>Connect</h3>
-            <p>List surplus food or find available donations in your area</p>
-          </div>
-          <div className="step">
-            <div className="step-icon">🚚</div>
-            <h3>Coordinate</h3>
-            <p>Arrange pickup or delivery of food items</p>
-          </div>
-          <div className="step">
-            <div className="step-icon">🌱</div>
-            <h3>Impact</h3>
-            <p>Reduce waste, feed communities, and track your contribution</p>
-          </div>
-        </div>
-      </section>
-
-      {/* User Types Section */}
-      <section className="user-types">
-        <h2>Who Can Use MealNet?</h2>
-        <div className="user-cards">
-          <div className="user-card">
-            <div className="user-icon">🍽️</div>
-            <h3>Restaurants & Grocery Stores</h3>
-            <p>Donate surplus food, reduce waste, and make a difference in your community</p>
-          </div>
-          <div className="user-card">
-            <div className="user-icon">🏠</div>
-            <h3>Food Banks & Shelters</h3>
-            <p>Connect with food suppliers to receive fresh donations for those in need</p>
-          </div>
-          <div className="user-card">
-            <div className="user-icon">👪</div>
-            <h3>Individuals</h3>
-            <p>Access available food assistance or volunteer to help with food distribution</p>
+      {/* Brief Description Section */}
+      <section className="brief-description">
+        <div className="description-content">
+          <h2>Who We Serve</h2>
+          <div className="description-items">
+            <div className="description-item">
+              <h3>Food Suppliers</h3>
+              <p>Restaurants, grocery stores, and food manufacturers</p>
+            </div>
+            <div className="description-item">
+              <h3>Food Banks</h3>
+              <p>Shelters and distribution centers</p>
+            </div>
+            <div className="description-item">
+              <h3>Individuals</h3>
+              <p>People seeking food assistance</p>
+            </div>
           </div>
         </div>
       </section>
@@ -118,7 +76,6 @@ const Home = () => {
       <section className="cta-section">
         <div className="cta-content">
           <h2>Ready to make a difference?</h2>
-          <p>Join MealNet today and help us build a more sustainable food system.</p>
           <AuthSignupButton className="cta-button">Sign Up Now</AuthSignupButton>
         </div>
       </section>
