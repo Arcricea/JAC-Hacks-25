@@ -35,7 +35,7 @@ exports.saveUser = async (req, res) => {
        const finalAccountType = incomingAccountType; // Use provided type for new user
        // Prepare data for NEW user creation
        const createData = {
-          username,
+        username,
           accountType: finalAccountType,
           ...(req.body.address !== undefined && { address: req.body.address.trim() }),
           ...(req.body.email !== undefined && { email: req.body.email.trim() }),
@@ -108,17 +108,17 @@ exports.saveUser = async (req, res) => {
 
       // Handle volunteer secret logic based on finalAccountType and previous type
       if (finalAccountType === 'volunteer' && !user.volunteerSecret) { 
-         const secret = speakeasy.generateSecret({ length: 20 });
-         user.volunteerSecret = secret.base32;
+        const secret = speakeasy.generateSecret({ length: 20 });
+        user.volunteerSecret = secret.base32;
       }
       else if (previousAccountType === 'volunteer' && finalAccountType !== 'volunteer') { 
-        user.volunteerSecret = null; 
+      user.volunteerSecret = null;
       }
     }
 
     // Save the user with specific error handling for save operation
     try {
-      await user.save();
+    await user.save();
     } catch (saveError) {
       // Log the detailed error
       console.error('Error during user.save():', saveError);
