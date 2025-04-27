@@ -10,7 +10,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import UsernameSetupModal from './components/auth/UsernameSetupModal';
 import UserTypeModal from './components/auth/UserTypeModal';
-import ChatbotWrapper from './components/ChatbotWrapper';
+import ChatBot from './components/ChatBot';
 
 // Pages
 import Home from './pages/Home';
@@ -176,9 +176,6 @@ function App() {
             </main>
             <Footer />
             
-            {/* Chatbot */}
-            <ChatbotWrapper />
-            
             {/* Modals */}
             <UsernameSetupModal 
               isOpen={showUsernameModal}
@@ -188,6 +185,9 @@ function App() {
               isOpen={showUserTypeModal} 
               onComplete={handleUserTypeComplete} 
             />
+            
+            {/* Gemini ChatBot */}
+            <ChatBot />
           </div>
         </Router>
       </UserProvider>
