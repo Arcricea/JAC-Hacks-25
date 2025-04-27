@@ -3,6 +3,8 @@ const API_URL = 'http://localhost:5000/api';
 // Save user data (username and account type)
 export const saveUser = async (userData) => {
   try {
+    console.log('Saving user data:', userData); // Add this for debugging
+    
     const response = await fetch(`${API_URL}/users`, {
       method: 'POST',
       headers: {
@@ -12,6 +14,7 @@ export const saveUser = async (userData) => {
     });
 
     const data = await response.json();
+    console.log('Save user response:', data); // Add this for debugging
     
     if (!response.ok) {
       throw new Error(data.message || 'Failed to save user data');
