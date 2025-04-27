@@ -577,4 +577,26 @@
 .cancel-pickup-btn:disabled {
   background: #e4606d;
   cursor: not-allowed;
+}
+
+/* Special styling for tasks that are in progress (picked up) */
+.task-in-progress {
+  border-left: 5px solid #9C27B0;
+  background-color: #f9f4fb;
+  box-shadow: 0 4px 10px rgba(156, 39, 176, 0.15);
+}
+
+.task-in-progress .task-card-header {
+  background-color: #f3e5f5;
+}
+
+/* Special styling for completed tasks in history */
+.completed-task {
+  border-left: 5px solid #4CAF50;
+  background-color: #f5f9f5;
+  box-shadow: 0 4px 10px rgba(76, 175, 80, 0.15);
+}
+
+.completed-task .task-card-header {
+  background-color: #e8f5e9;
 } 

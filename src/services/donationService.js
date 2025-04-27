@@ -205,6 +205,27 @@ export const getVolunteerCompletedDonationCount = async (volunteerId, requesting
   }
 };
 
+// Get volunteer completed donations for history
+export const getVolunteerCompletedDonations = async (volunteerId, requestingUserId) => {
+  try {
+    const response = await fetch(`${API_URL}/donations/volunteer/completed/${volunteerId}`, {
+      headers: {
+        ...(requestingUserId && { 'X-Requesting-User-Id': requestingUserId })
+      }
+    });
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch volunteer completed donations');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching volunteer completed donations:', error);
+    throw error;
+  }
+};
+
 // Cancel a donation assignment for a volunteer
 export const cancelVolunteerAssignment = async (donationId, volunteerId) => {
   try {

@@ -346,23 +346,23 @@ exports.confirmSupplierPickup = async (req, res) => {
         volunteerId: scannedVolunteerId, // Match the specific volunteer
         status: 'scheduled' 
       },
-      { $set: { status: 'completed' } } // Update status to completed
+      { $set: { status: 'picked_up', pickupDate: new Date() } } // Update status to picked_up instead of completed
     );
 
     if (updateResult.matchedCount === 0) {
       return res.status(200).json({
         success: true, 
-        message: 'No scheduled donations found for this supplier and volunteer combination to mark as completed.', // Updated message
+        message: 'No scheduled donations found for this supplier and volunteer combination to mark as picked up.', // Updated message
         modifiedCount: 0
       });
     }
 
     // If update was successful, maybe update related AssignedTask status if that model is still used elsewhere
-    // Example: await AssignedTask.updateMany({ volunteerId: scannedVolunteerId, status: 'pending' }, { $set: { status: 'completed' } });
+    // Example: await AssignedTask.updateMany({ volunteerId: scannedVolunteerId, status: 'pending' }, { $set: { status: 'picked_up' } });
 
     res.status(200).json({
       success: true,
-      message: `Successfully marked ${updateResult.modifiedCount} donation(s) from volunteer ${scannedVolunteerId} as completed.`, // Updated message
+      message: `Successfully marked ${updateResult.modifiedCount} donation(s) from volunteer ${scannedVolunteerId} as picked up.`, // Updated message
       modifiedCount: updateResult.modifiedCount
     });
 
@@ -441,7 +441,7 @@ exports.getVolunteerScheduledDonations = async (req, res) => {
 
     const scheduledDonations = await Donation.find({
       volunteerId: volunteerId,
-      status: 'scheduled'
+      status: { $in: ['scheduled', 'picked_up'] }  // Include both scheduled and picked_up status
     })
     .sort({ createdAt: 1 }); // Or sort by expirationDate, etc.
 
@@ -589,6 +589,32 @@ exports.cancelVolunteerAssignment = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// New function to get a volunteer's completed donations for history
+exports.getVolunteerCompletedDonations = async (req, res) => {
+  try {
+    const { volunteerId } = req.params; // Expect volunteer's auth0Id
+
+    const completedDonations = await Donation.find({
+      volunteerId: volunteerId,
+      status: 'completed'
+    })
+    .sort({ deliveryDate: -1 }); // Most recent completions first
+
+    res.status(200).json({
+      success: true,
+      data: completedDonations
+    });
+
+  } catch (error) {
+    console.error("Error fetching volunteer completed donations:", error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching volunteer completed donations',
       error: error.message
     });
   }

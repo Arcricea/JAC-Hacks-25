@@ -10,7 +10,8 @@ const Profile = () => {
   const { user, isAuthenticated, isLoading } = useAuth0();
   const { userData, setUserData } = useContext(UserContext);
   const [nickname, setNickname] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingAccountType, setIsChangingAccountType] = useState(false);
   const [error, setError] = useState("");
@@ -40,7 +41,7 @@ const Profile = () => {
   }, [userData]);
 
   useEffect(() => {
-    if (isEditing && isGoogleLoaded && autocompleteInputRef.current) {
+    if (isEditingAddress && isGoogleLoaded && autocompleteInputRef.current) {
       try {
         autocompleteRef.current = new window.google.maps.places.Autocomplete(
           autocompleteInputRef.current,
@@ -76,7 +77,7 @@ const Profile = () => {
         setAddressError('Error initializing address autocomplete');
       }
     }
-  }, [isEditing, isGoogleLoaded]);
+  }, [isEditingAddress, isGoogleLoaded]);
 
   const handleGoogleMapsLoad = () => {
     setIsGoogleLoaded(true);
@@ -118,7 +119,7 @@ const Profile = () => {
       setTimeout(() => setSuccessMessage(""), 3000);
       
       // Exit edit mode
-      setIsEditing(false);
+      setIsEditingUsername(false);
     } catch (err) {
       setError("Failed to update username. Please try again.");
     } finally {
@@ -258,7 +259,7 @@ const Profile = () => {
 
       if (response.success) {
         setUserData(response.data);
-        setIsEditing(false);
+        setIsEditingAddress(false);
         setAddressSaveStatus({
           message: "✓ Address saved successfully!",
           type: 'success'
@@ -299,7 +300,7 @@ const Profile = () => {
           
           <div className="profile-username-section">
             <h3>Username</h3>
-            {isEditing ? (
+            {isEditingUsername ? (
               <div className="username-edit">
                 <input
                   type="text"
@@ -308,17 +309,17 @@ const Profile = () => {
                   placeholder="Enter a username"
                   className="username-input"
                 />
-                <div className="username-actions">
+                <div className="address-buttons">
                   <button 
                     onClick={handleUpdateNickname} 
                     disabled={isSaving}
-                    className="save-username-btn"
+                    className="primary-btn"
                   >
-                    {isSaving ? "Saving..." : "Save"}
+                    {isSaving ? "Saving..." : "Save Username"}
                   </button>
                   <button 
                     onClick={() => {
-                      setIsEditing(false);
+                      setIsEditingUsername(false);
                       setNickname(userData?.username || "");
                     }}
                     className="cancel-btn"
@@ -332,7 +333,7 @@ const Profile = () => {
               <div className="username-display">
                 <p>{nickname || "No username set"}</p>
                 <button 
-                  onClick={() => setIsEditing(true)}
+                  onClick={() => setIsEditingUsername(true)}
                   className="edit-username-btn"
                 >
                   Edit
@@ -364,14 +365,14 @@ const Profile = () => {
           
           <div className="profile-section">
             <h3>Address Information</h3>
-            {!isEditing ? (
+            {!isEditingAddress ? (
               <div className="address-display">
                 {userData?.address ? (
                   <>
                     <p>{userData.address}</p>
                     <button 
                       className="edit-btn"
-                      onClick={() => setIsEditing(true)}
+                      onClick={() => setIsEditingAddress(true)}
                     >
                       Edit Address
                     </button>
@@ -379,7 +380,7 @@ const Profile = () => {
                 ) : (
                   <button 
                     className="primary-btn"
-                    onClick={() => setIsEditing(true)}
+                    onClick={() => setIsEditingAddress(true)}
                   >
                     Add Address
                   </button>
@@ -423,7 +424,7 @@ const Profile = () => {
                     <button
                       className="cancel-btn"
                       onClick={() => {
-                        setIsEditing(false);
+                        setIsEditingAddress(false);
                         setAddress(userData?.address || '');
                         setAddressSaveStatus({ message: '', type: '' });
                       }}

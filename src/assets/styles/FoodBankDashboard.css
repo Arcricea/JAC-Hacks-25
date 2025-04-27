@@ -507,6 +507,78 @@ textarea.editable-content {
   background-color: #f0f0f0;
 }
 
+/* Modern button styles for save/cancel */
+.modern-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+.save-btn.modern-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.save-btn.modern-btn:hover {
+  background-color: #3e9142;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.cancel-btn.modern-btn {
+  background-color: #f44336;
+  color: white;
+}
+
+.cancel-btn.modern-btn:hover {
+  background-color: #d32f2f;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.save-icon, .cancel-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.loading-dots {
+  font-size: 16px;
+  letter-spacing: 1px;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+.modern-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Add this after the .editable-field styles */
+.placeholder-text {
+  color: #999;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.editable-field[contenteditable="true"] .placeholder-text {
+  display: none;
+} 
+
 /* Contact Information Section */
 .contact-info-section {
   background-color: white;

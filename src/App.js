@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import './App.css';
 import { getUserByAuth0Id } from './services/userService';
+import { UserProvider } from './contexts/UserContext';
 
 // Components
 import Navbar from './components/Navbar';
@@ -25,6 +26,7 @@ import VolunteerDashboard from './pages/VolunteerDashboard';
 import Profile from './components/auth/Profile';
 import OrganizerDashboard from './pages/OrganizerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import ForumPage from './pages/Forum';
 
 // Create a context for user data
 export const UserContext = createContext(null);
@@ -137,51 +139,54 @@ function App() {
 
   return (
     <UserContext.Provider value={{ userData, setUserData }}>
-      <Router>
-        <div className="App">
-          <Navbar />
-          <main className="main-content">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/how-it-works" element={<HowItWorks />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<SignUp />} />
-              <Route 
-                path="/dashboard" 
-                element={
-                  isAuthenticated ? (
-                    userData?.accountType === 'business' || userData?.accountType === 'supplier' ? <SupplierDashboard /> :
-                    userData?.accountType === 'distributor' || userData?.accountType === 'foodbank' ? <FoodBankDashboard /> :
-                    userData?.accountType === 'individual' ? <IndividualDashboard /> :
-                    userData?.accountType === 'volunteer' ? <VolunteerDashboard /> :
-                    userData?.accountType === 'organizer' ? <OrganizerDashboard /> :
-                    isLoading || isCheckingUser || !userData ? <div>Loading dashboard...</div> : 
-                    <div>Loading... Determining dashboard type...</div>
-                  ) : (
-                    <div>Please log in to view the dashboard.</div>
-                  )
-                } 
-              />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              {/* Add more routes as needed */}
-            </Routes>
-          </main>
-          <Footer />
-          
-          {/* Modals */}
-          <UsernameSetupModal 
-            isOpen={showUsernameModal} 
-            onComplete={handleUsernameComplete} 
-          />
-          <UserTypeModal 
-            isOpen={showUserTypeModal} 
-            onComplete={handleUserTypeComplete} 
-          />
-        </div>
-      </Router>
+      <UserProvider>
+        <Router>
+          <div className="App">
+            <Navbar />
+            <main className="main-content">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/how-it-works" element={<HowItWorks />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/signup" element={<SignUp />} />
+                <Route 
+                  path="/dashboard" 
+                  element={
+                    isAuthenticated ? (
+                      userData?.accountType === 'business' || userData?.accountType === 'supplier' ? <SupplierDashboard /> :
+                      userData?.accountType === 'distributor' || userData?.accountType === 'foodbank' ? <FoodBankDashboard /> :
+                      userData?.accountType === 'individual' ? <IndividualDashboard /> :
+                      userData?.accountType === 'volunteer' ? <VolunteerDashboard /> :
+                      userData?.accountType === 'organizer' ? <OrganizerDashboard /> :
+                      isLoading || isCheckingUser || !userData ? <div>Loading dashboard...</div> : 
+                      <div>Loading... Determining dashboard type...</div>
+                    ) : (
+                      <div>Please log in to view the dashboard.</div>
+                    )
+                  } 
+                />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/forum" element={<ForumPage />} />
+                {/* Add more routes as needed */}
+              </Routes>
+            </main>
+            <Footer />
+            
+            {/* Modals */}
+            <UsernameSetupModal 
+              isOpen={showUsernameModal}
+              onComplete={handleUsernameComplete} 
+            />
+            <UserTypeModal 
+              isOpen={showUserTypeModal} 
+              onComplete={handleUserTypeComplete} 
+            />
+          </div>
+        </Router>
+      </UserProvider>
     </UserContext.Provider>
   );
 }

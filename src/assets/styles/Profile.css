@@ -104,7 +104,19 @@
 
 .username-actions {
   display: flex;
-  gap: 0.8rem;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.username-actions button {
+  flex: 1;
+  min-width: 120px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .save-username-btn, .cancel-btn {
@@ -316,6 +328,13 @@
 
 .address-buttons button {
   flex: 1;
+  min-width: 120px;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .primary-btn,

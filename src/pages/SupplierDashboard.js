@@ -143,7 +143,7 @@ const SupplierDashboard = ({ previewTargetUserId }) => {
       const response = await confirmSupplierPickup(resourceUserId, scannedVolunteerId, requestingUserId);
       setConfirmationResult({ 
         success: true, 
-        message: response.message || 'Pickup confirmed successfully!' 
+        message: response.message || 'Pickup confirmed! Items are now on their way to food banks.' 
       });
       // Optionally trigger refresh of overview/listed items if needed
       if (response.success && response.modifiedCount > 0) {

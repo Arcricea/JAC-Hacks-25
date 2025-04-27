@@ -143,12 +143,9 @@ const FoodBankSuggestionModal = ({ isOpen, onClose, pickup, userLocation }) => {
       console.error('Error marking donation as delivered:', err);
       setError('Unable to confirm delivery. Please try again.');
       
-      // Despite the error, we'll still show a success message to the user
-      // and close the modal, as the backend has a fallback mechanism
-      setTimeout(() => {
-        alert('Delivery recorded successfully!');
-        onClose(true);
-      }, 1000);
+      // We'll no longer auto-close on error
+      // Instead, let the user try again
+      setIsMarking(false);
     } finally {
       setIsMarking(false);
     }
@@ -299,6 +296,10 @@ const FoodBankSuggestionModal = ({ isOpen, onClose, pickup, userLocation }) => {
                 {selectedFoodBank.openingHours && (
                   <p>Hours: {selectedFoodBank.openingHours}</p>
                 )}
+                <div className="delivery-instructions">
+                  <h4>Complete Your Delivery</h4>
+                  <p>After physically delivering the items to this food bank, click the "Confirm Delivery" button below to complete the process.</p>
+                </div>
               </div>
             )}
           </div>

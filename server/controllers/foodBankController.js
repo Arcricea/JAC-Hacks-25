@@ -545,11 +545,11 @@ exports.markDonationDelivered = async (req, res) => {
     // If no food bank ID provided, use a default one
     const finalFoodBankId = foodBankId || "default_food_bank_id";
     
-    // Update donation status to delivered
+    // Update donation status to completed (changed from 'delivered')
     const donation = await mongoose.model('Donation').findOneAndUpdate(
       { _id: donationId, volunteerId: volunteerId, status: 'picked_up' },
       { 
-        status: 'delivered',
+        status: 'completed',
         foodBankId: finalFoodBankId,
         deliveryDate: new Date()
       },
@@ -567,8 +567,8 @@ exports.markDonationDelivered = async (req, res) => {
         });
       }
       
-      // Force update to delivered status
-      anyDonation.status = 'delivered';
+      // Force update to completed status (changed from 'delivered')
+      anyDonation.status = 'completed';
       anyDonation.foodBankId = finalFoodBankId;
       anyDonation.deliveryDate = new Date();
       
@@ -580,27 +580,27 @@ exports.markDonationDelivered = async (req, res) => {
       
       return res.status(200).json({
         success: true,
-        message: 'Donation marked as delivered to food bank (forced update)',
+        message: 'Donation marked as completed (forced update)',
         data: anyDonation
       });
     }
     
     res.status(200).json({
       success: true,
-      message: 'Donation marked as delivered to food bank',
+      message: 'Donation marked as completed',
       data: donation
     });
     
   } catch (error) {
-    console.error('Error marking donation as delivered:', error);
+    console.error('Error marking donation as completed:', error);
     
     // Create a generic success response even on error
     res.status(200).json({
       success: true,
-      message: 'Delivery recorded successfully',
+      message: 'Completion recorded successfully',
       error: error.message,
       data: {
-        status: 'delivered',
+        status: 'completed',
         deliveryDate: new Date()
       }
     });
