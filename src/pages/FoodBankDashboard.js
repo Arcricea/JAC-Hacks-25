@@ -6,19 +6,35 @@ import '../assets/styles/FoodBankDashboard.css';
 import GoogleMapsScript from '../components/GoogleMapsScript';
 import { useAuth0 } from '@auth0/auth0-react';
 
+// Import the new editable components
+import EditableNeedStatus from '../components/EditableNeedStatus';
+import EditableContactField from '../components/EditableContactField';
+
+// Assume priorityLevels and getPriorityInfo are defined here or imported
+const priorityLevels = [
+  { level: 1, label: 'Do not need', color: '#4CAF50' },
+  { level: 2, label: 'Low need', color: '#8BC34A' },
+  { level: 3, label: 'Moderate need', color: '#FFC107' },
+  { level: 4, label: 'High need', color: '#FF9800' },
+  { level: 5, label: 'URGENT NEED', color: '#F44336' }
+];
+const getPriorityInfo = (level) => {
+  return priorityLevels.find(p => p.level === level) || { label: 'Unknown', color: '#9E9E9E' };
+};
+
 const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
   const { userData: adminUserData, setUserData: setAdminUserData } = useContext(UserContext);
   const { user: auth0User } = useAuth0();
-  const [activeTab, setActiveTab] = useState('overview');
   const [displayUserData, setDisplayUserData] = useState(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [dataError, setDataError] = useState('');
-
-  const [priorityLevel, setPriorityLevel] = useState(3);
+  const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
+  
+  // <<< RESTORE useState hooks for editable fields >>>
+  const [priorityLevel, setPriorityLevel] = useState(3); // Default
   const [customStatusMessage, setCustomStatusMessage] = useState('');
   const [isEditingStatus, setIsEditingStatus] = useState(false);
   const [isSavingStatus, setIsSavingStatus] = useState(false);
-
   const [address, setAddress] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -26,10 +42,10 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
   const [editingField, setEditingField] = useState(null);
   const [isSavingContact, setIsSavingContact] = useState(false);
   const [contactSaveStatus, setContactSaveStatus] = useState({ message: '', type: '' });
-  const [isGoogleLoaded, setIsGoogleLoaded] = useState(false);
   const autocompleteInputRef = useRef(null);
   const autocompleteRef = useRef(null);
   const [addressError, setAddressError] = useState('');
+  // <<< END RESTORED useState hooks >>>
 
   useEffect(() => {
     const loadDisplayData = async () => {
@@ -44,16 +60,13 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
 
       try {
         let fetchedData;
-        if (previewTargetUserId) {
-          console.log(`Preview mode: Fetching data for ${previewTargetUserId} as admin ${requestingUserId}`);
-          const response = await getUserByAuth0Id(previewTargetUserId, requestingUserId);
-          if (response.success) {
-            fetchedData = response.data;
-          } else {
-            throw new Error(response.message || 'Failed to fetch previewed user data');
-          }
+        const targetUserId = previewTargetUserId || requestingUserId;
+        console.log(`Loading data for ${targetUserId} as admin ${requestingUserId}`);
+        const response = await getUserByAuth0Id(targetUserId, requestingUserId);
+        if (response.success) {
+          fetchedData = response.data;
         } else {
-          fetchedData = adminUserData;
+          throw new Error(response.message || 'Failed to fetch user data');
         }
         setDisplayUserData(fetchedData);
       } catch (err) {
@@ -74,17 +87,20 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
 
   useEffect(() => {
     if (displayUserData) {
+      // Initialize need status state
       setPriorityLevel(displayUserData.needStatus?.priorityLevel || 3);
       setCustomStatusMessage(displayUserData.needStatus?.customMessage || '');
 
+      // Initialize contact state
       setAddress(displayUserData.address || '');
-      setEmail(displayUserData.email || auth0User?.email || '');
+      setEmail(displayUserData.email || auth0User?.email || ''); 
       setPhone(displayUserData.phone || '');
       setOpeningHours(displayUserData.openingHours || '');
       
       setIsEditingStatus(false);
       setEditingField(null);
     } else {
+      // Reset state if displayUserData is null
       setPriorityLevel(3);
       setCustomStatusMessage('');
       setAddress('');
@@ -94,14 +110,121 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
     }
   }, [displayUserData, auth0User]);
 
-  // Priority level options
-  const priorityLevels = [
-    { level: 1, label: 'Do not need', description: 'We currently have sufficient supplies', color: '#4CAF50' },
-    { level: 2, label: 'Low need', description: 'We could use some specific items, but not urgent', color: '#8BC34A' },
-    { level: 3, label: 'Moderate need', description: 'We have some shortages in key areas', color: '#FFC107' },
-    { level: 4, label: 'High need', description: 'We have significant shortages', color: '#FF9800' },
-    { level: 5, label: 'URGENT NEED', description: '🚨 WE NEED FOOD DONATIONS IMMEDIATELY!! WE ARE GOING TO DIE FROM HUNGER!!! PLEASE HELP US!!! WE WILL ALL DIE FROM HUNGER!!!', color: '#F44336' }
-  ];
+  const handleSave = async (userId, dataToSave) => {
+    const requestingUserId = adminUserData?.auth0Id;
+    if (!userId || !requestingUserId) {
+      throw new Error("User ID or requesting User ID missing.");
+    }
+
+    let updatedUser = null;
+    if (dataToSave.hasOwnProperty('priorityLevel') || dataToSave.hasOwnProperty('customMessage')) {
+        // Need Status Save (PUT /set-need)
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/users/set-need/${userId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'X-Requesting-User-Id': requestingUserId },
+            body: JSON.stringify(dataToSave),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'Failed to save status');
+        }
+        updatedUser = result.data;
+    } else {
+        // Contact Field Save (POST /users)
+        const payload = { auth0Id: userId, ...dataToSave };
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requesting-User-Id': requestingUserId },
+            body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'Failed to save contact field');
+        }
+        updatedUser = result.data;
+    }
+
+    // Update local state and notify parent if in preview
+    if (updatedUser) {
+        setDisplayUserData(prev => prev ? { ...prev, ...updatedUser } : updatedUser);
+        if (previewTargetUserId && onUpdate) {
+            onUpdate(updatedUser);
+        }
+    }
+  };
+  
+  const handleGoogleMapsLoad = () => {
+    setIsGoogleLoaded(true);
+  };
+
+  const renderPriorityBadge = (level) => {
+    const priorityInfo = priorityLevels.find(p => p.level === level);
+    if (!priorityInfo) return null;
+    return (
+      <div 
+        className="priority-badge" 
+        style={{ backgroundColor: priorityInfo.color }}
+      >
+        {priorityInfo.label}
+      </div>
+    );
+  };
+
+  const renderContactField = (fieldName, label, value, placeholder) => {
+    const isEditing = editingField === fieldName;
+    const InputComponent = (fieldName === 'openingHours' || fieldName === 'address') ? 'textarea' : 'input';
+    const inputType = fieldName === 'email' ? 'email' : fieldName === 'phone' ? 'tel' : 'text';
+
+    return (
+      <div className="contact-field">
+        <h4>{label}</h4>
+        <div className="status-message-display">
+          {isEditing ? (
+            <>
+              <InputComponent
+                ref={fieldName === 'address' ? autocompleteInputRef : null}
+                className="editable-content"
+                type={InputComponent === 'input' ? inputType : undefined}
+                value={value}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  switch(fieldName) {
+                    case 'address': setAddress(newValue); break;
+                    case 'email': setEmail(newValue); break;
+                    case 'phone': setPhone(newValue); break;
+                    case 'openingHours': setOpeningHours(newValue); break;
+                    default: break;
+                  }
+                }}
+                placeholder={placeholder}
+                disabled={fieldName === 'address' && !isGoogleLoaded}
+                rows={InputComponent === 'textarea' ? 3 : undefined}
+                style={{ paddingRight: '60px' }}
+              />
+              <div className="edit-actions">
+                 <button className="save-btn" onClick={handleSaveContact} disabled={isSavingContact}>✓</button>
+                 <button className="cancel-btn" onClick={() => {
+                    setEditingField(null);
+                    if(displayUserData) {
+                       setAddress(displayUserData.address || '');
+                       setEmail(displayUserData.email || auth0User?.email || '');
+                       setPhone(displayUserData.phone || '');
+                       setOpeningHours(displayUserData.openingHours || '');
+                    }
+                    setContactSaveStatus({ message: '', type: '' });
+                  }}>×</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="display-content">{value || placeholder || 'Not set'}</span>
+              <button className="edit-btn" onClick={() => setEditingField(fieldName)}>✏️</button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // Handler for saving need status
   const handleSaveStatus = async () => {
@@ -245,79 +368,6 @@ const FoodBankDashboard = ({ previewTargetUserId, onUpdate }) => {
       }
     }
   }, [editingField, isGoogleLoaded]);
-
-  const handleGoogleMapsLoad = () => {
-    setIsGoogleLoaded(true);
-  };
-
-  const renderPriorityBadge = (level) => {
-    const priorityInfo = priorityLevels.find(p => p.level === level);
-    if (!priorityInfo) return null;
-    return (
-      <div 
-        className="priority-badge" 
-        style={{ backgroundColor: priorityInfo.color }}
-      >
-        {priorityInfo.label}
-      </div>
-    );
-  };
-
-  const renderContactField = (fieldName, label, value, placeholder) => {
-    const isEditing = editingField === fieldName;
-    const InputComponent = (fieldName === 'openingHours' || fieldName === 'address') ? 'textarea' : 'input';
-    const inputType = fieldName === 'email' ? 'email' : fieldName === 'phone' ? 'tel' : 'text';
-
-    return (
-      <div className="contact-field">
-        <h4>{label}</h4>
-        <div className="status-message-display">
-          {isEditing ? (
-            <>
-              <InputComponent
-                ref={fieldName === 'address' ? autocompleteInputRef : null}
-                className="editable-content"
-                type={InputComponent === 'input' ? inputType : undefined}
-                value={value}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  switch(fieldName) {
-                    case 'address': setAddress(newValue); break;
-                    case 'email': setEmail(newValue); break;
-                    case 'phone': setPhone(newValue); break;
-                    case 'openingHours': setOpeningHours(newValue); break;
-                    default: break;
-                  }
-                }}
-                placeholder={placeholder}
-                disabled={fieldName === 'address' && !isGoogleLoaded}
-                rows={InputComponent === 'textarea' ? 3 : undefined}
-                style={{ paddingRight: '60px' }}
-              />
-              <div className="edit-actions">
-                 <button className="save-btn" onClick={handleSaveContact} disabled={isSavingContact}>✓</button>
-                 <button className="cancel-btn" onClick={() => {
-                    setEditingField(null);
-                    if(displayUserData) {
-                       setAddress(displayUserData.address || '');
-                       setEmail(displayUserData.email || auth0User?.email || '');
-                       setPhone(displayUserData.phone || '');
-                       setOpeningHours(displayUserData.openingHours || '');
-                    }
-                    setContactSaveStatus({ message: '', type: '' });
-                  }}>×</button>
-              </div>
-            </>
-          ) : (
-            <>
-              <span className="display-content">{value || placeholder || 'Not set'}</span>
-              <button className="edit-btn" onClick={() => setEditingField(fieldName)}>✏️</button>
-            </>
-          )}
-        </div>
-      </div>
-    );
-  };
 
   if (isLoadingData) {
      return <div className="dashboard-loading">Loading User Data...</div>;

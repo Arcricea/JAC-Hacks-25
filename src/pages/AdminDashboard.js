@@ -2,7 +2,12 @@ import React, { useState, useEffect, useContext } from 'react';
 import { UserContext } from '../App'; // To check if current user is organizer
 import '../assets/styles/Dashboard.css'; // Reuse general dashboard styles
 import '../assets/styles/OrganizerDashboard.css'; // <<< ADD ORGANIZER STYLES
+import '../assets/styles/FoodBankDashboard.css'; // <<< ADD FOOD BANK STYLES FOR PREVIEW
 // import '../assets/styles/AdminDashboard.css'; // Optional: Create specific styles
+
+// Import the new editable components
+import EditableNeedStatus from '../components/EditableNeedStatus';
+import EditableContactField from '../components/EditableContactField'; 
 
 // <<< Import other dashboard components HERE >>>
 import IndividualDashboard from './IndividualDashboard';
@@ -599,21 +604,18 @@ const AdminDashboard = () => {
   };
   // <<< END OF ADDED RENDER FUNCTION >>>
 
-  // <<< RESTORE RENDER FUNCTION (was renderPreviewDashboard) >>>
+  // <<< RESTORE RENDER FUNCTION definition >>>
   const renderRoleView = () => {
     // Find the user object corresponding to the preview type, if applicable
-    // This is simplistic; might need a better way to select *which* business/etc. to preview
-    // For now, just find the first user of that type (excluding the admin)
     const targetUser = users.find(u => u.accountType === previewDashboardType && u.auth0Id !== userData.auth0Id);
     const targetUserId = targetUser ? targetUser.auth0Id : null;
 
-    // The context still holds the *admin's* data for auth purposes
     const adminUserData = userData;
 
-    // Pass the target user ID as a prop if we found one
+    // Pass the target user ID and update handler as props
     const componentProps = { 
       ...(targetUserId && { previewTargetUserId: targetUserId }),
-      onUpdate: handlePreviewDataUpdate
+      onUpdate: handlePreviewDataUpdate // Pass the update handler
     }; 
 
     const wrapInPreviewContext = (Component) => (
@@ -622,6 +624,7 @@ const AdminDashboard = () => {
         <Component {...componentProps} />
       </UserContext.Provider>
     );
+    
     switch (previewDashboardType) {
       case 'individual':
         return wrapInPreviewContext(IndividualDashboard);
@@ -632,8 +635,64 @@ const AdminDashboard = () => {
       case 'volunteer':
         return wrapInPreviewContext(VolunteerDashboard);
       default:
+        // Should not happen if dropdown is controlled, but return null as fallback
         return null; 
     }
+  };
+ // <<< END RESTORED RENDER FUNCTION >>>
+
+  // --- Action Handlers ---
+  // We need a consolidated save function for the editable components
+  const handleInlineSave = async (accountId, dataToSave) => {
+      // Determine if it's a status save or contact field save
+      if (dataToSave.hasOwnProperty('priorityLevel') || dataToSave.hasOwnProperty('customMessage')) {
+          // Need Status Save
+          try {
+              const response = await fetch(`http://localhost:5000/api/users/set-need/${accountId}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json', 'X-Requesting-User-Id': userData.auth0Id },
+                  body: JSON.stringify(dataToSave),
+              });
+              const result = await response.json();
+              if (!response.ok || !result.success) {
+                  throw new Error(result.message || 'Failed to save status');
+              }
+              // Update local state on success
+              setUsers(prevUsers => prevUsers.map(u => 
+                  u.auth0Id === accountId ? { ...u, needStatus: result.data.needStatus } : u
+              ));
+              // Also clear edit state if tracked in distributorData
+              setDistributorData(prevDists => prevDists.map(d => 
+                  d.auth0Id === accountId ? { ...d, isEditing: false, editData: undefined } : d
+              ));
+          } catch (err) {
+              console.error("Error saving need status:", err);
+              setError(`Save failed for ${accountId}: ${err.message}`); 
+              throw err; // Re-throw for the component to handle
+          }
+      } else {
+          // Contact Field Save (using POST /api/users)
+          try {
+             const payload = { auth0Id: accountId, ...dataToSave };
+             const response = await fetch(`http://localhost:5000/api/users`, {
+                  method: 'POST', // Uses the saveUser endpoint
+                  headers: { 'Content-Type': 'application/json', 'X-Requesting-User-Id': userData.auth0Id },
+                  body: JSON.stringify(payload),
+              });
+              const result = await response.json();
+              if (!response.ok || !result.success) {
+                  throw new Error(result.message || 'Failed to save contact field');
+              }
+              // Update local state on success
+              setUsers(prevUsers => prevUsers.map(u => 
+                  u.auth0Id === accountId ? { ...u, ...result.data } : u // Merge full updated user
+              ));
+          } catch (err) {
+              console.error("Error saving contact field:", err);
+              setError(`Save failed for ${accountId}: ${err.message}`); 
+              throw err; // Re-throw for the component to handle
+          }
+      }
   };
 
   // --- Render Logic ---
@@ -776,7 +835,7 @@ const AdminDashboard = () => {
           </section>
 
           <section className="organizer-section"> 
-            <h2>Food Bank Needs Overview</h2>
+            <h2>Managed Accounts (Food Banks & Organizers)</h2>
             <div style={{ marginBottom: '15px' }}> 
               <button 
                 onClick={() => { setShowAddRequestForm(true); setAddRequestError(''); }} 
@@ -792,76 +851,54 @@ const AdminDashboard = () => {
                 <thead>
                   <tr>
                     <th>Account Name</th> 
-                    <th>Priority Level</th>
-                    <th>Status Message</th>
+                    <th>Need Status</th>{/* Combined Column */}
                     <th>Address</th> 
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {managedAccounts.map(account => {
-                    const isEditing = account.isEditing; 
-                    const currentPriority = isEditing ? account.editData?.priorityLevel : account.needStatus?.priorityLevel;
-                    const currentMessage = isEditing ? account.editData?.customMessage : account.needStatus?.customMessage;
-                    const priorityInfo = getPriorityInfo(currentPriority);
-                    
                     const displayName = account.businessName || account.username || 'Unnamed Account';
+                    const disableStatusEditing = account.auth0Id === userData.auth0Id; // Example: Disable editing own status
                     
                     return (
                       <tr key={account.auth0Id}>
                         <td>{displayName} ({formatAccountType(account.accountType)})</td>
                         <td>
-                          {isEditing ? (
-                            <select
-                              name="priorityLevel"
-                              value={currentPriority ?? 1}
-                              onChange={(e) => handleEditFormChange(e, account.auth0Id)}
-                              className="inline-edit-input"
-                            >
-                              {priorityLevels.map(p => (
-                                <option key={p.level} value={p.level}>{p.level} - {p.label}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <span className="priority-badge-inline" style={{ backgroundColor: priorityInfo.color }}>
-                              {priorityInfo.label}
-                            </span>
-                          )}
+                          {/* Use EditableNeedStatus component */} 
+                          <EditableNeedStatus 
+                              auth0Id={account.auth0Id}
+                              initialPriority={account.needStatus?.priorityLevel ?? 1}
+                              initialMessage={account.needStatus?.customMessage ?? ''}
+                              priorityLevels={priorityLevels} // Pass defined levels
+                              getPriorityInfo={getPriorityInfo} // Pass helper function
+                              onSave={handleInlineSave} // Pass the save handler
+                              disabled={disableStatusEditing} // Example condition
+                          />
                         </td>
                         <td>
-                          {isEditing ? (
-                            <input 
-                              type="text"
-                              name="customMessage"
-                              value={currentMessage ?? ''}
-                              onChange={(e) => handleEditFormChange(e, account.auth0Id)}
-                              className="inline-edit-input"
-                              placeholder="Enter status message"
+                             {/* Use EditableContactField component - For Address */} 
+                            <EditableContactField
+                                auth0Id={account.auth0Id}
+                                fieldName="address" // Or businessAddress?
+                                label="Address" // Hide label visually if needed in table
+                                initialValue={account.address || account.businessAddress || ''}
+                                placeholder="No address listed"
+                                onSave={handleInlineSave}
+                                inputType="textarea" // Example: use textarea for address
                             />
-                          ) : (
-                            currentMessage || 'No specific message'
-                          )}
                         </td>
-                        <td>{account.businessAddress || account.address || 'No address listed'}</td> 
-                        <td> 
-                          {isEditing ? (
-                            <>
-                              <button onClick={() => handleSetFoodBankStatus(account.auth0Id)} className="action-button save-button">Save</button>
-                              <button onClick={handleCancelEdit} className="action-button cancel-button">Cancel</button>
-                            </>
-                          ) : (
-                            <>
-                              <button onClick={() => handleEditClick(account)} className="action-button edit-button">Edit Status</button>
-                              <button 
+                        <td className="action-cell">
+                            {/* Other actions like Reset Requests, Delete */}
+                            <button 
                                 onClick={() => handleResetRequests(account.auth0Id)} 
                                 className="action-button reset-button"
                                 title="Reset all need requests for this account"
-                                disabled={account.accountType !== 'distributor'}
-                              >
-                                Reset Requests
-                              </button>
-                            </>
-                          )}
+                                disabled={account.accountType !== 'distributor'} // Disable reset for organizers?
+                            >
+                                Reset
+                            </button>
+                            {/* Add Delete button here if needed, similar to User Management */}
                         </td>
                       </tr>
                     );
