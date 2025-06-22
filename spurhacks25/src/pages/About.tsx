@@ -1,9 +1,11 @@
 import BurgerMenu from '../components/BurgerMenu'
 import '../styles/Pages.css'
+import catImage from '../cute_cat.png'
 
 const About = () => {
   return (
     <div className="page-container">
+      <img src={catImage} alt="Cute cat" className="corner-cat" />
       <h1 className="site-title">Plastif.ai</h1>
       <BurgerMenu />
       <div className="content">

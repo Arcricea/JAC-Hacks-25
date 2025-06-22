@@ -22,8 +22,9 @@ const BurgerMenu = () => {
 
       <nav className={`menu-items ${isOpen ? 'open' : ''}`}>
         <ul>
-          <li><Link to="/" onClick={toggleMenu}>Testing</Link></li>
-          <li><Link to="/about" onClick={toggleMenu}>About Us</Link></li>
+          <li><Link to="/home" onClick={toggleMenu}>Home</Link></li>
+          <li><Link to="/test" onClick={toggleMenu}>Test Water</Link></li>
+          <li><Link to="/about" onClick={toggleMenu}>About</Link></li>
           <li><Link to="/contact" onClick={toggleMenu}>Contact</Link></li>
         </ul>
       </nav>

@@ -1,9 +1,11 @@
 import BurgerMenu from '../components/BurgerMenu'
 import '../styles/Pages.css'
+import catImage from '../cute_cat.png'
 
 const Contact = () => {
   return (
     <div className="page-container">
+      <img src={catImage} alt="Cute cat" className="corner-cat" />
       <h1 className="site-title">Plastif.ai</h1>
       <BurgerMenu />
       <div className="content">
@@ -16,17 +18,18 @@ const Contact = () => {
           <div className="contact-info">
             <div className="contact-item">
               <h3>Email</h3>
-              <p>contact@plastif.ai</p>
+              <p>aiplastif@gmail.com</p>
             </div>
             <div className="contact-item">
               <h3>Social Media</h3>
+              <p>These are just for fun</p>
               <p>Twitter: @plastif_ai</p>
               <p>LinkedIn: plastif-ai</p>
             </div>
             <div className="contact-item">
               <h3>Location</h3>
-              <p>Innovation Hub</p>
-              <p>Vancouver, BC, Canada</p>
+              <p>Spur Innovation Hub</p>
+              <p>Kitchener, On, Canada</p>
             </div>
           </div>
         </div>
