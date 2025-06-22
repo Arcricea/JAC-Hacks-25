@@ -75,7 +75,7 @@ const Camera = () => {
         headers: {
           'Content-Type': 'text/plain',
         },
-        body: 'testing'
+        body: '150,255,255'
       })
       
       if (response.ok) {

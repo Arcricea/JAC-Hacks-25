@@ -2,7 +2,7 @@ import serial
 import time
 
 try:
-    ser = serial.Serial('COM6', 9600, timeout=2)  # Added timeout
+    ser = serial.Serial('COM5', 9600, timeout=2)  # Added timeout
     time.sleep(2)  # Give Arduino time to initialize
     
     print("Connected to Arduino. Enter RGB values as: red,green,blue (e.g., 255,128,64)")
