@@ -1,0 +1,130 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+  background-color: #242424;
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+.camera-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  padding: 20px;
+  box-sizing: border-box;
+  background-color: #242424;
+  margin: 0;
+  overflow: hidden;
+}
+
+.camera-preview {
+  width: 100%;
+  max-width: 640px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.capture-button,
+.signal-button {
+  padding: 12px 24px;
+  font-size: 1.2rem;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin: 10px 0;
+}
+
+.capture-button {
+  background-color: #646cff;
+}
+
+.signal-button {
+  background-color: #ff4646;
+}
+
+.capture-button:hover {
+  background-color: #747bff;
+}
+
+.signal-button:hover {
+  background-color: #ff5656;
+}
+
+.capture-button:active,
+.signal-button:active {
+  transform: scale(0.98);
+}
+
+.error-message {
+  color: #ff4444;
+  text-align: center;
+  padding: 20px;
+  background-color: rgba(255, 68, 68, 0.1);
+  border-radius: 8px;
+  max-width: 400px;
+  margin: 20px auto;
+}
+
+.success-message {
+  color: #44ff44;
+  text-align: center;
+  padding: 12px;
+  background-color: rgba(68, 255, 68, 0.1);
+  border-radius: 8px;
+  margin-top: 16px;
+  font-size: 1rem;
+}
+
+.status-message {
+  color: #ffaa44;
+  text-align: center;
+  padding: 12px;
+  background-color: rgba(255, 170, 68, 0.1);
+  border-radius: 8px;
+  margin-top: 16px;
+  font-size: 1rem;
+}
+
+/* Ensure no margins on mobile */
+
