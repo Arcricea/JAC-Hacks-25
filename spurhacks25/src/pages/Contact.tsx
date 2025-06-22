@@ -4,28 +4,29 @@ import '../styles/Pages.css'
 const Contact = () => {
   return (
     <div className="page-container">
+      <h1 className="site-title">Plastif.ai</h1>
       <BurgerMenu />
       <div className="content">
-        <h1>Contact Us</h1>
+        <h2>Contact Us</h2>
         <div className="contact-content">
           <p>
-            We'd love to hear from you! Whether you have questions, feedback, or just want to say hello,
-            feel free to reach out to us.
+            Have questions about Plastif.ai or want to learn more about our plastic
+            recycling technology? We'd love to hear from you!
           </p>
           <div className="contact-info">
             <div className="contact-item">
               <h3>Email</h3>
-              <p>contact@example.com</p>
+              <p>contact@plastif.ai</p>
             </div>
             <div className="contact-item">
               <h3>Social Media</h3>
-              <p>Follow us on Twitter: @example</p>
-              <p>Connect on LinkedIn: example-company</p>
+              <p>Twitter: @plastif_ai</p>
+              <p>LinkedIn: plastif-ai</p>
             </div>
             <div className="contact-item">
               <h3>Location</h3>
-              <p>123 Tech Street</p>
-              <p>Innovation City, IC 12345</p>
+              <p>Innovation Hub</p>
+              <p>Vancouver, BC, Canada</p>
             </div>
           </div>
         </div>

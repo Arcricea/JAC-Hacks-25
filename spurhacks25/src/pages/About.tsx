@@ -4,21 +4,23 @@ import '../styles/Pages.css'
 const About = () => {
   return (
     <div className="page-container">
+      <h1 className="site-title">Plastif.ai</h1>
       <BurgerMenu />
       <div className="content">
-        <h1>About Us</h1>
+        <h2>About Us</h2>
         <div className="about-content">
           <p>
-            Welcome to our innovative photo capture application! We are passionate about creating
-            simple yet powerful tools that make capturing and storing memories easier than ever.
+            Welcome to Plastif.ai! We are dedicated to making plastic recycling easier and more
+            efficient through the power of artificial intelligence and computer vision.
           </p>
           <p>
-            Our team is dedicated to developing user-friendly applications that leverage modern
-            web technologies to provide seamless experiences across all devices.
+            Our application helps identify and categorize different types of plastics,
+            making recycling more accessible and accurate for everyone.
           </p>
           <p>
-            This application was built using React and modern web APIs, allowing you to take
-            photos directly from your browser and store them locally for easy access.
+            Using advanced machine learning algorithms, Plastif.ai can analyze photos of
+            plastic items and provide instant feedback about their recyclability and
+            proper disposal methods.
           </p>
         </div>
       </div>
