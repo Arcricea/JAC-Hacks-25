@@ -1,28 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom'
 import BurgerMenu from './components/BurgerMenu'
 import About from './pages/About'
 import Contact from './pages/Contact'
+import Results from './pages/Results'
 import './App.css'
-import { GoogleGenAI } from "@google/genai";
 
-// Type for the AI response
-interface GemmaResponse {
-  candidates: Array<{
-    content: {
-      text: string;
-    };
-  }>;
-}
-
-// Rename the camera component
 const Camera = () => {
+  const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null)
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [error, setError] = useState<string>('')
-  const [photoTaken, setPhotoTaken] = useState<boolean>(false)
+  const [photoCount, setPhotoCount] = useState<number>(0)
+  const [isProcessing, setIsProcessing] = useState<boolean>(false)
   const [signalStatus, setSignalStatus] = useState<string>('')
-  const [aiColors, setAiColors] = useState<string>('')
+  const [aiColors, setAiColors] = useState<string[]>([])
+  const [hasInitialPhoto, setHasInitialPhoto] = useState<boolean>(false)
 
   useEffect(() => {
     // Request camera access when component mounts
@@ -51,35 +44,22 @@ const Camera = () => {
     }
   }, [])
 
-  const getAiColors = async () => {
-    try {
-      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GOOGLE_AI_KEY });
-      const model = ai.models.generateContent({
-        model: "gemma-3n-e4b-it",
-        contents: "give 3 random colours in RGB format. Return the RGB values as comma seperated values without spaces, and seperate the colours by using a period. An example of what would be returned would be '150,255,255.255,150,255.255,255,255,150'"
-      });
-      
-      const response = await model;
-      if (!response.text) {
-        throw new Error('No response text from AI');
-      }
-      
-      const colors = response.text.trim();
-      console.log('AI Recommended Colors:', colors);
-      localStorage.setItem('ai_colors', colors);
-      setAiColors(colors);
+  const generateRandomColors = () => {
+    const generateColor = () => {
+      const r = Math.floor(Math.random() * 256);
+      const g = Math.floor(Math.random() * 256);
+      const b = Math.floor(Math.random() * 256);
+      return `${r},${g},${b}`;
+    };
 
-      // Extract first color and send to Python server
-      const firstColor = colors.split('.')[0];
-      await sendSignal(firstColor);
-      console.log('Signal sent successfully!', firstColor);
-      
-      return colors;
-    } catch (err) {
-      console.error('Error getting AI colors:', err);
-      setError('Failed to get color recommendations from AI');
-      return null;
-    }
+    const colors = [
+      generateColor(),
+      generateColor(),
+      generateColor()
+    ];
+    console.log('Generated test colors:', colors);
+    setAiColors(colors);
+    return colors;
   };
 
   const sendSignal = async (colorValues: string) => {
@@ -95,7 +75,7 @@ const Camera = () => {
       
       if (response.ok) {
         setSignalStatus('Signal sent successfully!');
-        setTimeout(() => setSignalStatus(''), 3000); // Clear status after 3 seconds
+        setTimeout(() => setSignalStatus(''), 3000);
       } else {
         throw new Error('Failed to send signal');
       }
@@ -107,6 +87,7 @@ const Camera = () => {
 
   const takePhoto = async () => {
     if (!videoRef.current) return;
+    setIsProcessing(true);
 
     // Create a temporary canvas for the full image
     const tempCanvas = document.createElement('canvas');
@@ -138,17 +119,59 @@ const Camera = () => {
         );
         
         try {
-          // Save the cropped image
-          localStorage.setItem('image_1', finalCanvas.toDataURL('image/png'));
-          setPhotoTaken(true);
+          if (!hasInitialPhoto) {
+            // Save initial photo and generate colors
+            localStorage.setItem('initial_photo', finalCanvas.toDataURL('image/png'));
+            setHasInitialPhoto(true);
+            generateRandomColors();
+            // Wait for 2 seconds to show processing state
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            setIsProcessing(false);
+            return;
+          }
+
+          // Save the analysis photo with the appropriate name
+          const photoNumber = photoCount + 1;
+          localStorage.setItem(`analysis_${photoNumber}`, finalCanvas.toDataURL('image/png'));
           
-          // Get and store AI colors
-          await getAiColors();
+          // Send the appropriate color signal
+          if (aiColors.length > 0) {
+            await sendSignal(aiColors[photoCount]);
+          }
+
+          // Wait for 2 seconds to show processing state
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          const newPhotoCount = photoCount + 1;
+          setPhotoCount(newPhotoCount);
+          setIsProcessing(false);
+
+          // If all photos are taken, navigate to results
+          if (newPhotoCount >= 3) {
+            // Stop the camera stream
+            if (stream) {
+              stream.getTracks().forEach(track => track.stop());
+            }
+            // Navigate to results page
+            setTimeout(() => navigate('/results'), 1000);
+          }
         } catch (err) {
           setError('Failed to save photo. The image might be too large.');
           console.error('Error saving to localStorage:', err);
+          setIsProcessing(false);
         }
       }
+    }
+  };
+
+  const getButtonText = () => {
+    if (isProcessing) return "Processing...";
+    if (!hasInitialPhoto) return "Take Photo";
+    switch (photoCount) {
+      case 0: return "Take 1st Photo";
+      case 1: return "Take 2nd Photo";
+      case 2: return "Take 3rd Photo";
+      default: return "Analysis Complete";
     }
   };
 
@@ -170,23 +193,12 @@ const Camera = () => {
             playsInline
             className="camera-preview"
           />
-          <button onClick={takePhoto} className="capture-button">
-            {photoTaken ? 'Photo Saved!' : 'Take Photo'}
-          </button>
-          {photoTaken && (
-            <>
-              <p className="success-message">
-                Photo has been saved!
-              </p>
-              {aiColors && (
-                <p className="ai-colors">
-                  Recommended test colors: {aiColors}
-                </p>
-              )}
-            </>
-          )}
-          <button onClick={() => getAiColors()} className="signal-button">
-            Send Signal
+          <button 
+            onClick={takePhoto} 
+            className={`capture-button ${isProcessing ? 'processing' : ''} ${photoCount >= 3 ? 'disabled' : ''}`}
+            disabled={photoCount >= 3 || isProcessing}
+          >
+            {getButtonText()}
           </button>
           {signalStatus && (
             <p className={signalStatus.includes('success') ? 'success-message' : 'status-message'}>
@@ -196,8 +208,8 @@ const Camera = () => {
         </>
       )}
     </div>
-  )
-}
+  );
+};
 
 // Main App component with routing
 function App() {
@@ -207,6 +219,7 @@ function App() {
         <Route path="/" element={<Camera />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
+        <Route path="/results" element={<Results />} />
       </Routes>
     </Router>
   )

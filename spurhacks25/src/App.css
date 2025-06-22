@@ -90,12 +90,21 @@
   background-color: #646cff;
 }
 
-.capture-button:hover,
-.signal-button:hover {
+.capture-button:hover:not(.processing):not(.disabled) {
   background-color: #747bff;
 }
 
-.capture-button:active,
+.capture-button.processing {
+  background-color: #ff4646;
+  cursor: not-allowed;
+}
+
+.capture-button.disabled {
+  background-color: #666666;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .signal-button:active {
   transform: scale(0.98);
 }
