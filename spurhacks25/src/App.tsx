@@ -145,7 +145,7 @@ Be a bit creative with the colors, but make sure they are distinct and appropria
   const sendSignal = async (colorValues: string) => {
     try {
       setSignalStatus('Sending signal...');
-      const response = await fetch('https://04c7-192-159-180-156.ngrok-free.app', {
+      const response = await fetch('https://1eaa-192-159-180-156.ngrok-free.app', {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain',
