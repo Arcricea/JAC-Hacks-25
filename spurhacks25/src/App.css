@@ -43,41 +43,43 @@
 }
 
 .site-title {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: relative;
+  text-align: center;
+  margin: 0 0 20px 0;
   font-size: 2rem;
   font-weight: bold;
   color: #646cff;
-  margin: 0;
-  z-index: 1000;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .camera-container {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  width: 100%;
-  padding: 20px;
-  box-sizing: border-box;
-  background-color: #242424;
-  margin: 0;
-  overflow: hidden;
 }
 
 .camera-preview {
   width: 100%;
   max-width: 640px;
+  height: auto;
+  margin: 20px auto;
+  display: block;
   border-radius: 12px;
-  margin-bottom: 20px;
 }
 
 .capture-button,
 .signal-button {
+  margin: 10px auto;
+  display: block;
+  width: 80%;
+  max-width: 300px;
   padding: 12px 24px;
   font-size: 1.2rem;
   color: white;
@@ -85,23 +87,12 @@
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s;
-  margin: 10px 0;
-}
-
-.capture-button {
   background-color: #646cff;
 }
 
-.signal-button {
-  background-color: #ff4646;
-}
-
-.capture-button:hover {
-  background-color: #747bff;
-}
-
+.capture-button:hover,
 .signal-button:hover {
-  background-color: #ff5656;
+  background-color: #747bff;
 }
 
 .capture-button:active,
@@ -115,8 +106,11 @@
   padding: 20px;
   background-color: rgba(255, 68, 68, 0.1);
   border-radius: 8px;
+  width: 100%;
   max-width: 400px;
-  margin: 20px auto;
+  margin: 10px auto;
+  box-sizing: border-box;
+  word-wrap: break-word;
 }
 
 .success-message {
@@ -125,8 +119,12 @@
   padding: 12px;
   background-color: rgba(68, 255, 68, 0.1);
   border-radius: 8px;
-  margin-top: 16px;
+  margin: 10px auto;
   font-size: 1rem;
+  width: 100%;
+  max-width: 400px;
+  box-sizing: border-box;
+  word-wrap: break-word;
 }
 
 .status-message {
@@ -135,9 +133,41 @@
   padding: 12px;
   background-color: rgba(255, 170, 68, 0.1);
   border-radius: 8px;
-  margin-top: 16px;
+  margin: 10px auto;
   font-size: 1rem;
+  width: 100%;
+  max-width: 400px;
+  box-sizing: border-box;
+  word-wrap: break-word;
 }
 
-/* Ensure no margins on mobile */
+.instructions {
+  text-align: center;
+  margin: 20px 0;
+  padding: 0 20px;
+}
+
+.instructions h2 {
+  font-weight: bold;
+  color: #2c3e50;
+  margin-bottom: 10px;
+  font-size: 1.8em;
+}
+
+.instructions p {
+  color: #34495e;
+  font-size: 1.2em;
+  line-height: 1.4;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* For smooth scrolling on iOS */
+  background-color: #242424;
+}
 

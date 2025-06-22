@@ -4,6 +4,7 @@ import BurgerMenu from './components/BurgerMenu'
 import About from './pages/About'
 import Contact from './pages/Contact'
 import './App.css'
+import { GoogleGenAI } from "@google/genai";
 
 // Type for the AI response
 interface GemmaResponse {
@@ -52,32 +53,55 @@ const Camera = () => {
 
   const getAiColors = async () => {
     try {
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemma-3n-e4b:generateText', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_GOOGLE_AI_KEY}`
-        },
-        body: JSON.stringify({
-          prompt: {
-            text: "give 3 colours that would be good for testing water quality. Return the RGB values as comma seperated values without spaces, and seperate the colours by using a period. An example of what would be returned would be '150,255,255.255,150,255.255,255,150'"
-          }
-        })
+      const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GOOGLE_AI_KEY });
+      const model = ai.models.generateContent({
+        model: "gemma-3n-e4b-it",
+        contents: "give 3 random colours in RGB format. Return the RGB values as comma seperated values without spaces, and seperate the colours by using a period. An example of what would be returned would be '150,255,255.255,150,255.255,255,255,150'"
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to get AI response');
+      
+      const response = await model;
+      if (!response.text) {
+        throw new Error('No response text from AI');
       }
-
-      const data: GemmaResponse = await response.json();
-      const colors = data.candidates[0].content.text.trim();
+      
+      const colors = response.text.trim();
+      console.log('AI Recommended Colors:', colors);
       localStorage.setItem('ai_colors', colors);
       setAiColors(colors);
+
+      // Extract first color and send to Python server
+      const firstColor = colors.split('.')[0];
+      await sendSignal(firstColor);
+      console.log('Signal sent successfully!', firstColor);
+      
       return colors;
     } catch (err) {
       console.error('Error getting AI colors:', err);
       setError('Failed to get color recommendations from AI');
       return null;
+    }
+  };
+
+  const sendSignal = async (colorValues: string) => {
+    try {
+      setSignalStatus('Sending signal...');
+      const response = await fetch('http://10.200.13.110:8000', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+        body: colorValues
+      });
+      
+      if (response.ok) {
+        setSignalStatus('Signal sent successfully!');
+        setTimeout(() => setSignalStatus(''), 3000); // Clear status after 3 seconds
+      } else {
+        throw new Error('Failed to send signal');
+      }
+    } catch (err) {
+      setSignalStatus('Failed to send signal. Please try again.');
+      console.error('Error sending signal:', err);
     }
   };
 
@@ -128,29 +152,6 @@ const Camera = () => {
     }
   };
 
-  const sendSignal = async () => {
-    try {
-      setSignalStatus('Sending signal...')
-      const response = await fetch('http://10.200.13.110:8000', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain',
-        },
-        body: '150,255,255'
-      })
-      
-      if (response.ok) {
-        setSignalStatus('Signal sent successfully!')
-        setTimeout(() => setSignalStatus(''), 3000) // Clear status after 3 seconds
-      } else {
-        throw new Error('Failed to send signal')
-      }
-    } catch (err) {
-      setSignalStatus('Failed to send signal. Please try again.')
-      console.error('Error sending signal:', err)
-    }
-  }
-
   return (
     <div className="camera-container">
       <h1 className="site-title">Plastif.ai</h1>
@@ -159,6 +160,10 @@ const Camera = () => {
         <div className="error-message">{error}</div>
       ) : (
         <>
+          <div className="instructions">
+            <h2>Check your water quality!</h2>
+            <p>Line up your camera with the magnifier, center your camera, then click take photo!</p>
+          </div>
           <video
             ref={videoRef}
             autoPlay
@@ -180,7 +185,7 @@ const Camera = () => {
               )}
             </>
           )}
-          <button onClick={sendSignal} className="signal-button">
+          <button onClick={() => getAiColors()} className="signal-button">
             Send Signal
           </button>
           {signalStatus && (
